@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Admin - Nexus Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Link the consolidated CSS file -->
+    <link rel="stylesheet" href="/css/main.css?v=8">
+    <script>
+        // Apply theme before DOM content loads to prevent flash
+        (function() {
+            var savedThemeValue = localStorage.getItem('theme') || 'theme-dark';
+            document.documentElement.className = savedThemeValue;
+        })();
+    </script>
+    <style>
+        /* Styles specific to admin page */
+        body {
+            background-color: var(--nexus-bg); /* Ensure body bg matches theme */
+            color: var(--nexus-text);
+        }
+        .model-config-area {
+            height: 65vh; /* Adjusted height */
+            font-family: var(--nexus-mono);
+            font-size: 13px; /* Slightly smaller font */
+            background-color: rgba(0,0,0,0.2);
+            color: var(--nexus-text);
+            border: 1px solid var(--nexus-border);
+            border-radius: var(--nexus-radius-sm);
+        }
+        .theme-light .model-config-area {
+             background-color: #f8f9fa;
+             color: #212529;
+             border-color: #dee2e6;
+        }
+
+        .admin-card {
+            background-color: var(--nexus-card-bg);
+            border: 1px solid var(--nexus-border);
+            border-radius: var(--nexus-radius); /* Use main radius */
+            box-shadow: var(--nexus-shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .admin-card-header {
+            background-color: rgba(255, 255, 255, 0.03); /* More subtle header */
+            padding: 0.8rem 1.2rem;
+            border-bottom: 1px solid var(--nexus-border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .theme-light .admin-card-header {
+             background-color: #f8f9fa;
+        }
+
+        .nav-pills .nav-link {
+            color: var(--nexus-text-secondary);
+            margin-bottom: 0.3rem;
+            border-radius: var(--nexus-radius-sm);
+             border: 1px solid transparent;
+             transition: var(--nexus-transition);
+        }
+         .nav-pills .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--nexus-text);
+             border-color: var(--nexus-border);
+        }
+        .theme-light .nav-pills .nav-link {
+            color: var(--nexus-text-secondary);
+        }
+         .theme-light .nav-pills .nav-link:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+            color: var(--nexus-text);
+             border-color: #eee;
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: var(--nexus-accent);
+            color: white;
+            border-color: var(--nexus-accent);
+            box-shadow: 0 2px 8px rgba(60, 126, 255, 0.3);
+        }
+         .theme-light .nav-pills .nav-link.active {
+             box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+         }
+
+        .validation-message {
+            min-height: 40px; /* Reduced height */
+            font-size: 0.85rem;
+            padding: 0.5rem;
+            border-radius: var(--nexus-radius-sm);
+            margin-top: 0.5rem;
+        }
+        .validation-message.text-success {
+            background-color: rgba(52, 211, 153, 0.1);
+            border: 1px solid var(--status-success);
+            color: var(--status-success);
+        }
+         .validation-message.text-danger {
+            background-color: rgba(248, 113, 113, 0.1);
+            border: 1px solid var(--status-danger);
+            color: var(--status-danger);
+        }
+         .theme-light .validation-message.text-success,
+         .theme-light .validation-message.text-danger {
+             color: var(--nexus-text); /* Ensure contrast */
+         }
+
+
+        .provider-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem; /* Adjusted padding */
+            border-radius: 4px;
+            font-size: 0.75rem; /* Smaller badge */
+            font-weight: 600;
+            margin-right: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            border: 1px solid transparent;
+            line-height: 1.2; /* Adjust line height */
+        }
+        /* Badge colors defined in main.css */
+
+        .btn-outline-light { /* Adjust for theme */
+             color: var(--nexus-text-secondary);
+             border-color: var(--nexus-border);
+        }
+         .btn-outline-light:hover {
+             color: var(--nexus-text);
+             background-color: rgba(255, 255, 255, 0.1);
+             border-color: var(--nexus-text-secondary);
+         }
+         .theme-light .btn-outline-light {
+             color: #6c757d;
+             border-color: #ced4da;
+         }
+         .theme-light .btn-outline-light:hover {
+             color: #212529;
+             background-color: #e9ecef;
+             border-color: #adb5bd;
+         }
+
+        .btn-primary {
+             background-color: var(--nexus-accent);
+             border-color: var(--nexus-accent);
+        }
+         .btn-primary:hover {
+             background-color: var(--nexus-accent-hover);
+             border-color: var(--nexus-accent-hover);
+         }
+
+        /* Spinner animation */
+        .spin {
+            display: inline-block;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="global-header-placeholder">
+        <!-- Header will be injected here -->
+    </div>
+
+    <!-- Update Instructions Modal -->
+    <div class="modal fade" id="updateInstructionsModal" tabindex="-1" aria-labelledby="updateInstructionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateInstructionsModalLabel">How to Update AI Models</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Model data can be updated through this admin interface or by directly editing the configuration files.</p>
+                    <h5>Option 1: Using this Admin Interface</h5>
+                    <p>The recommended way to update models:</p>
+                    <ol>
+                        <li>Select the AI provider tab on the left (Claude, Gemini, etc.).</li>
+                        <li>Edit the JSON configuration directly in the editor.</li>
+                        <li>Ensure fields like <code>id</code>, <code>name</code>, <code>price</code>, <code>contextLength</code>, <code>description</code>, and <code>features</code> (array of strings) are present for each model.</li>
+                        <li>Click <strong>Validate</strong> to check your JSON syntax.</li>
+                        <li>Once validated, click <strong>Save</strong> to update the configuration.</li>
+                        <li>Changes take effect immediately for the comparison page and chat interface.</li>
+                    </ol>
+
+                    <h5>Option 2: Editing Configuration Files Directly</h5>
+                    <p>If you have server access, you can edit the files directly:</p>
+                    <ol>
+                        <li>Locate the <code>/public/config/</code> directory in the application's deployment.</li>
+                        <li>Edit the relevant <code>models-&lt;provider&gt;.json</code> file.</li>
+                        <li>Ensure the JSON structure is valid (see format below).</li>
+                        <li>Changes should reflect upon page refresh (or after server restart if caching is involved).</li>
+                    </ol>
+
+                    <h5>Required JSON Format per Model</h5>
+                    <pre><code class="language-json">{
+  "id": "unique-model-identifier",
+  "name": "User-Friendly Model Name",
+  "price": "Pricing Info (e.g., $X/M in, $Y/M out)",
+  "contextLength": "Context Window Size (e.g., 128K tokens)",
+  "description": "Brief description of the model's strengths/use case.",
+  "features": ["Feature1", "Multimodal", "Vision", "Tool Use"] // Array of strings
+}</code></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid main-container" style="padding-top: 60px; padding-bottom: 40px;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">AI Model Configuration</h1> <!-- Adjusted heading size -->
+            <div>
+                <button class="btn btn-outline-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateInstructionsModal">
+                    <i class="bi bi-info-circle me-1"></i> How to Update
+                </button>
+                <a href="hub.html" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to AI Chat
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-3">
+                <!-- Provider List Card -->
+                <div class="admin-card mb-4">
+                    <div class="admin-card-header">
+                        <i class="bi bi-box-seam me-2"></i> AI Providers
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <!-- Nav tabs -->
+                        <div class="nav flex-column nav-pills p-2" id="provider-tab" role="tablist" aria-orientation="vertical">
+                            <!-- Tabs will be generated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions Card -->
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <i class="bi bi-info-circle me-2"></i> Instructions
+                    </div>
+                    <div class="p-3 small">
+                        <p>Edit model configurations for each AI provider.</p>
+                        <ol class="ps-3 mb-2">
+                            <li>Select a provider</li>
+                            <li>Edit the JSON</li>
+                            <li>Click "Validate"</li>
+                            <li>Click "Save"</li>
+                        </ol>
+                        <p class="mb-2">Changes take effect immediately.</p>
+                        <div class="alert alert-warning p-2 mb-0 d-flex align-items-center">
+                            <i class="bi bi-shield-lock me-2"></i>
+                            <div>
+                                <strong>Admin Access:</strong> Requires authentication. Use credentials configured on the server. (Default: admin/admin123 - CHANGE IN PRODUCTION!)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <!-- Tab Content -->
+                <div class="tab-content" id="provider-tab-content">
+                    <!-- Content panes will be generated by JS -->
+                     <div class="text-center p-5 text-muted">Select a provider to start editing.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Embedded JS for Admin Page - Kept separate as it doesn't need the main app's complexity
+        document.addEventListener('DOMContentLoaded', async () => {
+            const providerTab = document.getElementById('provider-tab');
+            const tabContent = document.getElementById('provider-tab-content');
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            let providers = ['claude', 'gemini', 'chatgpt', 'grok', 'deepseek', 'llama']; // Default list
+
+            // Theme Toggle Logic
+            themeToggleBtn?.addEventListener('click', toggleTheme);
+            function toggleTheme() {
+                const currentTheme = document.documentElement.className.includes('theme-dark') ? 'theme-dark' : 'theme-light';
+                const newTheme = currentTheme === 'theme-dark' ? 'theme-light' : 'theme-dark';
+                document.documentElement.className = newTheme;
+                localStorage.setItem('theme', newTheme);
+            }
+
+            // --- Fetch available providers (optional, fallback to default list) ---
+            try {
+                const response = await fetch('/api/model-config'); // Use the API endpoint
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.providers && data.providers.length > 0) {
+                        providers = data.providers;
+                        console.log("Loaded providers from API:", providers);
+                    }
+                } else {
+                    console.warn("Failed to fetch provider list from API, using default list.");
+                }
+            } catch (error) {
+                console.error("Error fetching provider list:", error);
+            }
+
+            // --- Generate Tabs and Content Panes ---
+            if (!providerTab || !tabContent) {
+                console.error("Admin page structure error: Tab containers not found.");
+                return;
+            }
+            tabContent.innerHTML = ''; // Clear placeholder
+
+            providers.forEach((provider, index) => {
+                const isActive = index === 0;
+
+                // Create Tab Button
+                const tabButton = document.createElement('button');
+                tabButton.className = `nav-link ${isActive ? 'active' : ''}`;
+                tabButton.id = `${provider}-tab`;
+                tabButton.dataset.bsToggle = 'pill';
+                tabButton.dataset.bsTarget = `#${provider}-content`;
+                tabButton.type = 'button';
+                tabButton.role = 'tab';
+                tabButton.setAttribute('aria-controls', `${provider}-content`);
+                tabButton.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                tabButton.innerHTML = `
+                    <span class="provider-badge badge-${provider}">${provider.charAt(0).toUpperCase() + provider.slice(1)}</span> Models
+                `;
+                providerTab.appendChild(tabButton);
+
+                // Create Tab Content Pane
+                const contentPane = document.createElement('div');
+                contentPane.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+                contentPane.id = `${provider}-content`;
+                contentPane.role = 'tabpanel';
+                contentPane.setAttribute('aria-labelledby', `${provider}-tab`);
+                contentPane.innerHTML = `
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <div>
+                                <span class="provider-badge badge-${provider}">${provider.charAt(0).toUpperCase() + provider.slice(1)}</span> Model Configuration
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-light me-2" id="${provider}-validate-btn">
+                                    <i class="bi bi-check-circle me-1"></i> Validate
+                                </button>
+                                <button class="btn btn-sm btn-primary" id="${provider}-save-btn">
+                                    <i class="bi bi-save me-1"></i> Save
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <textarea id="${provider}-config" class="form-control model-config-area" spellcheck="false" aria-label="${provider} JSON configuration"></textarea>
+                            <div id="${provider}-validation" class="validation-message" aria-live="polite"></div>
+                        </div>
+                    </div>
+                `;
+                tabContent.appendChild(contentPane);
+
+                // Add event listeners after element creation
+                 setupProviderActions(provider);
+            });
+
+            // --- Load Initial Config ---
+            if (providers.length > 0) {
+                loadConfig(providers[0]); // Load config for the initially active tab
+            }
+
+             // Reload config when tab changes
+             providerTab.addEventListener('shown.bs.tab', event => {
+                const provider = event.target.dataset.bsTarget.replace('#', '').replace('-content', '');
+                loadConfig(provider);
+            });
+        });
+
+        /** Setup validate/save listeners for a provider */
+        function setupProviderActions(provider) {
+             const validateBtn = document.getElementById(`${provider}-validate-btn`);
+             const saveBtn = document.getElementById(`${provider}-save-btn`);
+             validateBtn?.addEventListener('click', () => validateConfig(provider));
+             saveBtn?.addEventListener('click', () => saveConfig(provider));
+        }
+
+        /** Load configuration for a specific provider */
+        async function loadConfig(provider) {
+            const textarea = document.getElementById(`${provider}-config`);
+            const validationEl = document.getElementById(`${provider}-validation`);
+            if (!textarea || !validationEl) return;
+
+            textarea.value = 'Loading...';
+            validationEl.innerHTML = ''; // Clear previous validation
+
+            try {
+                const configPath = `/api/model-config/${provider}`; // Use API endpoint
+                const response = await fetch(configPath);
+
+                if (response.ok) {
+                    const config = await response.json();
+                    textarea.value = JSON.stringify(config, null, 2); // Pretty print
+                } else {
+                    const errorText = await response.text();
+                    console.error(`Failed to load configuration for ${provider}: ${response.status} ${errorText}`);
+                    textarea.value = `Error loading configuration: ${response.statusText}\n\n${errorText}`;
+                    showValidation(provider, 'error', `Failed to load configuration: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error(`Error loading ${provider} configuration:`, error);
+                textarea.value = `Error loading configuration: ${error.message}`;
+                showValidation(provider, 'error', `Error loading configuration: ${error.message}`);
+            }
+        }
+
+        /** Validate the JSON configuration in the textarea */
+        function validateConfig(provider) {
+            const textarea = document.getElementById(`${provider}-config`);
+            if (!textarea) return false;
+            const jsonText = textarea.value;
+
+            try {
+                const config = JSON.parse(jsonText);
+
+                // Basic structure validation (can be expanded)
+                if (!config || typeof config !== 'object') throw new Error("Root must be an object.");
+                if (!config.provider || config.provider !== provider) {
+                    throw new Error(`'provider' field must be "${provider}".`);
+                }
+                if (!config.defaultModel || typeof config.defaultModel !== 'string') {
+                    throw new Error("'defaultModel' field (string) is required.");
+                }
+                if (!Array.isArray(config.models)) {
+                    throw new Error("'models' field must be an array.");
+                }
+                if (config.models.length > 0 && !config.models.some(m => m && m.id === config.defaultModel)) {
+                     // Warning instead of error for flexibility
+                     showValidation(provider, 'warning', `⚠️ Warning: defaultModel "${config.defaultModel}" not found in models list.`);
+                     // Allow saving despite warning by returning true
+                     return true;
+                     // Or enforce strictly: throw new Error(`defaultModel "${config.defaultModel}" must exist in the models array.`);
+                }
+                 // Validate individual model structure
+                 config.models.forEach((model, index) => {
+                    if (!model || typeof model !== 'object') throw new Error(`Model at index ${index} is not a valid object.`);
+                    if (!model.id) throw new Error(`Model at index ${index} is missing 'id'.`);
+                    if (!model.name) throw new Error(`Model at index ${index} (id: ${model.id}) is missing 'name'.`);
+                    if (!model.price) throw new Error(`Model at index ${index} (id: ${model.id}) is missing 'price'.`);
+                    // Add more checks as needed (contextLength, description, features)
+                });
+
+
+                showValidation(provider, 'success', `✓ Valid JSON configuration (${config.models.length} models).`);
+                return true;
+            } catch (error) {
+                showValidation(provider, 'error', `✗ Invalid JSON: ${error.message}`);
+                return false;
+            }
+        }
+
+        /** Save the configuration to the server */
+        async function saveConfig(provider) {
+            if (!validateConfig(provider)) {
+                showValidation(provider, 'error', `✗ Validation failed. Cannot save.`);
+                return;
+            }
+
+            const textarea = document.getElementById(`${provider}-config`);
+            const saveBtn = document.getElementById(`${provider}-save-btn`);
+            if (!textarea || !saveBtn) return;
+
+            let config;
+            try {
+                 config = JSON.parse(textarea.value);
+                 // Re-format with consistent spacing before saving
+                 textarea.value = JSON.stringify(config, null, 2);
+            } catch (e) {
+                 showValidation(provider, 'error', `✗ Internal Error: Could not re-parse valid JSON before saving.`);
+                 return;
+            }
+
+
+            // Basic Auth Prompt (Replace with a better login mechanism in production)
+            const username = prompt("Enter admin username:", "admin");
+            const password = prompt("Enter admin password:");
+
+            if (username === null || password === null) {
+                 showValidation(provider, 'warning', "Save cancelled.");
+                 return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="bi bi-arrow-repeat spin me-1"></i> Saving...';
+            showValidation(provider, 'info', 'Saving configuration...'); // Show saving status
+
+            try {
+                const response = await fetch(`/api/model-config/${provider}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Basic Auth Header
+                        'Authorization': 'Basic ' + btoa(`${username}:${password}`)
+                    },
+                    body: JSON.stringify(config) // Send the parsed and re-formatted config
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showValidation(provider, 'success', `✓ Configuration saved successfully at ${new Date().toLocaleTimeString()}.`);
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Failed to save: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error saving configuration:', error);
+                showValidation(provider, 'error', `✗ Save failed: ${error.message}`);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-save me-1"></i> Save';
+            }
+        }
+
+        /** Display validation/save status messages */
+        function showValidation(provider, type, message) {
+            const validationEl = document.getElementById(`${provider}-validation`);
+            if (!validationEl) return;
+
+            let alertClass = 'alert-secondary'; // Default/info
+            let textClass = ''; // Use default text color
+            let icon = '<i class="bi bi-info-circle-fill me-2"></i>';
+
+            if (type === 'success') {
+                alertClass = 'alert-success';
+                textClass = 'text-success'; // Keep text color consistent with type
+                icon = '<i class="bi bi-check-circle-fill me-2"></i>';
+            } else if (type === 'error') {
+                alertClass = 'alert-danger';
+                textClass = 'text-danger';
+                icon = '<i class="bi bi-exclamation-triangle-fill me-2"></i>';
+            } else if (type === 'warning') {
+                 alertClass = 'alert-warning';
+                 textClass = 'text-warning'; // Use text color for warning
+                 icon = '<i class="bi bi-exclamation-triangle-fill me-2"></i>';
+            }
+
+
+            validationEl.className = `validation-message alert ${alertClass} d-flex align-items-center`; // Use alert classes
+            validationEl.innerHTML = `${icon} <span class="${textClass}">${message}</span>`; // Add icon and specific text color class
+        }
+    </script>
+    
+    <!-- Global Footer Placeholder -->
+    <div id="global-footer-placeholder">
+        <!-- Footer will be injected here -->
+    </div>
+    
+    <!-- Load Layout Manager FIRST -->
+    <script type="module" src="/js/layoutManager.js?v=8"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+ai-collaboration-hub-refactored/
+├── public/
+│   ├── css/
+│   │   └── main.css
+│   ├── js/
+│   │   ├── auth.js           # Authentication handling
+│   │   ├── uiManager.js
+│   │   ├── connectionManager.js
+│   │   ├── modelLoader.js
+│   │   ├── authHandler.js
+│   │   ├── mcpClient.js
+│   │   ├── main.js
+│   │   ├── layoutManager.js
+│   │   ├── codePreviewManager.js
+│   │   └── debugUtils.js
+│   ├── config/
+│   │   ├── models-claude.json
+│   │   ├── models-gemini.json
+│   │   ├── models-chatgpt.json
+│   │   ├── models-grok.json
+│   │   ├── models-deepseek.json
+│   │   └── models-llama.json
+│   ├── _header.html
+│   ├── _footer.html
+│   ├── index.html
+│   ├── landing.html
+│   ├── login.html
+│   ├── signup.html
+│   ├── model-comparison.html
+│   └── admin-models.html
+├── src/
+│   ├── api/
+│   │   ├── auth-routes.mjs    # New Passport.js authentication routes
+│   │   ├── collaboration.mjs  # Will be updated for mode/style setting
+│   │   ├── config.mjs
+│   │   ├── index.mjs
+│   │   ├── mcp.mjs
+│   │   ├── responses.mjs
+│   │   ├── status.mjs
+│   │   └── upload.mjs
+│   ├── config/
+│   │   └── passport.mjs     # New Passport.js configuration
+│   ├── lib/
+│   │   ├── ai/
+│   │   │   ├── claude.mjs
+│   │   │   ├── gemini.mjs
+│   │   │   ├── openaiClient.mjs
+│   │   │   ├── collaboration.mjs  # MAJOR REFACTOR: Core orchestration logic
+│   │   │   └── index.mjs
+│   │   ├── cliHandler.mjs
+│   │   └── mcp/
+│   │       └── index.mjs
+│   ├── wsHandler.mjs          # Will be updated to call new collaboration orchestrator
+│   └── server.mjs
+├── uploads/                   # For file uploads
+├── responses/                 # For saved markdown responses
+├── .env
+├── package.json
+└── PRD.md                     # This file

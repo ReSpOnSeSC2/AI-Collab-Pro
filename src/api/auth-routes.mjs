@@ -1,0 +1,445 @@
+/**
+ * Authentication Routes
+ * Handles user authentication endpoints using Passport.js
+ */
+
+import express from 'express';
+import passport from 'passport';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { MongoClient, ObjectId } from 'mongodb';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Router setup
+const router = express.Router();
+
+// MongoDB Configuration
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = 'ai_collab';
+const USERS_COLLECTION = 'users';
+
+// JWT Configuration
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'ai_collab_auth_secret_key_for_jwt_tokens_and_cookies';
+const JWT_EXPIRY = '30d'; // 30 days
+
+// MongoDB connection and collections
+let db;
+let usersCollection;
+
+/**
+ * Connect to MongoDB
+ */
+async function connectToDatabase() {
+  try {
+    console.log('Auth Routes: Connecting to MongoDB...');
+    
+    const options = {
+      serverSelectionTimeoutMS: 30000,
+      connectTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      retryWrites: true,
+      retryReads: true
+    };
+    
+    const client = new MongoClient(MONGODB_URI, options);
+    await client.connect();
+    
+    db = client.db(DB_NAME);
+    usersCollection = db.collection(USERS_COLLECTION);
+    
+    console.log('Auth Routes: Connected to MongoDB successfully');
+    
+    // Create indexes for users collection if they don't exist
+    await usersCollection.createIndex({ email: 1 }, { unique: true });
+    
+    return true;
+  } catch (error) {
+    console.error('Auth Routes: Failed to connect to MongoDB:', error.message);
+    throw error;
+  }
+}
+
+// Connect to MongoDB when the module loads
+connectToDatabase().catch(console.error);
+
+/**
+ * Create a JWT token for a user
+ */
+function createToken(user) {
+  const payload = {
+    userId: user._id.toString(),
+    email: user.email,
+    name: user.name,
+    subscriptionTier: user.subscriptionTier || 'free'
+  };
+  
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+}
+
+/**
+ * Verify JWT token from request
+ */
+function verifyToken(req) {
+  const token = 
+    req.cookies?.authToken || 
+    req.headers.authorization?.split(' ')[1] || 
+    null;
+  
+  if (!token) return null;
+  
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Auth Middleware
+ */
+export const authenticateUser = (req, res, next) => {
+  // First check if user is authenticated via session
+  if (req.isAuthenticated()) {
+    req.user = {
+      userId: req.user._id.toString(),
+      name: req.user.name,
+      email: req.user.email,
+      subscriptionTier: req.user.subscriptionTier || 'free'
+    };
+    return next();
+  }
+  
+  // If not, check JWT token
+  const decodedToken = verifyToken(req);
+  
+  if (!decodedToken) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+  
+  req.user = decodedToken;
+  next();
+};
+
+/**
+ * Optional Auth Middleware
+ * Does not block requests without authentication
+ */
+export const optionalAuth = (req, res, next) => {
+  // First check if user is authenticated via session
+  if (req.isAuthenticated()) {
+    req.user = {
+      userId: req.user._id.toString(),
+      name: req.user.name,
+      email: req.user.email,
+      subscriptionTier: req.user.subscriptionTier || 'free'
+    };
+    return next();
+  }
+  
+  // If not, check JWT token
+  const decodedToken = verifyToken(req);
+  if (decodedToken) {
+    req.user = decodedToken;
+  }
+  next();
+};
+
+/**
+ * Google OAuth Routes
+ */
+// Initiates Google OAuth flow
+router.get('/google', passport.authenticate('google', { 
+  scope: ['profile', 'email'],
+  prompt: 'select_account'
+}));
+
+// Google OAuth callback
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login.html?error=Google%20authentication%20failed' }),
+  (req, res) => {
+    // Create JWT token for additional client-side auth
+    const token = createToken(req.user);
+    
+    // Set cookie for browser clients
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      sameSite: 'lax',
+      path: '/'
+    });
+    
+    // Redirect to the main app
+    res.redirect('/hub.html');
+  }
+);
+
+/**
+ * User Registration Endpoint
+ */
+router.post('/signup', async (req, res) => {
+  try {
+    const { name, email, password, subscriptionPlan = 'free' } = req.body;
+    
+    // Check MongoDB connection
+    if (!db || !usersCollection) {
+      const connected = await connectToDatabase();
+      if (!connected) {
+        return res.status(500).json({
+          success: false,
+          message: 'Database connection error'
+        });
+      }
+    }
+    
+    // Validate input
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and password are required'
+      });
+    }
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+    
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    // Create user document
+    const newUser = {
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      subscriptionTier: subscriptionPlan,
+      createdAt: new Date(),
+      lastLogin: new Date()
+    };
+    
+    // Insert user into database
+    const result = await usersCollection.insertOne(newUser);
+    
+    if (!result.insertedId) {
+      throw new Error('Failed to create user');
+    }
+    
+    // Create user object without password
+    const user = {
+      _id: result.insertedId,
+      name: newUser.name,
+      email: newUser.email,
+      subscriptionTier: newUser.subscriptionTier,
+      createdAt: newUser.createdAt
+    };
+    
+    // Log in the user (establish session)
+    req.login(user, (err) => {
+      if (err) {
+        console.error('Login error after signup:', err);
+        // Continue anyway since we'll also set JWT
+      }
+      
+      // Generate JWT token
+      const token = createToken(user);
+      
+      // Set cookie for browser clients
+      res.cookie('authToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        sameSite: 'lax',
+        path: '/'
+      });
+      
+      // Send response
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          subscriptionTier: user.subscriptionTier
+        },
+        token
+      });
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred during registration'
+    });
+  }
+});
+
+/**
+ * User Login Endpoint
+ */
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password, rememberMe = false } = req.body;
+    
+    // Check MongoDB connection
+    if (!db || !usersCollection) {
+      const connected = await connectToDatabase();
+      if (!connected) {
+        return res.status(500).json({
+          success: false,
+          message: 'Database connection error'
+        });
+      }
+    }
+    
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+    
+    // Find user
+    const user = await usersCollection.findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    // Update last login timestamp
+    await usersCollection.updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date() } }
+    );
+    
+    // Log in the user (establish session)
+    req.login(user, (err) => {
+      if (err) {
+        console.error('Login error:', err);
+        // Continue anyway since we'll also set JWT
+      }
+      
+      // Generate JWT token
+      const token = createToken(user);
+      
+      // Token expiry
+      const cookieMaxAge = rememberMe
+        ? 30 * 24 * 60 * 60 * 1000 // 30 days
+        : 7 * 24 * 60 * 60 * 1000; // 7 days
+      
+      // Set cookie for browser clients
+      res.cookie('authToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: cookieMaxAge,
+        sameSite: 'lax',
+        path: '/'
+      });
+      
+      // Send response
+      res.json({
+        success: true,
+        message: 'Login successful',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          subscriptionTier: user.subscriptionTier
+        },
+        token
+      });
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred during login'
+    });
+  }
+});
+
+/**
+ * User Logout Endpoint
+ */
+router.post('/logout', (req, res) => {
+  // Clear session
+  req.logout((err) => {
+    if (err) {
+      console.error('Error during logout:', err);
+    }
+    
+    // Clear auth cookie
+    res.clearCookie('authToken');
+    
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+  });
+});
+
+/**
+ * Get Current Session
+ */
+router.get('/session', optionalAuth, (req, res) => {
+  if (!req.user) {
+    return res.json({
+      authenticated: false,
+      user: null
+    });
+  }
+  
+  // User is authenticated
+  res.json({
+    authenticated: true,
+    user: {
+      id: req.user.userId,
+      name: req.user.name,
+      email: req.user.email,
+      subscriptionTier: req.user.subscriptionTier
+    }
+  });
+});
+
+/**
+ * Additional routes for Google OAuth signin
+ */
+router.get('/signin', (req, res) => {
+  const { mode = 'login', redirect_uri } = req.query;
+  
+  // Store the redirect URI and mode in session for use after authentication
+  req.session.authRedirectUri = redirect_uri;
+  req.session.authMode = mode;
+  
+  // Redirect to Google OAuth
+  res.redirect('/api/auth/google');
+});
+
+export default router;

@@ -1,0 +1,42 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Feature: File Sharing & Processing -->
+  <rect width="300" height="200" rx="10" fill="#EEF2FF" />
+  
+  <!-- Cloud Icon -->
+  <path d="M150 50 C120 50 120 80 140 85 C120 95 130 120 150 115 C165 125 190 110 180 90 C200 80 185 50 150 50 Z" fill="#6366F1" fill-opacity="0.2" stroke="#6366F1" stroke-width="2"/>
+  
+  <!-- Upload Animation -->
+  <path d="M150 80 L150 110 M135 95 L150 80 L165 95" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+  </path>
+  
+  <!-- Files -->
+  <rect x="80" y="130" width="40" height="50" rx="4" fill="white" stroke="#6366F1" stroke-width="1"/>
+  <rect x="80" y="130" width="40" height="10" rx="2" fill="#6366F1" fill-opacity="0.2"/>
+  <text x="100" y="138" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">PDF</text>
+  <text x="100" y="155" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">Document</text>
+  <text x="100" y="165" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">Analysis</text>
+  
+  <rect x="130" y="130" width="40" height="50" rx="4" fill="white" stroke="#6366F1" stroke-width="1"/>
+  <rect x="130" y="130" width="40" height="10" rx="2" fill="#6366F1" fill-opacity="0.2"/>
+  <text x="150" y="138" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">CSV</text>
+  <text x="150" y="155" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">Data</text>
+  <text x="150" y="165" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">Processing</text>
+  
+  <rect x="180" y="130" width="40" height="50" rx="4" fill="white" stroke="#6366F1" stroke-width="1"/>
+  <rect x="180" y="130" width="40" height="10" rx="2" fill="#6366F1" fill-opacity="0.2"/>
+  <text x="200" y="138" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">IMG</text>
+  <text x="200" y="155" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">Image</text>
+  <text x="200" y="165" font-family="Arial" font-size="8" fill="#4F46E5" text-anchor="middle">Recognition</text>
+  
+  <!-- AI Processing Connections -->
+  <path d="M95 130 C95 105 150 95 150 80" stroke="#6366F1" stroke-width="1" stroke-dasharray="3 3"/>
+  <path d="M150 130 C150 115 150 95 150 80" stroke="#6366F1" stroke-width="1" stroke-dasharray="3 3"/>
+  <path d="M205 130 C205 105 150 95 150 80" stroke="#6366F1" stroke-width="1" stroke-dasharray="3 3"/>
+  
+  <!-- Processing Indicator -->
+  <circle cx="150" cy="95" r="5" fill="#6366F1">
+    <animate attributeName="r" values="5;7;5" dur="1.5s" repeatCount="indefinite" />
+    <animate attributeName="fill-opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" />
+  </circle>
+</svg>

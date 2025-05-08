@@ -1,0 +1,58 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Feature: Code Generation & Review -->
+  <rect width="300" height="200" rx="10" fill="#ECFDF5" />
+  
+  <!-- Code Window -->
+  <rect x="40" y="30" width="220" height="140" rx="8" fill="white" stroke="#10B981" stroke-width="2"/>
+  
+  <!-- Window Controls -->
+  <circle cx="56" cy="44" r="4" fill="#EF4444"/>
+  <circle cx="70" cy="44" r="4" fill="#F59E0B"/>
+  <circle cx="84" cy="44" r="4" fill="#10B981"/>
+  
+  <!-- Tab Bar -->
+  <rect x="40" y="54" width="220" height="20" fill="#F0FDF4"/>
+  <rect x="50" y="54" width="70" height="20" fill="#D1FAE5"/>
+  <text x="85" y="68" font-family="Arial" font-size="10" fill="#059669" text-anchor="middle">main.js</text>
+  
+  <!-- Code Lines -->
+  <text x="55" y="90" font-family="Courier New" font-size="10" fill="#64748B">1</text>
+  <text x="75" y="90" font-family="Courier New" font-size="10" fill="#0F172A">function <tspan fill="#059669">fetchData</tspan>() {</text>
+  
+  <text x="55" y="105" font-family="Courier New" font-size="10" fill="#64748B">2</text>
+  <text x="75" y="105" font-family="Courier New" font-size="10" fill="#0F172A">  return <tspan fill="#2563EB">fetch</tspan>(<tspan fill="#EF4444">'api/data'</tspan>)</text>
+  
+  <text x="55" y="120" font-family="Courier New" font-size="10" fill="#64748B">3</text>
+  <text x="75" y="120" font-family="Courier New" font-size="10" fill="#0F172A">    .<tspan fill="#059669">then</tspan>(res => res.<tspan fill="#059669">json</tspan>())</text>
+  
+  <text x="55" y="135" font-family="Courier New" font-size="10" fill="#64748B">4</text>
+  <text x="75" y="135" font-family="Courier New" font-size="10" fill="#0F172A">    .<tspan fill="#059669">catch</tspan>(err => <tspan fill="#2563EB">console</tspan>.error(err));</text>
+  
+  <text x="55" y="150" font-family="Courier New" font-size="10" fill="#64748B">5</text>
+  <text x="75" y="150" font-family="Courier New" font-size="10" fill="#0F172A">}</text>
+  
+  <!-- Cursor Animation -->
+  <rect x="282" y="105" width="2" height="15" fill="#0F172A">
+    <animate attributeName="opacity" values="1;0;1" dur="1.2s" repeatCount="indefinite" />
+  </rect>
+  
+  <!-- Code Review Elements -->
+  <rect x="75" y="105" width="207" height="15" fill="#ECFDF5" fill-opacity="0.5"/>
+  <rect x="282" y="105" width="3" height="15" fill="#10B981"/>
+  
+  <!-- Improvement Suggestion (Animation) -->
+  <text x="260" y="175" font-family="Arial" font-size="10" fill="#10B981" text-anchor="end" opacity="0">Add error handling</text>
+  <animate 
+    xlink:href="#suggestion-text"
+    attributeName="opacity"
+    from="0"
+    to="1"
+    dur="2s"
+    begin="1s"
+    fill="freeze"
+  />
+  
+  <!-- AI Indicator -->
+  <circle cx="245" cy="160" r="12" fill="#10B981" fill-opacity="0.2"/>
+  <text x="245" y="164" font-family="Arial" font-size="10" fill="#059669" text-anchor="middle">AI</text>
+</svg>

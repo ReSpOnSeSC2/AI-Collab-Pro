@@ -1,0 +1,43 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Feature: Multi-model Collaboration -->
+  <rect width="300" height="200" rx="10" fill="#EBF8FF" />
+  
+  <!-- Background pattern -->
+  <path d="M20 40H280M20 80H280M20 120H280M20 160H280" stroke="#BEE3F8" stroke-width="2" stroke-dasharray="4 4" />
+  <path d="M60 20V180M120 20V180M180 20V180M240 20V180" stroke="#BEE3F8" stroke-width="2" stroke-dasharray="4 4" />
+  
+  <!-- AI Model Circles -->
+  <circle cx="80" cy="60" r="25" fill="#8B5CF6" fill-opacity="0.2" stroke="#8B5CF6" stroke-width="2"/>
+  <text x="80" y="65" font-family="Arial" font-size="10" fill="#8B5CF6" text-anchor="middle">AI 1</text>
+  
+  <circle cx="150" cy="100" r="25" fill="#10B981" fill-opacity="0.2" stroke="#10B981" stroke-width="2"/>
+  <text x="150" y="105" font-family="Arial" font-size="10" fill="#10B981" text-anchor="middle">AI 2</text>
+  
+  <circle cx="220" cy="60" r="25" fill="#F59E0B" fill-opacity="0.2" stroke="#F59E0B" stroke-width="2"/>
+  <text x="220" y="65" font-family="Arial" font-size="10" fill="#F59E0B" text-anchor="middle">AI 3</text>
+  
+  <circle cx="150" cy="150" r="25" fill="#EF4444" fill-opacity="0.2" stroke="#EF4444" stroke-width="2"/>
+  <text x="150" y="155" font-family="Arial" font-size="10" fill="#EF4444" text-anchor="middle">AI 4</text>
+  
+  <!-- Connection Lines -->
+  <path d="M104 69L125 90" stroke="#0EA5E9" stroke-width="2"/>
+  <path d="M175 90L196 69" stroke="#0EA5E9" stroke-width="2"/>
+  <path d="M150 125L150 125" stroke="#0EA5E9" stroke-width="2">
+    <animate attributeName="d" values="M150 125L150 125; M150 125L150 150; M150 125L150 125" dur="2s" repeatCount="indefinite" />
+  </path>
+  
+  <!-- Data Flow Animation -->
+  <circle cx="100" cy="80" r="3" fill="#0EA5E9">
+    <animate attributeName="cx" values="100;125;150" dur="1.5s" repeatCount="indefinite" />
+    <animate attributeName="cy" values="80;90;100" dur="1.5s" repeatCount="indefinite" />
+  </circle>
+  
+  <circle cx="200" cy="80" r="3" fill="#0EA5E9">
+    <animate attributeName="cx" values="200;175;150" dur="1.8s" repeatCount="indefinite" />
+    <animate attributeName="cy" values="80;90;100" dur="1.8s" repeatCount="indefinite" />
+  </circle>
+  
+  <circle cx="150" cy="135" r="3" fill="#0EA5E9">
+    <animate attributeName="cy" values="135;150" dur="1.2s" repeatCount="indefinite" />
+  </circle>
+</svg>

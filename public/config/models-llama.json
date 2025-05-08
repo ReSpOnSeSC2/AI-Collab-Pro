@@ -1,0 +1,10 @@
+{
+  "provider": "llama",
+  "defaultModel": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+  "models": [
+    { "id": "Llama-4-Maverick-17B-128E-Instruct-FP8", "name": "Llama 4 Maverick 17B 128E Instruct FP8", "price": "Contact for pricing", "contextLength": "128K tokens", "description": "Industry-leading multimodal model with groundbreaking intelligence", "features": ["Multimodal", "Vision", "Fast Response"] },
+    { "id": "Llama-4-Scout-17B-16E-Instruct-FP8", "name": "Llama 4 Scout (17B)", "price": "Contact for pricing", "contextLength": "128K tokens", "description": "Class-leading natively multimodal model with superior visual intelligence", "features": ["Multimodal", "Vision"] },
+    { "id": "Llama-3.3-70B-Instruct", "name": "Llama 3.3 (70B Instruct)", "price": "Contact for pricing", "contextLength": "128K tokens", "description": "Text-only instruction-tuned model with enhanced reasoning performance", "features": ["Text", "Long Context", "Advanced Reasoning"] },
+    { "id": "Llama-3.3-8B-Instruct", "name": "Llama 3.3 (8B Instruct)", "price": "Contact for pricing", "contextLength": "128K tokens", "description": "Lightweight and ultra-fast variant for quick response times", "features": ["Text", "Long Context", "Ultra Fast"] }
+  ]
+}

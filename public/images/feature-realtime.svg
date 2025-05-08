@@ -1,0 +1,38 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Feature: Real-time Responses -->
+  <rect width="300" height="200" rx="10" fill="#F5F3FF" />
+  
+  <!-- Chat Interface -->
+  <rect x="40" y="30" width="220" height="140" rx="8" fill="white" stroke="#8B5CF6" stroke-width="2"/>
+  
+  <!-- Message Bubbles -->
+  <rect x="60" y="50" width="120" height="24" rx="12" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1"/>
+  <rect x="60" y="84" width="180" height="24" rx="12" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1"/>
+  
+  <!-- Typing Animation -->
+  <circle cx="70" cy="140" r="4" fill="#8B5CF6">
+    <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite" />
+  </circle>
+  <circle cx="80" cy="140" r="4" fill="#8B5CF6">
+    <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" begin="0.2s" repeatCount="indefinite" />
+  </circle>
+  <circle cx="90" cy="140" r="4" fill="#8B5CF6">
+    <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" begin="0.4s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Lightning Bolt -->
+  <path d="M250 55L230 85L245 90L225 125" stroke="#8B5CF6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="250" cy="55" r="5" fill="#8B5CF6">
+    <animate attributeName="r" values="5;8;5" dur="1.5s" repeatCount="indefinite" />
+  </circle>
+  <circle cx="225" cy="125" r="5" fill="#8B5CF6">
+    <animate attributeName="r" values="5;8;5" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Response Time Indicator -->
+  <rect x="110" y="170" width="80" height="15" rx="7.5" fill="#8B5CF6" fill-opacity="0.2"/>
+  <rect x="110" y="170" width="30" height="15" rx="7.5" fill="#8B5CF6">
+    <animate attributeName="width" values="0;80" dur="2s" repeatCount="indefinite" />
+  </rect>
+  <text x="150" y="182" font-family="Arial" font-size="10" fill="#6D28D9" text-anchor="middle">Real-time</text>
+</svg>

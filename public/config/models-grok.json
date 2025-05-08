@@ -1,0 +1,10 @@
+{
+  "provider": "grok",
+  "defaultModel": "grok-3-mini",
+  "models": [
+    { "id": "grok-3", "name": "Grok 3", "price": "$3/M in, $15/M out", "contextLength": "131K tokens", "description": "Enterprise use cases, data extraction, coding", "features": ["Domain Knowledge", "Coding"] },
+    { "id": "grok-3-fast", "name": "Grok 3 Fast", "price": "$5/M in, $25/M out", "contextLength": "131K tokens", "description": "Faster response for enterprise applications", "features": ["High Speed", "Domain Knowledge"] },
+    { "id": "grok-3-mini", "name": "Grok 3 Mini", "price": "$0.3/M in, $0.5/M out", "contextLength": "131K tokens", "description": "Logic-based tasks with thinking capability", "features": ["Thinking Traces", "Logic"] },
+    { "id": "grok-2-vision", "name": "Grok 2 Vision", "price": "$2/M in, $10/M out", "contextLength": "8K tokens", "description": "Advanced image understanding and analysis", "features": ["Multimodal", "Vision"] }
+  ]
+}

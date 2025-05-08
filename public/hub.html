@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Collab | AI Collaboration Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" id="highlight-style">
+    <!-- Link the consolidated CSS file -->
+    <link rel="stylesheet" href="/css/main.css?v=8">
+    <script>
+        // Apply theme before DOM content loads to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'theme-dark';
+            document.documentElement.className = savedTheme;
+            // Update highlight.js theme based on selected theme
+            const highlightStyle = document.getElementById('highlight-style');
+            if (highlightStyle) {
+                highlightStyle.href = savedTheme === 'theme-light'
+                    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css'
+                    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css';
+            }
+            
+            // Configure browser to allow modal dialog on fullscreen interaction
+            document.addEventListener('fullscreenchange', function() {
+                console.log('Fullscreen change event fired');
+            });
+        })();
+    </script>
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="global-header-placeholder">
+        <!-- Header will be injected here -->
+    </div>
+    
+    <!-- User info is now handled in the global header -->
+    <!-- No separate authentication toolbar needed -->
+
+    <!-- Main container adjusted to work with injected header/footer -->
+    <div class="container-fluid d-flex flex-column main-container" style="padding-top: 10px; padding-bottom: 10px;">
+
+        <!-- Page-Specific Header Controls (Model Toggles, Collab Mode) -->
+        <div class="row page-controls-row py-0 align-items-center" style="margin-bottom: 3px;">
+            <div class="col">
+                <div class="d-flex flex-column align-items-center">
+                    <!-- Model Toggles -->
+                    <div class="model-select-toggles mb-1">
+                        <div class="form-check form-switch claude-toggle">
+                            <input class="form-check-input model-toggle" type="checkbox" id="claude-toggle" checked data-model="claude">
+                            <label class="form-check-label" for="claude-toggle">Claude</label>
+                        </div>
+                        <div class="form-check form-switch gemini-toggle">
+                            <input class="form-check-input model-toggle" type="checkbox" id="gemini-toggle" checked data-model="gemini">
+                            <label class="form-check-label" for="gemini-toggle">Gemini</label>
+                        </div>
+                        <div class="form-check form-switch chatgpt-toggle">
+                            <input class="form-check-input model-toggle" type="checkbox" id="chatgpt-toggle" checked data-model="chatgpt">
+                            <label class="form-check-label" for="chatgpt-toggle">ChatGPT</label>
+                        </div>
+                        <div class="form-check form-switch grok-toggle">
+                            <input class="form-check-input model-toggle" type="checkbox" id="grok-toggle" checked data-model="grok">
+                            <label class="form-check-label" for="grok-toggle">Grok</label>
+                        </div>
+                        <div class="form-check form-switch deepseek-toggle">
+                            <input class="form-check-input model-toggle" type="checkbox" id="deepseek-toggle" checked data-model="deepseek">
+                            <label class="form-check-label" for="deepseek-toggle">DeepSeek</label>
+                        </div>
+                        <div class="form-check form-switch llama-toggle">
+                            <input class="form-check-input model-toggle" type="checkbox" id="llama-toggle" checked data-model="llama">
+                            <label class="form-check-label" for="llama-toggle">Llama</label>
+                        </div>
+                    </div>
+                    <!-- Collaboration Controls -->
+                    <div class="collaboration-mode-toggle">
+                        <label class="me-1 small">Mode:</label>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Collaboration Mode">
+                            <input type="radio" class="btn-check" name="collab-mode" id="collab-mode-collaborative" autocomplete="off" checked>
+                            <label class="btn btn-sm btn-outline-primary py-0" for="collab-mode-collaborative" title="AIs respond sequentially">Collaborative</label>
+
+                            <input type="radio" class="btn-check" name="collab-mode" id="collab-mode-individual" autocomplete="off">
+                            <label class="btn btn-sm btn-outline-primary py-0" for="collab-mode-individual" title="AIs respond independently">Individual</label>
+                        </div>
+                        <div class="collab-style-dropdown ms-1" id="collab-style-container">
+                            <select class="form-select form-select-sm py-0" style="height: 24px;" id="collab-style" aria-label="Collaboration Style">
+                                <option value="balanced" selected title="Balanced insights">Balanced</option>
+                                <option value="contrasting" title="Highlight differences">Contrasting</option>
+                                <option value="harmonious" title="Find common ground">Harmonious</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Removed unnecessary utility buttons -->
+        </div>
+
+        <main class="row flex-grow-1 chat-area-row g-3">
+            <!-- Claude Column -->
+            <section id="claude-column" class="col-lg d-flex flex-column chat-column">
+                <div class="chat-header p-2">
+                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                        <h2 class="mb-0 h4 me-2 text-truncate">Claude</h2>
+                        <div class="model-selector-container">
+                            <div class="model-dropdown-wrapper">
+                                <div class="model-selected" data-target="claude" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                                    <span class="selected-model-name text-truncate">Default Model</span>
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </div>
+                                <div class="model-dropdown" id="claude-model-dropdown" role="listbox" aria-labelledby="claude-model-label">
+                                    <div class="model-dropdown-header">
+                                        <span id="claude-model-label">Select model</span>
+                                        <div class="model-search"><input type="text" class="model-search-input" placeholder="Search..." aria-label="Search Claude models"></div>
+                                    </div>
+                                    <div class="model-dropdown-options"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn fullscreen-toggle-btn" data-target="claude" aria-label="Toggle Claude Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
+                </div>
+                <div id="claude-messages" class="chat-messages flex-grow-1 p-2" role="log" aria-live="polite"></div>
+            </section>
+
+            <!-- Gemini Column -->
+            <section id="gemini-column" class="col-lg d-flex flex-column chat-column">
+                 <div class="chat-header p-2">
+                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                        <h2 class="mb-0 h4 me-2 text-truncate">Gemini</h2>
+                        <div class="model-selector-container">
+                            <div class="model-dropdown-wrapper">
+                                <div class="model-selected" data-target="gemini" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                                    <span class="selected-model-name text-truncate">Default Model</span>
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </div>
+                                <div class="model-dropdown" id="gemini-model-dropdown" role="listbox" aria-labelledby="gemini-model-label">
+                                    <div class="model-dropdown-header">
+                                        <span id="gemini-model-label">Select model</span>
+                                        <div class="model-search"><input type="text" class="model-search-input" placeholder="Search..." aria-label="Search Gemini models"></div>
+                                    </div>
+                                    <div class="model-dropdown-options"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn fullscreen-toggle-btn" data-target="gemini" aria-label="Toggle Gemini Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
+                </div>
+                <div id="gemini-messages" class="chat-messages flex-grow-1 p-2" role="log" aria-live="polite"></div>
+            </section>
+
+            <!-- ChatGPT Column -->
+            <section id="chatgpt-column" class="col-lg d-flex flex-column chat-column">
+                 <div class="chat-header p-2">
+                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                        <h2 class="mb-0 h4 me-2 text-truncate">ChatGPT</h2>
+                        <div class="model-selector-container">
+                            <div class="model-dropdown-wrapper">
+                                <div class="model-selected" data-target="chatgpt" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                                    <span class="selected-model-name text-truncate">Default Model</span>
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </div>
+                                <div class="model-dropdown" id="chatgpt-model-dropdown" role="listbox" aria-labelledby="chatgpt-model-label">
+                                    <div class="model-dropdown-header">
+                                        <span id="chatgpt-model-label">Select model</span>
+                                        <div class="model-search"><input type="text" class="model-search-input" placeholder="Search..." aria-label="Search ChatGPT models"></div>
+                                    </div>
+                                    <div class="model-dropdown-options"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn fullscreen-toggle-btn" data-target="chatgpt" aria-label="Toggle ChatGPT Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
+                </div>
+                <div id="chatgpt-messages" class="chat-messages flex-grow-1 p-2" role="log" aria-live="polite"></div>
+            </section>
+
+            <!-- Grok Column -->
+            <section id="grok-column" class="col-lg d-flex flex-column chat-column">
+                 <div class="chat-header p-2">
+                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                        <h2 class="mb-0 h4 me-2 text-truncate">Grok</h2>
+                        <div class="model-selector-container">
+                            <div class="model-dropdown-wrapper">
+                                <div class="model-selected" data-target="grok" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                                    <span class="selected-model-name text-truncate">Default Model</span>
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </div>
+                                <div class="model-dropdown" id="grok-model-dropdown" role="listbox" aria-labelledby="grok-model-label">
+                                    <div class="model-dropdown-header">
+                                        <span id="grok-model-label">Select model</span>
+                                        <div class="model-search"><input type="text" class="model-search-input" placeholder="Search..." aria-label="Search Grok models"></div>
+                                    </div>
+                                    <div class="model-dropdown-options"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn fullscreen-toggle-btn" data-target="grok" aria-label="Toggle Grok Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
+                </div>
+                <div id="grok-messages" class="chat-messages flex-grow-1 p-2" role="log" aria-live="polite"></div>
+            </section>
+
+            <!-- DeepSeek Column -->
+            <section id="deepseek-column" class="col-lg d-flex flex-column chat-column">
+                 <div class="chat-header p-2">
+                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                        <h2 class="mb-0 h4 me-2 text-truncate">DeepSeek</h2>
+                        <div class="model-selector-container">
+                            <div class="model-dropdown-wrapper">
+                                <div class="model-selected" data-target="deepseek" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                                    <span class="selected-model-name text-truncate">Default Model</span>
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </div>
+                                <div class="model-dropdown" id="deepseek-model-dropdown" role="listbox" aria-labelledby="deepseek-model-label">
+                                    <div class="model-dropdown-header">
+                                        <span id="deepseek-model-label">Select model</span>
+                                        <div class="model-search"><input type="text" class="model-search-input" placeholder="Search..." aria-label="Search DeepSeek models"></div>
+                                    </div>
+                                    <div class="model-dropdown-options"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn fullscreen-toggle-btn" data-target="deepseek" aria-label="Toggle DeepSeek Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
+                </div>
+                <div id="deepseek-messages" class="chat-messages flex-grow-1 p-2" role="log" aria-live="polite"></div>
+            </section>
+
+            <!-- Llama Column -->
+            <section id="llama-column" class="col-lg d-flex flex-column chat-column">
+                 <div class="chat-header p-2">
+                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                        <h2 class="mb-0 h4 me-2 text-truncate">Llama</h2>
+                        <div class="model-selector-container">
+                            <div class="model-dropdown-wrapper">
+                                <div class="model-selected" data-target="llama" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                                    <span class="selected-model-name text-truncate">Default Model</span>
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </div>
+                                <div class="model-dropdown" id="llama-model-dropdown" role="listbox" aria-labelledby="llama-model-label">
+                                    <div class="model-dropdown-header">
+                                        <span id="llama-model-label">Select model</span>
+                                        <div class="model-search"><input type="text" class="model-search-input" placeholder="Search..." aria-label="Search Llama models"></div>
+                                    </div>
+                                    <div class="model-dropdown-options"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn fullscreen-toggle-btn" data-target="llama" aria-label="Toggle Llama Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
+                </div>
+                <div id="llama-messages" class="chat-messages flex-grow-1 p-2" role="log" aria-live="polite"></div>
+            </section>
+        </main>
+
+        <footer class="row cli-row">
+            <div class="col-12">
+                <!-- Input Area -->
+                <div class="input-area-container mb-1"> <!-- Further reduced margin -->
+                    <div class="input-card">
+                        <div class="card-body p-2">
+                            <div class="d-flex align-items-start"> <!-- Align items start for textarea growth -->
+                                <div class="d-flex align-items-center me-2 pt-1"> <!-- Align buttons top -->
+                                    <label for="file-upload" class="btn file-upload-btn mb-0" aria-label="Attach Files" title="Attach files"><i class="bi bi-paperclip"></i></label>
+                                    <input type="file" id="file-upload" multiple class="d-none">
+                                </div>
+                                <div class="flex-grow-1 position-relative">
+                                    <textarea id="message-input" class="form-control message-input-area" rows="1" placeholder="Enter prompt..." aria-label="Message Input"></textarea>
+                                    <div id="file-list" class="mt-1"></div> <!-- Moved file list below input -->
+                                </div>
+                                <div class="d-flex align-items-center ms-2 pt-1"> <!-- Align buttons top -->
+                                    <button id="build-btn" class="btn build-btn me-2" aria-label="Build from Conversation" title="Build from conversation"><i class="bi bi-tools"></i></button>
+                                    <button id="send-btn" class="btn send-btn" aria-label="Send Message" title="Send message (Enter)"><i class="bi bi-send-fill"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLI Area -->
+                <div class="accordion" id="cliAccordion">
+                    <div class="accordion-item cli-accordion-item">
+                        <h2 class="accordion-header" id="cliHeading">
+                            <div class="d-flex w-100 align-items-center">
+                                <button class="accordion-button collapsed cli-accordion-button flex-grow-1 py-1" type="button" data-bs-toggle="collapse" data-bs-target="#cliCollapse" aria-expanded="false" aria-controls="cliCollapse">
+                                   <i class="bi bi-terminal-fill me-2"></i> System CLI
+                                </button>
+                                <button class="btn cli-fullscreen-btn" id="cli-fullscreen-btn" aria-label="Toggle CLI Fullscreen" title="Fullscreen CLI"><i class="bi bi-arrows-fullscreen"></i></button>
+                            </div>
+                        </h2>
+                        <div id="cliCollapse" class="accordion-collapse collapse" aria-labelledby="cliHeading">
+                            <div class="accordion-body cli-accordion-body p-2">
+                                <div class="input-group mb-1">
+                                    <span class="input-group-text cli-prompt">$</span>
+                                    <input type="text" id="cli-input" class="form-control cli-input" placeholder="Enter system command or 'claude help'" aria-label="CLI Input">
+                                    <button class="btn cli-run-btn" type="button" id="cli-btn" aria-label="Run CLI Command" title="Run command (Enter)">Run</button>
+                                </div>
+                                <div id="cli-output" class="cli-output" aria-live="polite">Welcome to the CLI.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Build Modal -->
+    <div id="build-modal" class="build-modal" role="dialog" aria-modal="true" aria-labelledby="build-modal-title" aria-hidden="true">
+        <div class="build-modal-content">
+            <div class="build-modal-header">
+                <h3 class="mb-0" id="build-modal-title">Build from Conversation</h3>
+                <button class="btn close-modal-btn" id="close-build-modal" aria-label="Close Build Modal">&times;</button>
+            </div>
+            <div class="build-modal-body" id="build-modal-content-area" tabindex="-1">
+                <!-- Content dynamically loaded -->
+            </div>
+            <div class="build-modal-footer">
+                <button class="btn btn-outline-secondary me-2" id="copy-build-content" aria-label="Copy All Content" title="Copy all content"><i class="bi bi-clipboard"></i> Copy All</button>
+                <button class="btn btn-secondary me-2" id="close-build-modal-btn" aria-label="Close Modal" title="Close">Close</button>
+                <button class="btn btn-primary" id="confirm-build-btn" aria-label="Send to CLI" title="Send to CLI"><i class="bi bi-terminal"></i> Send to CLI</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Footer Placeholder -->
+    <div id="global-footer-placeholder">
+        <!-- Footer will be injected here -->
+    </div>
+
+    <!-- Accessibility Live Region -->
+    <div id="a11y-live-region" aria-live="polite" class="sr-only"></div>
+
+    <!-- Load Layout Manager FIRST (non-module for immediate execution) -->
+    <script src="/js/layoutManager.js?v=8"></script>
+    
+    <!-- Load Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <!-- Load Authentication -->
+    <script src="/js/auth.js"></script>
+    
+    <!-- Load Main Application Logic -->
+    <script type="module" src="/js/main.js?v=8"></script>
+    
+    <!-- Handle Authentication Redirect -->
+    <script src="/index.js"></script>
+
+    <!-- Optional: Load Debug Tools -->
+    <!-- <script src="/js/debugUtils.js?v=8"></script> -->
+    <!-- <script>
+        // Example: Show debug overlay on load if needed
+        // window.addEventListener('load', () => window.aiHubDebug?.addDebugOverlay());
+    </script> -->
+</body>
+</html>

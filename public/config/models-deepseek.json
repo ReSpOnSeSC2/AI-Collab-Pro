@@ -1,0 +1,28 @@
+{
+  "provider": "deepseek",
+  "defaultModel": "deepseek-chat",
+  "models": [
+    { 
+      "id": "deepseek-chat", 
+      "name": "DeepSeek Chat", 
+      "price": "$0.27/M in, $1.10/M out", 
+      "contextLength": "64K tokens", 
+      "description": "General conversational and text generation tasks", 
+      "features": ["High Context", "Chat"],
+      "platforms": {
+        "api": "deepseek-chat"
+      } 
+    },
+    { 
+      "id": "deepseek-reasoner", 
+      "name": "DeepSeek Reasoner", 
+      "price": "$0.55/M in, $2.19/M out", 
+      "contextLength": "64K tokens", 
+      "description": "Complex problem-solving with step-by-step reasoning", 
+      "features": ["Chain of Thought", "Reasoning", "Problem Solving"],
+      "platforms": {
+        "api": "deepseek-reasoner"
+      }
+    }
+  ]
+}

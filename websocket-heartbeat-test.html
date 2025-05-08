@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Heartbeat Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #logContainer {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-bottom: 20px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 3px;
+            border-bottom: 1px solid #eee;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        #statusIndicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: gray;
+            margin-right: 10px;
+        }
+        .connected { background-color: green; }
+        .disconnected { background-color: red; }
+        .connecting { background-color: orange; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Heartbeat Test</h1>
+    
+    <div>
+        <span id="statusIndicator"></span>
+        <span id="statusText">Disconnected</span>
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn">Disconnect</button>
+        <button id="sendPingBtn">Send Ping</button>
+        <button id="clearLogBtn">Clear Log</button>
+    </div>
+    
+    <h3>WebSocket URL</h3>
+    <input type="text" id="wsUrl" value="ws://localhost:3000/api/ws" style="width: 100%; padding: 5px;">
+    
+    <h3>Log</h3>
+    <div id="logContainer"></div>
+    
+    <script>
+        // Elements
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const logContainer = document.getElementById('logContainer');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendPingBtn = document.getElementById('sendPingBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const wsUrlInput = document.getElementById('wsUrl');
+        
+        // WebSocket and state
+        let ws = null;
+        let heartbeatInterval = null;
+        const HEARTBEAT_INTERVAL = 25000; // 25 seconds between pings
+        let consecutiveMissedPongs = 0;
+        const MAX_MISSED_PONGS = 2;
+        
+        // Add log entry
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Update status indicator
+        function updateStatus(status) {
+            statusIndicator.className = status;
+            switch(status) {
+                case 'connected':
+                    statusText.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    statusText.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    statusText.textContent = 'Connecting...';
+                    break;
+            }
+        }
+        
+        // Connect to WebSocket
+        function connect() {
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                log('Already connected or connecting', 'warning');
+                return;
+            }
+            
+            const wsUrl = wsUrlInput.value.trim();
+            if (!wsUrl) {
+                log('Please enter a WebSocket URL', 'error');
+                return;
+            }
+            
+            log(`Connecting to ${wsUrl}...`);
+            updateStatus('connecting');
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    log('Connection established successfully', 'success');
+                    updateStatus('connected');
+                    ws.isAlive = true;
+                    startHeartbeat();
+                };
+                
+                ws.onclose = (event) => {
+                    const reason = event.reason ? ` Reason: ${event.reason}` : '';
+                    log(`Connection closed. Code: ${event.code}.${reason}`, 'warning');
+                    updateStatus('disconnected');
+                    stopHeartbeat();
+                    ws = null;
+                };
+                
+                ws.onerror = (error) => {
+                    log(`WebSocket error: ${error}`, 'error');
+                    updateStatus('disconnected');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received: ${JSON.stringify(data)}`);
+                        
+                        // Handle ping from server
+                        if (data.type === 'ping' || data.type === 'debug_ping') {
+                            log(`Received ping from server, sending pong`, 'info');
+                            sendMessage({
+                                type: data.type === 'ping' ? 'pong' : 'debug_pong',
+                                timestamp: Date.now()
+                            });
+                        }
+                        
+                        // Handle pong from server
+                        if (data.type === 'pong' || data.type === 'debug_pong') {
+                            log(`Received pong from server`, 'success');
+                            ws.isAlive = true;
+                            consecutiveMissedPongs = 0;
+                        }
+                        
+                    } catch (e) {
+                        log(`Error parsing message: ${e.message}`, 'error');
+                        log(`Raw message: ${event.data}`, 'error');
+                    }
+                };
+                
+            } catch (error) {
+                log(`Failed to create WebSocket: ${error.message}`, 'error');
+                updateStatus('disconnected');
+            }
+        }
+        
+        // Disconnect WebSocket
+        function disconnect() {
+            if (!ws) {
+                log('Not connected', 'warning');
+                return;
+            }
+            
+            stopHeartbeat();
+            
+            // Proper way to close a WebSocket
+            log('Closing connection gracefully...');
+            ws.close(1000, "User initiated disconnect");
+        }
+        
+        // Send message through WebSocket
+        function sendMessage(data) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Cannot send message: WebSocket not connected', 'error');
+                return false;
+            }
+            
+            try {
+                const message = JSON.stringify(data);
+                ws.send(message);
+                log(`Sent: ${message}`);
+                return true;
+            } catch (error) {
+                log(`Error sending message: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // Send ping to server
+        function sendPing() {
+            const pingMessage = {
+                type: 'ping',
+                timestamp: Date.now()
+            };
+            
+            const success = sendMessage(pingMessage);
+            if (success) {
+                log('Manual ping sent to server', 'info');
+            }
+        }
+        
+        // Start heartbeat mechanism
+        function startHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+            
+            log('Starting heartbeat mechanism');
+            heartbeatInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    if (ws.isAlive === false) {
+                        consecutiveMissedPongs++;
+                        log(`Missed pong response (${consecutiveMissedPongs}/${MAX_MISSED_PONGS})`, 'warning');
+                        
+                        if (consecutiveMissedPongs >= MAX_MISSED_PONGS) {
+                            log('Too many missed pongs, closing connection', 'error');
+                            ws.close(1000, "Heartbeat timeout");
+                            return;
+                        }
+                    }
+                    
+                    ws.isAlive = false;
+                    log('Sending heartbeat ping');
+                    sendMessage({
+                        type: 'ping',
+                        timestamp: Date.now()
+                    });
+                } else {
+                    log('WebSocket not open, stopping heartbeat', 'warning');
+                    stopHeartbeat();
+                }
+            }, HEARTBEAT_INTERVAL);
+        }
+        
+        // Stop heartbeat mechanism
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+                log('Heartbeat stopped');
+            }
+        }
+        
+        // Event listeners
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendPingBtn.addEventListener('click', sendPing);
+        clearLogBtn.addEventListener('click', () => {
+            logContainer.innerHTML = '';
+            log('Log cleared');
+        });
+        
+        // Initial status
+        updateStatus('disconnected');
+        log('WebSocket heartbeat test initialized. Click "Connect" to start testing.');
+    </script>
+</body>
+</html>
