@@ -122,21 +122,83 @@ html, body {
     transition: opacity 0.2s ease;
 }
 
-/* Show/hide icons based on current theme */
-.theme-dark .theme-toggle-btn .light-icon {
-    display: none;
+/* Collaboration Mode Styling */
+.collaboration-mode-toggle {
+    display: flex;
+    align-items: center;
 }
 
-.theme-dark .theme-toggle-btn .dark-icon {
-    display: inline-block;
+.collab-mode-dropdown .dropdown-menu {
+    width: 350px; /* Increased width */
+    padding: 0;
+    max-width: calc(100vw - 40px); /* Ensure it doesn't go off-screen on mobile */
+    max-height: 400px; /* Add max height for scrolling */
+    overflow-y: auto; /* Add scrollbar when content exceeds height */
+    z-index: 9999 !important; /* Ensure dropdown is on top of other elements */
 }
 
-.theme-light .theme-toggle-btn .light-icon {
-    display: inline-block;
+.collab-mode-dropdown .dropdown-menu.show {
+    display: block !important; /* Ensure dropdown is visible when it should be shown */
 }
 
-.theme-light .theme-toggle-btn .dark-icon {
-    display: none;
+.collab-mode-item {
+    padding: 10px 15px;
+    white-space: normal; /* Allow text to wrap */
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 0;
+}
+
+.collab-mode-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateX(2px);
+}
+
+.collab-mode-item.active {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left: 3px solid var(--nexus-accent);
+    padding-left: 12px;
+}
+
+.theme-light .collab-mode-item {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .collab-mode-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .collab-mode-item.active {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-left: 3px solid var(--nexus-accent);
+}
+
+.collab-mode-item small {
+    display: block;
+    font-size: 0.8em;
+    opacity: 0.8;
+    white-space: normal; /* Allow descriptions to wrap */
+    word-wrap: break-word; /* Handle long words */
+}
+
+.collab-info .btn-link {
+    color: var(--nexus-text-secondary);
+}
+
+.cost-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 300px;
+    animation: fadeInOut 5s forwards;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(20px); }
 }
 
 .main-container {

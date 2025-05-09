@@ -42,6 +42,7 @@ async function injectPartial(partialUrl, targetSelector, mode = 'replace') {
         // Re-run theme toggle listener setup if header was injected
         if (partialUrl.includes('_header.html')) {
             setupThemeToggle(); // Ensure listener is attached after injection
+            updateThemeToggleIcon(); // Update icon state based on current theme
         }
 
     } catch (error) {
@@ -51,56 +52,31 @@ async function injectPartial(partialUrl, targetSelector, mode = 'replace') {
 }
 
 /**
- * Sets up the theme toggle button listener.
- * Needs to be callable after partial injection.
+ * Sets up the theme toggle button - now just updates icons
+ * Actual click handling is done by the global event listener
  */
 function setupThemeToggle() {
-    const themeToggleBtn = document.getElementById('theme-toggle-btn');
-    if (themeToggleBtn && !themeToggleBtn.dataset.listenerAttached) { // Prevent multiple listeners
-        themeToggleBtn.addEventListener('click', toggleTheme);
-        themeToggleBtn.dataset.listenerAttached = 'true'; // Mark as attached
-        console.log("LayoutManager: Theme toggle listener attached.");
+    // We no longer directly attach event listeners to theme toggle buttons
+    // Instead we rely on the global event delegation from applySavedTheme.js
+    console.log("LayoutManager: Theme toggle setup - using global event handler");
+    
+    // Update icon state if theme manager is available
+    if (window.themeManager && typeof window.themeManager.updateThemeToggleIcon === 'function') {
+        window.themeManager.updateThemeToggleIcon();
+        console.log("LayoutManager: Updated theme icons using themeManager");
     }
 }
 
 /**
- * Toggles the light/dark theme.
+ * Updates the theme toggle button icons based on current theme
  */
-function toggleTheme() {
+function updateThemeToggleIcon() {
     const currentTheme = document.documentElement.className.includes('theme-dark') ? 'theme-dark' : 'theme-light';
-    const newTheme = currentTheme === 'theme-dark' ? 'theme-light' : 'theme-dark';
-    
-    // Apply theme to document element
-    document.documentElement.className = newTheme;
-    
-    // Explicitly remove old theme and add new theme
-    if (newTheme === 'theme-dark') {
-        document.documentElement.classList.remove('theme-light');
-        document.documentElement.classList.add('theme-dark');
-    } else {
-        document.documentElement.classList.remove('theme-dark');
-        document.documentElement.classList.add('theme-light');
-    }
-    
-    // Save to localStorage
-    localStorage.setItem('theme', newTheme);
-    console.log(`Theme changed to: ${newTheme}`);
-    
-    // Update highlight.js theme if applicable
-    const highlightStyle = document.getElementById('highlight-style');
-    if (highlightStyle) {
-        highlightStyle.href = newTheme === 'theme-light'
-            ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css'
-            : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css';
-    }
-    
-    // Make sure the theme toggling is properly reflected in the UI
-    // This is especially important for index.html
     const darkIcon = document.querySelector('#theme-toggle-btn .dark-icon');
     const lightIcon = document.querySelector('#theme-toggle-btn .light-icon');
     
     if (darkIcon && lightIcon) {
-        if (newTheme === 'theme-dark') {
+        if (currentTheme === 'theme-dark') {
             darkIcon.style.display = 'inline-block';
             lightIcon.style.display = 'none';
         } else {
@@ -109,6 +85,11 @@ function toggleTheme() {
         }
     }
 }
+
+/**
+ * Toggles the light/dark theme.
+ */
+// Toggle theme function removed - now using the centralized theme manager from applySavedTheme.js
 
 /**
  * Initializes the layout by injecting header and footer.

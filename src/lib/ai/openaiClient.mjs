@@ -8,10 +8,10 @@ import { clients, availability, getClient } from './index.mjs'; // Import shared
 
 // Default models for each provider using this client
 const DEFAULT_MODELS = {
-    chatgpt: 'gpt-4o', // Default to GPT-4o
+    chatgpt: 'gpt-4.1', // Default to GPT-4.1
     grok: 'grok-3-mini',
-    deepseek: 'deepseek-chat',
-    llama: 'Llama-4-Maverick-17B-128E-Instruct-FP8', // Example default
+    deepseek: 'deepseek-chat', // Default - alternative is 'deepseek-reasoner'
+    llama: 'Llama-4-Maverick-17B-128E-Instruct-FP8',
 };
 
 /**
@@ -54,11 +54,19 @@ export async function streamOpenAICompatResponse(provider, modelId, prompt, onCh
     messages.push({ role: 'user', content: prompt });
 
     try {
+        // Set appropriate max_tokens based on provider
+        let maxTokens = 32000; // Default for most models
+        
+        // DeepSeek has a lower max_tokens limit
+        if (provider === 'deepseek') {
+            maxTokens = 8000; // DeepSeek supports up to 8k tokens output
+        }
+        
         const stream = await client.chat.completions.create({
             model: modelToUse,
             messages: messages,
             stream: true,
-            max_tokens: 32000, // GPT-4o supports up to 32k tokens output
+            max_tokens: maxTokens,
             // Add other provider-specific parameters if needed
             // temperature: 0.7,
         });

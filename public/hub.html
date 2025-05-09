@@ -12,25 +12,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" id="highlight-style">
     <!-- Link the consolidated CSS file -->
     <link rel="stylesheet" href="/css/main.css?v=8">
+    <!-- Load the standalone theme manager script that works on all pages -->
+    <script src="/js/applySavedTheme.js"></script>
     <script>
-        // Apply theme before DOM content loads to prevent flash
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'theme-dark';
-            document.documentElement.className = savedTheme;
-            // Update highlight.js theme based on selected theme
-            const highlightStyle = document.getElementById('highlight-style');
-            if (highlightStyle) {
-                highlightStyle.href = savedTheme === 'theme-light'
-                    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css'
-                    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css';
-            }
-            
-            // Configure browser to allow modal dialog on fullscreen interaction
-            document.addEventListener('fullscreenchange', function() {
-                console.log('Fullscreen change event fired');
-            });
-        })();
+        // Configure browser to allow modal dialog on fullscreen interaction
+        document.addEventListener('fullscreenchange', function() {
+            console.log('Fullscreen change event fired');
+        });
     </script>
+    <!-- Add loading screen CSS directly to ensure it's properly loaded -->
+    <link rel="stylesheet" href="/css/loading-progress.css?v=8">
 </head>
 <body>
     <!-- Global Header Placeholder -->
@@ -77,21 +68,7 @@
                     </div>
                     <!-- Collaboration Controls -->
                     <div class="collaboration-mode-toggle">
-                        <label class="me-1 small">Mode:</label>
-                        <div class="btn-group btn-group-sm" role="group" aria-label="Collaboration Mode">
-                            <input type="radio" class="btn-check" name="collab-mode" id="collab-mode-collaborative" autocomplete="off" checked>
-                            <label class="btn btn-sm btn-outline-primary py-0" for="collab-mode-collaborative" title="AIs respond sequentially">Collaborative</label>
-
-                            <input type="radio" class="btn-check" name="collab-mode" id="collab-mode-individual" autocomplete="off">
-                            <label class="btn btn-sm btn-outline-primary py-0" for="collab-mode-individual" title="AIs respond independently">Individual</label>
-                        </div>
-                        <div class="collab-style-dropdown ms-1" id="collab-style-container">
-                            <select class="form-select form-select-sm py-0" style="height: 24px;" id="collab-style" aria-label="Collaboration Style">
-                                <option value="balanced" selected title="Balanced insights">Balanced</option>
-                                <option value="contrasting" title="Highlight differences">Contrasting</option>
-                                <option value="harmonious" title="Find common ground">Harmonious</option>
-                            </select>
-                        </div>
+                        <!-- Collaboration controls will be populated by collaborationControls.js -->
                     </div>
                 </div>
             </div>

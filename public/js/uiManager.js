@@ -155,6 +155,59 @@ export function initializeUI() {
      if (typeof marked === 'undefined') {
         console.warn("UIManager: marked library not found. Markdown rendering disabled.");
     }
+    
+    // Make sure theme toggle works 
+    setupThemeToggleHandlers();
+}
+
+/**
+ * Applies the saved theme from localStorage
+ * @deprecated This implementation is replaced by the second declaration below
+ * @private
+ */
+function _legacyApplySavedTheme() {
+    // Let the standalone theme manager handle this
+    if (window.themeManager && typeof window.themeManager.applySavedTheme === 'function') {
+        window.themeManager.applySavedTheme();
+        console.log("UIManager: Applied saved theme using themeManager");
+    } else {
+        // Fallback implementation if standalone script is not loaded
+        const savedTheme = localStorage.getItem('theme') || 'theme-dark';
+        document.documentElement.className = savedTheme;
+        console.log(`UIManager: Applied saved theme (${savedTheme}) using fallback method`);
+        
+        // Update highlight.js theme
+        const highlightStyle = document.getElementById('highlight-style');
+        if (highlightStyle) {
+            highlightStyle.href = savedTheme === 'theme-light'
+                ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css'
+                : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css';
+        }
+    }
+}
+
+/**
+ * Ensure theme toggle works by setting up event handlers
+ */
+function setupThemeToggleHandlers() {
+    console.log("UIManager: Theme toggle handlers - using global event delegation");
+    
+    // We no longer directly attach event listeners to theme toggle buttons
+    // Instead we rely on the global event delegation from applySavedTheme.js
+    
+    // Just update the theme icon if needed
+    if (window.themeManager && typeof window.themeManager.updateThemeToggleIcon === 'function') {
+        window.themeManager.updateThemeToggleIcon();
+        console.log("UIManager: Updated theme icons using themeManager");
+    }
+    
+    // Just update theme icons after layout-ready event
+    document.addEventListener('layout-ready', () => {
+        console.log("UIManager: Layout ready - updating theme icons");
+        if (window.themeManager && typeof window.themeManager.updateThemeToggleIcon === 'function') {
+            window.themeManager.updateThemeToggleIcon();
+        }
+    });
 }
 
 /**
@@ -255,7 +308,9 @@ export function setupCoreEventListeners(
     });
 
     // Header Controls
-    domCache.THEME_TOGGLE_BTN?.addEventListener('click', toggleTheme);
+    // We no longer attach direct listeners to theme toggle button
+    // Event delegation is used in applySavedTheme.js to handle clicks
+    console.log("UIManager: Using global theme handler instead of direct listener");
     domCache.COMPACT_MODE_BTN?.addEventListener('click', toggleCompactMode);
     domCache.INPUT_TOGGLE_BTN?.addEventListener('click', toggleInputArea);
     domCache.CLI_FULLSCREEN_BTN?.addEventListener('click', onToggleCliFullscreen);
@@ -329,10 +384,17 @@ export function setupCoreEventListeners(
 
 // --- UI State Management ---
 
+// Theme management is now handled by applySavedTheme.js
+// This function is kept as a wrapper for backward compatibility
 export function applySavedTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'theme-dark';
-    document.documentElement.className = savedTheme;
-    updateHighlightJsTheme(savedTheme);
+    if (window.themeManager && typeof window.themeManager.applySavedTheme === 'function') {
+        window.themeManager.applySavedTheme();
+    } else {
+        // Fallback implementation if themeManager isn't available
+        const savedTheme = localStorage.getItem('theme') || 'theme-dark';
+        document.documentElement.className = savedTheme;
+        updateHighlightJsTheme(savedTheme);
+    }
 }
 
 export function loadUIPreferences() {
@@ -357,27 +419,18 @@ function updateToggleButtonIcon(button, isActive, activeIconClass, inactiveIconC
 }
 
 function toggleTheme() {
-    const currentTheme = document.documentElement.className.includes('theme-dark') ? 'theme-dark' : 'theme-light';
-    const newTheme = currentTheme === 'theme-dark' ? 'theme-light' : 'theme-dark';
-    
-    // Apply theme to document element
-    document.documentElement.className = newTheme;
-    
-    // Explicitly remove old theme and add new theme
-    if (newTheme === 'theme-dark') {
-        document.documentElement.classList.remove('theme-light');
-        document.documentElement.classList.add('theme-dark');
+    // Always use the window.themeManager to toggle theme
+    // This ensures a single source of truth for theme toggling
+    if (window.themeManager && typeof window.themeManager.toggleTheme === 'function') {
+        window.themeManager.toggleTheme();
     } else {
-        document.documentElement.classList.remove('theme-dark');
-        document.documentElement.classList.add('theme-light');
+        console.warn("Theme manager not available for toggling. Using simplified fallback.");
+        // Super simple fallback that just swaps the theme class
+        const currentTheme = document.documentElement.className.includes('theme-dark') ? 'theme-dark' : 'theme-light';
+        const newTheme = currentTheme === 'theme-dark' ? 'theme-light' : 'theme-dark';
+        document.documentElement.className = newTheme;
+        localStorage.setItem('theme', newTheme);
     }
-    
-    // Save to localStorage
-    localStorage.setItem('theme', newTheme);
-    console.log(`Theme changed to: ${newTheme}`);
-    
-    // Update highlight.js theme
-    updateHighlightJsTheme(newTheme);
 }
 
 function updateHighlightJsTheme(theme) {
@@ -409,7 +462,7 @@ export function setupCollaborationControls(initialState, onModeChange, onStyleCh
     const styleSelect = domCache.COLLAB_STYLE_SELECT;
     if (styleSelect) styleSelect.value = initialState.style;
 
-    toggleCollabStyleVisibility(initialState.mode === 'collaborative');
+    // Style visibility toggle removed
 
     // Listeners are setup in setupCoreEventListeners, just ensure initial UI matches state
 }
@@ -417,17 +470,17 @@ export function setupCollaborationControls(initialState, onModeChange, onStyleCh
 export function updateCollaborationModeUI(mode) {
      const collabRadio = document.getElementById(`collab-mode-${mode}`);
      if (collabRadio) collabRadio.checked = true;
-     toggleCollabStyleVisibility(mode === 'collaborative');
+
+     // Toggle enhanced collab container visibility
+     const enhancedContainer = document.getElementById('enhanced-collab-container');
+     if (enhancedContainer) {
+         enhancedContainer.style.display = mode !== 'individual' ? 'block' : 'none';
+     }
 }
 
-export function updateCollaborationStyleUI(style) {
-    const styleSelect = domCache.COLLAB_STYLE_SELECT;
-    if (styleSelect) styleSelect.value = style;
-}
+// Collaboration style UI update function removed (no actual backend implementation)
 
-export function toggleCollabStyleVisibility(show) {
-    domCache.COLLAB_STYLE_CONTAINER?.classList.toggle('d-none', !show);
-}
+// Collaboration style visibility function removed (no actual backend implementation)
 
 
 // --- Message Display ---

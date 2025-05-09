@@ -10,6 +10,9 @@ import * as ModelLoader from './modelLoader.js';
 import * as AuthHandler from './authHandler.js';
 import * as MCPClient from './mcpClient.js'; // Assuming mcpClient.js exports necessary functions/class
 import * as CodePreviewManager from './codePreviewManager.js';
+import * as CollaborationControls from './collaborationControls.js';
+import * as CollaborationLimits from './collaborationLimits.js';
+import LoadingManager from './loadingManager.fixed.js';
 
 console.log('AI Hub Main Module (main.js) Initializing...');
 
@@ -20,7 +23,7 @@ const state = {
     selectedModels: {}, // Populated by ModelLoader
     defaultModels: {}, // Populated by ModelLoader
     availableModels: {}, // Populated by ModelLoader
-    collaboration: { mode: 'collaborative', style: 'balanced' },
+    collaboration: { mode: 'individual', style: 'balanced' }, // Style option maintained in UI
     userId: null, // Set by AuthHandler
     mcpClient: null, // MCP Client instance
     isMobile: window.innerWidth <= 768,
@@ -97,7 +100,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 7. Final UI Setup
         UIManager.loadUIPreferences();
-        UIManager.setupCollaborationControls(state.collaboration, handleCollabModeChange, handleCollabStyleChange);
+        // Initialize the new collaboration controls
+        CollaborationControls.initialize();
+        document.addEventListener('collab-mode-change', (e) => handleCollabModeChange(e.detail.mode));
+        document.addEventListener('collab-style-change', (e) => handleCollabStyleChange(e.detail.style));
+
+        // Initialize collaboration limits monitoring
+        CollaborationLimits.initialize();
+
         UIManager.setupAccessibility();
         UIManager.updateColumnWidths();
         UIManager.setupMobileColumnActivation(state.isMobile);
@@ -174,8 +184,34 @@ function handleWebSocketMessage(data) {
         case 'response':
             UIManager.handleAiResponse(data, state.currentMessageElements);
             break;
+        case 'model_status':
+            // Handle model status updates including phase changes
+            if (data.status === 'phase_change') {
+                // Get the currently active models from UI as a proxy for models in this phase
+                const activeModelsForPhase = UIManager.getActiveAndVisibleColumns().map(col => col.id);
+                LoadingManager.updateForPhase(data.message, activeModelsForPhase);
+            } else {
+                LoadingManager.updateModelStatus(data.model, data.status, data.message);
+            }
+            break;
         case 'command-output':
             UIManager.handleCommandOutput(data);
+            break;
+        case 'collaboration_cancelled':
+            // Hide loading UI when collaboration is cancelled
+            LoadingManager.hide();
+            UIManager.showError("Collaboration cancelled: " + data.message);
+
+            // Fire event for collaboration failure monitoring
+            const failureEvent = new CustomEvent('collaboration-aborted', {
+                detail: { message: data.message || "The collaboration was cancelled. Try using fewer AI models." }
+            });
+            document.dispatchEvent(failureEvent);
+            break;
+        case 'collaboration_complete':
+            // DON'T hide loading UI yet when collaboration is complete - wait for cost_info
+            // This maintains the loading UI until all results are shown in the chat
+            console.log("Collaboration complete event received, waiting for final results");
             break;
         case 'error':
             UIManager.showError(data.message, data.target);
@@ -183,6 +219,10 @@ function handleWebSocketMessage(data) {
             if (data.target && state.currentMessageElements[data.target]) {
                 UIManager.removeTypingIndicator(UIManager.getMessageContainer(data.target));
                 state.currentMessageElements[data.target] = null;
+            }
+            // Update loading UI if needed
+            if (data.target) {
+                LoadingManager.updateModelStatus(data.target, 'failed', data.message);
             }
             break;
         case 'authentication_success':
@@ -204,15 +244,17 @@ function handleWebSocketMessage(data) {
             }
             break;
         // Handle other message types (collab updates, etc.)
-        case 'collab_style_updated':
-            state.collaboration.style = data.style;
-            UIManager.updateCollaborationStyleUI(data.style);
-            UIManager.addSystemMessageToAll(`Collaboration style set to: ${data.name}`);
-            break;
+        // Collaboration style handling removed (no backend implementation)
         case 'collab_mode_updated':
             state.collaboration.mode = data.mode;
-            UIManager.updateCollaborationModeUI(data.mode);
-            UIManager.addSystemMessageToAll(`Collaboration mode set to: ${data.mode}`);
+            CollaborationControls.setMode(data.mode);
+            UIManager.addSystemMessageToAll(`Collaboration mode set to: ${data.mode === 'individual' ? 'Individual' : CollaborationControls.COLLABORATION_MODES[data.mode]?.name || data.mode}`);
+            break;
+        case 'cost_info':
+            CollaborationControls.showCostInfo(data.cost, data.mode);
+            // Only hide loading UI after cost info is received (collaboration complete)
+            // This ensures the loading UI stays visible until the complete answer is in the chat
+            LoadingManager.hide();
             break;
         default:
             // Silently log unknown message types instead of showing errors
@@ -256,6 +298,49 @@ function handleSendMessage(messageText) {
 
     const activeColumnsData = UIManager.getActiveAndVisibleColumns();
     const activeAISystems = activeColumnsData.map(colData => colData.id);
+    
+    // Show loading screen for round-table collaboration if multiple models are selected
+    if (activeAISystems.length > 1 && state.collaboration.mode !== 'individual') {
+        console.log("Starting collaboration with multiple models - showing loading screen");
+
+        // Show warning if too many models selected
+        CollaborationLimits.showTimeoutWarning(activeAISystems);
+
+        // Create an initialization script to ensure the loading screen is available
+        // and fix any potential timing issues with DOM availability
+        const ensureLoadingScreen = () => {
+            // Force create the loading overlay
+            LoadingManager.createLoadingOverlay();
+            
+            // Show the loading screen with the active AI systems
+            const abortSignal = LoadingManager.show(activeAISystems, () => {
+                // This callback is invoked when user clicks the cancel button
+                ConnectionManager.sendMessageToServer({
+                    type: 'cancel_collaboration',
+                    userId: state.userId,
+                    models: activeAISystems
+                });
+                console.log("User cancelled collaboration");
+            });
+            
+            // Extra safety: manually ensure the overlay is visible with inline styles
+            const loadingOverlay = document.getElementById('collaboration-loading');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+                loadingOverlay.style.opacity = '1';
+                loadingOverlay.style.visibility = 'visible';
+                loadingOverlay.classList.remove('hidden');
+                console.log("Collaboration loading screen manually forced to display");
+            } else {
+                console.error("Loading overlay element still not found after creation attempt");
+            }
+            
+            return abortSignal;
+        };
+        
+        // Call the initialization function
+        ensureLoadingScreen();
+    }
 
     if (activeAISystems.length === 0) {
         UIManager.showError("No active AI models selected or visible.");
@@ -284,6 +369,10 @@ function handleSendMessage(messageText) {
         modelInfoPayload[aiSystem] = [selectedModelId]; // Always send as array
     });
 
+    // Check if collaboration toggles are checked
+    const enhancedCollabToggle = document.getElementById('enhanced-collab-toggle');
+    const ignoreFailuresToggle = document.getElementById('ignore-failures-toggle');
+    
     const payload = {
         type: 'chat',
         target: activeAISystems.length > 1 ? 'collab' : activeAISystems[0],
@@ -291,8 +380,9 @@ function handleSendMessage(messageText) {
         filePaths: state.uploadedFiles.map(file => file.path).filter(Boolean),
         models: modelInfoPayload,
         collaborationMode: state.collaboration.mode,
-        collaborationStyle: state.collaboration.style,
-        userId: state.userId // Include user ID
+        userId: state.userId, // Include user ID
+        useEnhancedCollab: enhancedCollabToggle && enhancedCollabToggle.checked, // Add enhanced collab flag based on toggle state
+        ignoreFailingModels: ignoreFailuresToggle && ignoreFailuresToggle.checked // Add ignore failures flag based on toggle state
     };
 
     const success = ConnectionManager.sendMessageToServer(payload);
@@ -374,21 +464,27 @@ function handleCollabModeChange(newMode) {
         state.collaboration.mode = newMode;
         console.log(`Collaboration mode changed to: ${newMode}`);
         ConnectionManager.sendMessageToServer({ type: 'set_collab_mode', mode: newMode });
-        UIManager.toggleCollabStyleVisibility(newMode === 'collaborative');
+        // Using individual mode turns off enhanced collab toggle
+        const isCollaborative = newMode !== 'individual';
     }
 }
 
 function handleCollabStyleChange(newStyle) {
-     if (state.collaboration.style !== newStyle) {
+    if (state.collaboration.style !== newStyle) {
         state.collaboration.style = newStyle;
         console.log(`Collaboration style changed to: ${newStyle}`);
-        ConnectionManager.sendMessageToServer({ type: 'set_collab_style', style: newStyle });
+        // UI is updated through CollaborationControls.setStyle()
+        // No server message needed since there's no backend implementation
     }
 }
 
 function handleModelToggleChange(toggleElement, modelId) {
     UIManager.toggleColumnVisibility(modelId, toggleElement.checked);
     UIManager.updateColumnWidths();
+
+    // Check if we should show a warning about too many active models
+    const activeModels = UIManager.getActiveAndVisibleColumns().map(col => col.id);
+    CollaborationLimits.showTimeoutWarning(activeModels);
 }
 
 function handleModelSelection(provider, modelId) {
@@ -448,5 +544,8 @@ window._app = {
     showCodePreview: (code, title) => CodePreviewManager.showCodePreview(code, title),
 };
 
-// Make CodePreviewManager globally available for easier access 
+// Make CodePreviewManager globally available for easier access
 window.CodePreviewManager = CodePreviewManager;
+
+// Make state available to other modules (like LoadingManager) through window
+window._appState = state;

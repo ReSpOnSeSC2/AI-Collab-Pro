@@ -1,0 +1,3 @@
+/home/jay1988stud/AI-Collab/src/lib/ai/truncation-utils.mjs
+/home/jay1988stud/AI-Collab/src/lib/ai/enhanced-error-handling.mjs
+/home/jay1988stud/AI-Collab/src/lib/ai/improved-error-handling.mjs

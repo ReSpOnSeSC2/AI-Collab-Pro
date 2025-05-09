@@ -59,8 +59,15 @@ export default function initializeWebSocketHandler(wss) {
                     case 'set_collab_mode':
                         handleSetCollabMode(ws, data);
                         break;
+                    case 'cancel_collaboration':
+                        handleCancelCollaboration(ws, data);
+                        break;
                     case 'debug_ping':
                         sendWsMessage(ws, { type: 'debug_pong', timestamp: Date.now(), message: data.message || 'Pong!' });
+                        break;
+                    case 'ping':
+                        // Handle regular ping messages from the client
+                        sendWsMessage(ws, { type: 'pong', timestamp: Date.now() });
                         break;
                     // --- MCP Message Routing ---
                     case 'mcp_register_context':
@@ -171,7 +178,13 @@ async function handleChatMessage(ws, data) {
     if (!messageText && (!filePaths || filePaths.length === 0)) return sendWsError(ws, "Cannot send empty message without files.");
 
     // Update collaboration settings if provided
-    if (collaborationMode) setCollaborationMode(collaborationMode);
+    if (collaborationMode) {
+      // For backwards compatibility, map 'collaborative' to 'individual'
+      if (collaborationMode === 'collaborative') {
+        collaborationMode = 'individual';
+      }
+      setCollaborationMode(collaborationMode);
+    }
     // Note: Collaboration style is set via a separate message type
 
     // Determine which models to query based on target and availability
@@ -244,6 +257,7 @@ async function handleChatMessage(ws, data) {
     if (modelsToQuery.length === 1) {
         const singleTarget = modelsToQuery[0];
         const modelId = models[singleTarget]?.[0]; // Get the specific requested model
+        console.log(`📋 Single target request using model ID: ${modelId} for ${singleTarget}`);
         const streamFn = getStreamFunctionForProvider(singleTarget);
         if (streamFn) {
             await streamFn(modelId, fullPrompt,
@@ -256,18 +270,76 @@ async function handleChatMessage(ws, data) {
         }
     } else {
         // Use collaboration mode from config (updated by set_collab_mode message)
-        if (getCollaborationConfig().mode === 'collaborative') {
-            await handleCollaborativeDiscussion(
-                messageText, // Pass original text, context added inside
-                modelsToQuery,
-                models, // Pass requested models map
-                onChunk,
-                onComplete,
-                onError,
-                onSummaryChunk,
-                onSummaryComplete,
-                onSummaryError
-            );
+        if (getCollaborationConfig().mode !== 'individual') {
+            console.log(`📋 Using models for collaboration:`, JSON.stringify(models));
+            // Send status update message for loading UI
+            modelsToQuery.forEach(model => {
+                sendWsMessage(ws, { 
+                    type: 'model_status', 
+                    model: model, 
+                    status: 'processing',
+                    message: 'Starting collaboration'
+                });
+            });
+            
+            // Use the new collaboration engine with configuration
+            const collaborationResult = await handleCollaborativeDiscussion({
+                prompt: fullPrompt,
+                mode: getCollaborationConfig().mode,
+                agents: modelsToQuery,
+                models: models,
+                ignoreFailingModels: true, // Continue even if some models fail
+                skipSynthesisIfAllFailed: true, // Skip synthesis phase if all models fail
+                continueWithAvailableModels: true, // Continue with available models when some timeout
+                costCapDollars: 100.0, // Higher cost cap (effectively unlimited)
+                maxSeconds: 180, // 3 minute timeout
+                keepLoadingUntilComplete: true, // Keep loading indicators active until all phases complete
+                onModelStatusChange: (model, status, message) => {
+                    // Send status updates to client for loading UI
+                    // Always ensure UI updates are sent for loading indicators
+                    sendWsMessage(ws, {
+                        type: 'model_status',
+                        model,
+                        status,
+                        message,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    // Log status changes for debugging
+                    console.log(`📊 Model status update: ${model} → ${status} ${message ? `(${message})` : ''}`);
+                }
+            });
+            
+            // Handle the response
+            if (collaborationResult && collaborationResult.final) {
+                // Check if this is an error message (collaborationResult.final will contain the error message)
+                const isErrorResult = collaborationResult.final.startsWith('Error in ');
+                
+                if (isErrorResult) {
+                    console.error(`❌ Collaboration error response:`, collaborationResult.final);
+                    onSummaryError(new Error(collaborationResult.final));
+                } else {
+                    // Send summary response to all model UIs
+                    onSummaryChunk(collaborationResult.final);
+                    if (collaborationResult.rationale) {
+                        onSummaryChunk("\n\n## Rationale\n\n" + collaborationResult.rationale);
+                    }
+                    onSummaryComplete();
+                    
+                    // Log the cost
+                    console.log(`Collaboration complete. Cost: $${collaborationResult.spentUSD.toFixed(4)}`);
+                    
+                    // Send cost information to client
+                    sendWsMessage(ws, { 
+                        type: 'cost_info', 
+                        cost: collaborationResult.spentUSD.toFixed(4),
+                        mode: getCollaborationConfig().mode
+                    });
+                }
+            } else {
+                console.error("❌ Collaboration returned empty or null result");
+                onSummaryError(new Error("Collaboration returned empty result. Please check server logs."));
+            }
         } else { // Individual mode
             await Promise.all(modelsToQuery.map(async (aiTarget) => {
                 const modelId = models[aiTarget]?.[0];
@@ -355,6 +427,43 @@ function handleSetCollabStyle(ws, data) {
     } else {
         sendWsError(ws, `Invalid collaboration style: ${style}`);
     }
+}
+
+/**
+ * Handles a cancel collaboration request
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+function handleCancelCollaboration(ws, data) {
+    if (!ws.userId) {
+        return sendWsError(ws, 'Authentication required to cancel collaboration.');
+    }
+    
+    console.log(`User ${ws.userId} cancelled collaboration operation`);
+    
+    // TODO: Implement actual cancellation of in-progress operations
+    // This would involve:
+    // 1. Creating a way to track current operations by user
+    // 2. Having a mechanism to interrupt/abort them 
+    // 3. Cleaning up resources
+    
+    // Send confirmation to all active models
+    // This message will be picked up by the client to close the loading UI
+    const models = data.models || [];
+    models.forEach(model => {
+        sendWsMessage(ws, {
+            type: 'model_status',
+            model,
+            status: 'cancelled',
+            message: 'Operation cancelled by user'
+        });
+    });
+    
+    // Confirm cancellation
+    sendWsMessage(ws, { 
+        type: 'collaboration_cancelled', 
+        message: 'Collaboration cancelled by user' 
+    });
 }
 
 function handleSetCollabMode(ws, data) {

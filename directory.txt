@@ -1,7 +1,8 @@
 ai-collaboration-hub-refactored/
 ├── public/
 │   ├── css/
-│   │   └── main.css
+│   │   ├── main.css
+│   │   ├── loading-progress.css
 │   ├── js/
 │   │   ├── auth.js           # Authentication handling
 │   │   ├── uiManager.js
@@ -12,6 +13,10 @@ ai-collaboration-hub-refactored/
 │   │   ├── main.js
 │   │   ├── layoutManager.js
 │   │   ├── codePreviewManager.js
+│   │   ├── loadingManager.fixed.js     # Fixed loading screen handling
+│   │   ├── collaborationControls.js    # UI controls for collaboration modes
+│   │   ├── collaborationLimits.js     # Timeout warnings and limits monitoring
+│   │   ├── applySavedTheme.js          # Standalone theme handling
 │   │   └── debugUtils.js
 │   ├── config/
 │   │   ├── models-claude.json
@@ -28,6 +33,15 @@ ai-collaboration-hub-refactored/
 │   ├── signup.html
 │   ├── model-comparison.html
 │   └── admin-models.html
+├── docs/
+│   ├── API_Reference.md      # API endpoints documentation
+│   ├── Architecture.md       # System architecture documentation
+│   ├── CLI.md                # Omnicode CLI documentation
+│   ├── Collaboration_Modes.md # Detailed description of collaboration modes
+│   ├── Demo.md               # 30-minute demonstration script
+│   ├── Development_Guide.md  # Guide for developers working on the codebase
+│   ├── SECURITY.md           # Security architecture and practices
+│   └── User_Guide.md         # End-user documentation
 ├── src/
 │   ├── api/
 │   │   ├── auth-routes.mjs    # New Passport.js authentication routes
@@ -45,15 +59,28 @@ ai-collaboration-hub-refactored/
 │   │   │   ├── claude.mjs
 │   │   │   ├── gemini.mjs
 │   │   │   ├── openaiClient.mjs
-│   │   │   ├── collaboration.mjs  # MAJOR REFACTOR: Core orchestration logic
+│   │   │   ├── collaboration.mjs  # MAJOR REFACTOR: Core orchestration logic with client validation
+│   │   │   ├── collaboration.original.mjs  # Original collaboration implementation (backup)
+│   │   │   ├── collaboration-improvements.mjs  # Enhanced collaboration with timeouts and concurrency control
+│   │   │   ├── agent-response.mjs              # Enhanced API response handling with method compatibility
+│   │   │   ├── parallel-collaboration.mjs      # Parallel execution implementation with client validation
+│   │   │   ├── enhanced-collab-integration.mjs # Integration module with improved client handling
 │   │   │   └── index.mjs
+│   │   ├── billing/
+│   │   │   └── costControl.mjs    # Cost estimation and tracking
 │   │   ├── cliHandler.mjs
-│   │   └── mcp/
-│   │       └── index.mjs
+│   │   ├── messaging/
+│   │   │   └── redis.mjs          # Real-time event streaming
+│   │   ├── mcp/
+│   │   │   └── index.mjs
+│   │   └── security/
+│   │       └── promptGuard.mjs    # Prompt injection protection
 │   ├── wsHandler.mjs          # Will be updated to call new collaboration orchestrator
 │   └── server.mjs
 ├── uploads/                   # For file uploads
 ├── responses/                 # For saved markdown responses
 ├── .env
 ├── package.json
+├── install-collab-improvements.mjs  # Installation script for collab improvements
+├── README.improvements.md          # Documentation for the improvements
 └── PRD.md                     # This file

@@ -7,7 +7,7 @@
 import { clients, availability } from './index.mjs'; // Import shared client and availability
 import { HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06'; // Default to the latest pro model
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro-exp-03-25'; // Default to the free experimental model
 const SAFETY_SETTINGS = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -32,7 +32,7 @@ function getGeminiModel(modelId) {
             model: modelId,
             safetySettings: SAFETY_SETTINGS,
             generationConfig: {
-                maxOutputTokens: 64000, // Gemini 2.5 Pro supports up to 64K token output
+                maxOutputTokens: 65536, // Gemini 2.5 Pro supports exactly 65,536 token output limit
             }
         });
     } catch (error) {

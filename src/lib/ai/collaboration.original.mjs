@@ -4,7 +4,7 @@
  * Version: 9.0.0
  */
 
-import { clients, availability, agentClients } from './index.mjs';
+import { clients, availability } from './index.mjs';
 import { getClient } from './index.mjs';
 import { DEFAULT_CLAUDE_MODEL } from './claude.mjs';
 import { DEFAULT_GEMINI_MODEL } from './gemini.mjs';
@@ -79,8 +79,7 @@ const SYSTEM_PROMPTS = {
  * @param {number} options.maxSeconds - Maximum execution time in seconds (default: 13)
  * @returns {Promise<Object>} - Results with final answer, rationale, and cost
  */
-// Original runCollab function renamed to be wrapped by enhanced version
-async function originalRunCollab(options) {
+export async function runCollab(options) {
   var prompt = options.prompt;
   var mode = options.mode || DEFAULT_MODE;
   var agents = options.agents || ['claude', 'gemini', 'chatgpt'];
@@ -1810,21 +1809,16 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
  * Construct a prompt for a specific agent with system instructions
  */
 function constructPrompt(userPrompt, agentProvider, instructions) {
-  var systemPrompt = SYSTEM_PROMPTS[agentProvider]?.agent ||
+  var systemPrompt = SYSTEM_PROMPTS[agentProvider]?.agent || 
     "You are an AI assistant participating in a multi-model collaboration.";
-
+  
   if (instructions) {
     systemPrompt += " " + instructions;
   }
-
-  // Ensure userPrompt is never empty
-  const safeUserPrompt = userPrompt || "Please provide a response based on your expertise.";
-
-  console.log(`📋 constructPrompt for ${agentProvider}: system=${systemPrompt.length} chars, user=${safeUserPrompt.length} chars`);
-
+  
   return {
     systemPrompt: systemPrompt,
-    userPrompt: safeUserPrompt
+    userPrompt: userPrompt
   };
 }
 
@@ -2069,14 +2063,12 @@ async function getAgentResponse(agentProvider, prompt, phase, redisChannel, abor
  */
 function getDefaultModelForProvider(provider) {
   var modelMap = {
-    'claude': 'claude-3-7-sonnet-20250219',
-    'chatgpt': 'gpt-4.1',
-    'grok': 'grok-3-mini',
+    'chatgpt': 'gpt-4o',
+    'grok': 'grok-3',
     'deepseek': 'deepseek-chat',
-    'llama': 'Llama-4-Maverick-17B-128E-Instruct-FP8',
-    'gemini': 'gemini-2.5-pro-exp-03-25'
+    'llama': 'Llama-4-Maverick-17B-128E-Instruct-FP8'
   };
-
+  
   return modelMap[provider] || provider;
 }
 
@@ -3220,13 +3212,8 @@ export async function handleCollaborativeDiscussion(options) {
     mode: mode,
     agents: availableAgents, // Use only available agents
     styleDirective: styleDirective,
-    onModelStatusChange: onModelStatusChange,
-    // IMPORTANT: Make sure clients are explicitly passed (imported at the top of this file)
-    clients: clients 
+    onModelStatusChange: onModelStatusChange
   };
-  
-  // Debug log the clients object to ensure it's properly constructed
-  console.log(`🧠 Available clients:`, Object.keys(clients).filter(k => clients[k]).join(', '));
   
   // Map 'collaborative' mode to 'individual' for backward compatibility
   if (mode === 'collaborative') {
@@ -3259,49 +3246,4 @@ export async function handleCollaborativeDiscussion(options) {
     };
   }
 }
-
-// Import the enhanced collaboration integration module
-import { patchCollaborationModule } from './enhanced-collab-integration.mjs';
-
-// Create a wrapper runCollab that correctly passes the clients object
-async function wrappedRunCollab(options) {
-  // Use the properly mapped client object imported directly
-  const mappedClients = agentClients;
-  
-  // Create the enhanced options
-  var enhancedOptions = {
-    ...options,
-    clients: mappedClients, // Use our properly mapped clients object
-    useEnhancedCollab: true // Always use enhanced collab to ensure clients are passed
-  };
-  
-  // Debug log the clients object to ensure it's properly constructed
-  console.log(`🧠 Original clients available:`, Object.keys(clients).filter(k => clients[k]).join(', '));
-  console.log(`🧠 Mapped clients available:`, Object.keys(mappedClients).filter(k => mappedClients[k]).join(', '));
-  console.log(`🧠 Collaboration clients being used:`, options.agents ? options.agents.filter(a => mappedClients[a]).join(', ') : 'none specified');
-  
-  // Log individual client availability
-  if (options.agents) {
-    for (const agent of options.agents) {
-      console.log(`🔍 Client ${agent} availability:`, Boolean(mappedClients[agent]));
-      if (mappedClients[agent]) {
-        console.log(`🔍 Client ${agent} methods:`, Object.keys(mappedClients[agent]).join(', '));
-      } else {
-        console.error(`❌ Missing client for ${agent}`);
-      }
-    }
-  }
-
-  // Call the original function with the enhanced options
-  return await originalRunCollab(enhancedOptions);
-}
-
-// Create a local module object with the wrapped runCollab function
-const collaborationModule = { runCollab: wrappedRunCollab };
-
-// Apply the enhancements to create an enhanced runCollab function
-const enhancedModule = patchCollaborationModule(collaborationModule);
-
-// Export the enhanced version of runCollab
-export const runCollab = enhancedModule.runCollab;
 

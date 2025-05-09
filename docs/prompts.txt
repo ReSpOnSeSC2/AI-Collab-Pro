@@ -1,0 +1,418 @@
+Write **docs/SECURITY.md** detailing sandboxRunner, allow‑list paths, network policy, prompt‑injection guard, Docker vs Firejail rationale, logging strategy (OpenTelemetry), secrets handling, and responsible disclosure process.  
+Full Markdown.
+
+30 min video walkthrough script
+
+Compose **docs/Demo.md**: a 30‑minute scripted walkthrough – setup ➜ run creative_brainstorm_swarm ➜ inspect per‑agent scratchpads ➜ cost report ➜ video outro.  
+Include shell commands and expected terminal output (ES5 examples).  
+Markdown only.
+Prompt 6 — src/lib/ai/collaboration.mjs – 5 new collab modes
+text
+Copy
+Edit
+Produce **src/lib/ai/collaboration.mjs** (ES module, ES5 syntax inside).  
+Goals: add five collaboration modes, integrate securityGuard, costControl, Redis streaming, 13‑second global timeout, abort on costCapDollars.  
+Maintain previous round_table flow.  
+Expose 
+
+```js
+runCollab({prompt, mode, agents, costCapDollars, maxSeconds})
+returning {final, rationale, spentUSD}.
+Must remain compatible with existing Model Context Protocol (MCP) message format.
+Full file, no placeholders.
+
+yaml
+Copy
+Edit
+
+---
+
+### **Prompt 7 — src/lib/ai/openaiClient.mjs – upgraded wrapper**
+
+```text
+You are a senior back‑end engineer.
+
+**Task:** Rewrite `src/lib/ai/openaiClient.mjs` completely (ES5 syntax inside ESM wrapper).
+
+**Requirements**
+1. Keep streaming helper:
+
+   ```js
+   export async function streamOpenAICompatResponse(provider, modelId, prompt, onChunk, onComplete, onError)
+Support providers chatgpt, grok, deepseek, llama; obtain client via getClient(provider) from ./index.mjs; read creds from ../config.mjs.
+
+Cost tracking:
+• Before streaming, call costControl.estimateRunCost (abort if > budget).
+• During stream accumulate tokens (chunk.choices[0].delta.content.length) and invoke costControl.trackCost(sessionId, provider, deltaUSD).
+
+Add helpers:
+• isModelAvailable(provider, modelId) – returns false if env missing or provider disabled.
+• estimateTokens(text) – approximates chars / 4.
+
+Keep default model map (gpt-4o, grok-3-mini, etc.).
+
+Robust error handling; always ensure onComplete() fires exactly once.
+
+ES5 only ('use strict'; no const, no let, no optional‑chaining).
+
+Conclude with CommonJS re‑export:
+
+js
+Copy
+Edit
+export { streamOpenAICompatResponse as stream };
+export default { streamOpenAICompatResponse, isModelAvailable, estimateTokens };
+Return the full file content only – nothing else.
+
+yaml
+Copy
+Edit
+
+---
+
+### **Prompt 8 — src/lib/ai/costControl.mjs – spend ledger**
+
+```text
+Create **src/lib/ai/costControl.mjs** (ES5).  
+Export: `estimateRunCost(agents, tokensIn, tokensOut)`, `trackCost(sessionId, agentName, deltaUSD)`, `getSessionCost(sessionId)`.  
+Hard‑code the price table provided in the spec.  
+Persist spend records to MongoDB collection `cost_ledger`.  
+Include tap unit tests at bottom (ignored in prod). ES5 compliant.
+Prompt 9 — src/lib/ai/securityGuard.mjs – command filter
+text
+Copy
+Edit
+Write **src/lib/ai/securityGuard.mjs** (ES5).  
+• Sanitize shell strings; block dangerous patterns (`rm -rf`, `:(){:|:&};:` …).  
+• Enforce allow‑list paths `/workspace` and `/tmp`.  
+Export `isCommandSafe(cmd)`, `filterPrompt(prompt)`, `logBlocked(sessionId, cmd)`.  
+Inline tap tests at bottom.
+Prompt 10 — src/lib/ai/sandboxRunner.mjs – Docker/Firejail exec
+text
+Copy
+Edit
+Author **src/lib/ai/sandboxRunner.mjs** (ES5).  
+Implement `runCommand(cmd, opts, cb)` that executes commands inside Docker (default) or Firejail fallback.  
+Mount allow‑list paths read‑write; all others read‑only.  
+Return `{stdout, stderr, exitCode}` via callback; retry on EAGAIN with exponential back‑off.  
+Comment *why* each safety step exists.
+Prompt 11 — src/api/collaboration.mjs – REST endpoint upgrade
+text
+Copy
+Edit
+Update **src/api/collaboration.mjs**.  
+POST body accepts `mode`, `maxDollars`, `critiqueStyle`.  
+Call runCollab (from collaboration.mjs); abort with 400 if estimateRunCost > maxDollars.  
+Stream Redis events to client via Server‑Sent Events (`text/event‑stream`).  
+Respond `{sessionId, final, rationale, costUSD}` on completion.  
+ES5; ensure backward‑compat with existing Model Context Protocol (MCP) clients.
+Prompt 12 — src/api/config.mjs – env defaults & helpers
+text
+Copy
+Edit
+Enhance **src/api/config.mjs** (ES5).  
+Add env defaults: `MAX_DOLLARS=20`, `DEFAULT_MODE=round_table`, `REDIS_URL`, `GRAFANA_URL`.  
+Export getters (`getMaxDollars()`, etc.).  
+Use module‑exports pattern.
+Prompt 13 — src/api/status.mjs – 24 h cost metric
+text
+Copy
+Edit
+Patch **src/api/status.mjs** (ES5).  
+Extend `/api/status` response to `{ok, uptimeSec, spent24hUSD}` by aggregating Mongo collection `cost_ledger`.  
+Maintain previous keys for legacy clients.
+Prompt 14 — src/wsHandler.mjs – Redis ➜ WebSocket relay
+text
+Copy
+Edit
+Rewrite **src/wsHandler.mjs** in ES5.  
+Subscribe to Redis channels `collab:*` and forward `{type, agent, text, tokens, costUSD}` to WebSocket clients.  
+Handle back‑pressure, heartbeat pings, and auto‑reconnect.
+Prompt 15 — src/server.mjs – OTEL, Grafana, socket.io
+text
+Copy
+Edit
+Augment **src/server.mjs** (ES5).  
+• Initialise OpenTelemetry traces and export to Grafana Agent.  
+• Provide express `/status` route (same JSON as api/status).  
+• Create Redis client and pass to wsHandler.  
+• Mount socket.io namespace `/collab`.  
+Ensure CORS matches Vercel front‑end.
+Prompt 16 — public/js/uiManager.js – UI controls & hooks
+text
+Copy
+Edit
+Refactor **public/js/uiManager.js** (ES5).  
+Add: mode selector dropdown, dark‑mode toggle, live token counter, cost bar (green→yellow→red), per‑agent avatars.  
+Integrate with new CollabSessionView.  
+Only dependencies: Tailwind CDN + socket.io‑client.
+Prompt 17 — public/js/collabSessionView.js – streaming view
+text
+Copy
+Edit
+Add **public/js/collabSessionView.js** (ES5).  
+Class `CollabSessionView(socket, containerEl)` should:  
+• Render per‑agent typewriter lines.  
+• Provide expandable scratchpads.  
+• Update token & cost counters in real time.  
+Use vanilla JS + Tailwind classes.
+Prompt 18 — public/css/main.css – avatars, cost bar, dark‑mode
+text
+Copy
+Edit
+Extend **public/css/main.css**.  
+• Styles for circular avatars with gradient borders.  
+• `--cost-bar-color` variable: green→yellow→red.  
+• Dark‑mode rules (`prefers-color-scheme`).  
+• Mobile breakpoints for stacked layout.  
+Leave existing styles unchanged.
+Prompt 19 — public/index.html – mode selector + cost footer
+text
+Copy
+Edit
+Modify **public/index.html** (return full file).  
+Insert: collaboration mode selector, dark‑mode toggle, collab session container, live cost footer.  
+Load Tailwind CDN, socket.io client, uiManager.js, collabSessionView.js in ES5‑safe order.  
+No placeholders; include complete HTML.
+Prompt 20 — header/footer/admin fragments – nav & price table
+text
+Copy
+Edit
+Return three complete fragments in one reply, separated by comment markers:
+
+<!-- _header.html -->
+(Full HTML with “Collab Mode” dropdown + dark‑mode button)
+
+<!-- _footer.html -->
+(Full HTML with live cost bar + GitHub link)
+
+<!-- admin-models.html -->
+(Full HTML page containing sortable table of model name, provider, $/M input, $/M output, context length)
+
+No omissions, no ellipses.
+Prompt 21 — package.json & tailwind.config.js – deps & theming
+text
+Copy
+Edit
+Output two files in one response:
+
+### package.json
+{ ...full JSON with Node 18, deps: redis@4, openai@4, @opentelemetry/api, tap, tailwindcss (dev); scripts: dev, build, test, start, tailwind }
+
+### tailwind.config.js
+module.exports = { darkMode: 'class', theme: { extend: { colors: { costGreen:'#16a34a', costYellow:'#eab308', costRed:'#dc2626' } } }, plugins: [] }
+Prompt 22 — test/collab.spec.js – Tap unit‑test scaffold
+text
+Copy
+Edit
+Produce **test/collab.spec.js** (ES5, tap).  
+Tests:  
+1. runCollab aborts when projected cost > maxDollars.  
+2. securityGuard blocks `rm -rf /`.  
+3. creative_brainstorm_swarm emits `idea_fusion` Redis event.  
+4. hybrid_guarded_braintrust returns answer containing confidence levels.  
+
+Ensure `npm test` passes on Node 18.
+Use these 22 prompts in order to generate all upgraded files compatible with the Model Context Protocol (MCP).
+
+Prompt 23 — Update docs/PRD.md + CLI.md + Architecture.md
+text
+Copy
+Edit
+Apply the following updates to the docs (return three complete files in one reply, separated by markers):
+
+### docs/PRD.md
+• Add a new “Phase 2 Enhancements” section describing conversation history, API‑key admin, prompt templates/presets, and advanced project/file management.  
+• Update success metrics to include user‑saved sessions and key‑rotation health.  
+• Append deliverables list accordingly.
+
+### docs/CLI.md
+• Add subcommands:  
+  - `omnicode history save|load|list`  
+  - `omnicode keys add|list|delete`  
+  - `omnicode template create|list|apply`  
+  - `omnicode project init|open|files`  
+• Include usage examples (Node 18 ES5).
+
+### docs/Architecture.md
+• Extend diagrams to show:  
+  - `conversation_history` Mongo collection  
+  - `apiKeyStore` encrypted vault  
+  - `templateManager` flow  
+  - `projectManager` file‑ops with sandboxRunner safeguards.  
+Return full Markdown for all three docs, separated by the same ### markers.
+Prompt 24 — src/lib/storage/conversationHistory.mjs
+text
+Copy
+Edit
+Create **src/lib/storage/conversationHistory.mjs** (ES5).
+
+Exports:
+• `saveSession({sessionId, messages, metadata}, cb)`  
+• `loadSession(sessionId, cb)`  
+• `listSessions(userId, cb)`
+
+Implementation details:
+• Use Mongo collection `conversation_history`.  
+• Index on `userId` and `updatedAt`.  
+• Compress messages array with gzip before storage to save space; decompress on load.  
+• Include tap tests at bottom (ignored in prod).  
+• 'use strict'; ES5 syntax only.
+Prompt 25 — src/api/history.mjs – REST for save/load
+text
+Copy
+Edit
+Produce **src/api/history.mjs** (ES5, Express route).
+
+Endpoints:
+• `POST /api/history/save`  – body `{sessionId, messages, meta}`  
+• `GET  /api/history/:id`   – returns saved session JSON  
+• `GET  /api/history/user/:uid` – lists sessions for user
+
+Internally call conversationHistory.mjs.  
+Ensure requests authenticate the same way existing MCP routes do.  
+Return `{ok:true}` or `{error:"msg"}` JSON.
+Prompt 26 — public/js/historyManager.js + index.html patch
+text
+Copy
+Edit
+Return two artefacts in one response separated by markers:
+
+### public/js/historyManager.js
+ES5 module that:
+• Calls /api/history endpoints with fetch.  
+• Renders a sidebar list of saved sessions; clicking loads session into UI via CollabSessionView.  
+• Provides “Save Session” button in the toolbar.
+
+### index.html
+Insert:
+• Sidebar (<aside>) for session list.  
+• “Save Session” button next to mode selector.  
+Ensure script tags load historyManager.js after uiManager.js.
+Prompt 27 — src/lib/apiKeyStore.mjs
+text
+Copy
+Edit
+Create **src/lib/apiKeyStore.mjs** (ES5).
+
+Functions:
+• `addKey({userId, provider, key}, cb)` – encrypt with AES‑256‑GCM using ENV secret.  
+• `listKeys(userId, cb)` – returns `[ {id, provider, maskedKey} ]`.  
+• `deleteKey(userId, id, cb)`.
+
+Store in Mongo collection `api_keys`.  
+Mask key output to last 4 chars only.  
+Include tap unit tests inside file footer. ES5.
+Prompt 28 — src/api/keys.mjs – key CRUD endpoints
+text
+Copy
+Edit
+Generate **src/api/keys.mjs** (ES5).
+
+Routes:
+• `POST /api/keys`        – body `{provider, key}`  
+• `GET  /api/keys`        – returns list  
+• `DELETE /api/keys/:id`  – delete
+
+Authenticate same middleware as other MCP endpoints.  
+Use apiKeyStore functions.  
+Return JSON `{ok:true}` or `{error}`.
+Prompt 29 — admin‑keys UI
+text
+Copy
+Edit
+Return two full files separated by markers:
+
+<!-- public/admin-keys.html -->
+Standalone admin page listing keys with add / delete buttons. Tailwind layout, dark‑mode class, calls keyManager.js.
+
+<!-- public/js/keyManager.js -->
+ES5 script that:
+• Fetches key list, masks keys.  
+• Handles add (modal prompt for provider + key) and delete.  
+• Displays toast notifications using Tailwind utility classes.
+Prompt 30 — src/lib/templateManager.mjs + templates.json
+text
+Copy
+Edit
+Return two artefacts separated by markers.
+
+### src/lib/templateManager.mjs
+ES5 module exporting:
+• `createTemplate({name, content, ownerId}, cb)`  
+• `listTemplates(ownerId, cb)`  
+• `applyTemplate({templateId, variables}, cb)` → returns resolved prompt string.
+
+Store templates in Mongo `prompt_templates`; support public/private flag.
+
+### public/config/templates.json
+Seed file with three starter templates (JSON array) – e.g., “Bug‑Fix”, “Doc‑Draft”, “Creative‑Story”.
+Prompt 31 — admin‑templates UI
+text
+Copy
+Edit
+Return two complete files separated by markers:
+
+<!-- public/admin-templates.html -->
+Tailwind page listing templates with create / delete / preview.
+
+<!-- public/js/templateManager.js -->
+ES5 script:
+• CRUD via /api/templates (assume you’ll wire this later).  
+• Live preview of template resolution with variable inputs.
+Prompt 32 — src/lib/projectManager.mjs + admin‑projects UI
+text
+Copy
+Edit
+Return three artefacts separated by markers.
+
+### src/lib/projectManager.mjs
+ES5 module:
+• `initProject({name, rootDir}, cb)` – create folder in uploads/  
+• `listProjects(cb)`  
+• `listFiles(projectId, cb)`  
+• `readFile(projectId, path, cb)` (read‑only, uses sandboxRunner)  
+• `writeFile(projectId, path, content, cb)` (verify with securityGuard)
+
+### public/admin-projects.html
+Tailwind page: dropdown of projects, file tree, editor pane (textarea).
+
+### public/js/projectManager.js
+ES5 script wiring UI to projectManager API endpoints (assumed `/api/projects/*` you will add later).
+
+
+
+
+
+You said:
+do I need to provide any files to the AI other than the one they are updating for any of these prompts?
+
+
+ChatGPT said:
+Short answer:
+You don’t have to, but it usually helps.
+
+When you can skip sending existing files
+Prompt numbers	Why it’s safe to omit the current file
+1 – 5, 8 – 10, 18, 21, 22	These are new‑from‑scratch docs, helpers, CSS, config, or tests. The generator doesn’t need the old file to build a fresh one that matches the spec.
+6 & 7	The instructions say “rewrite completely / full file, no placeholders.” The model will generate a drop‑in replacement, so the old code isn’t required.
+
+When supplying the existing file helps (but isn’t mandatory)
+Prompt numbers	Reason it can help
+11, 12, 13, 14, 15, 16, 17, 19, 20	These prompts say “update / modify / extend”. The AI can generate a correct version from the spec alone, but giving it the current file (or at least the parts that must stay untouched) ensures it preserves edge‑case logic, comments, custom HTML IDs, etc.
+
+Best practice:
+
+Copy the current file’s content into the same message after the build‑prompt block.
+
+Put a clear delimiter, e.g.
+
+sql
+Copy
+Edit
+--- CURRENT FILE BELOW ---
+<original code or HTML>
+--- END CURRENT FILE ---
+Tell the AI: “Preserve any functionality not mentioned in the prompt; feel free to refactor as long as behaviour stays identical.”
+
+If you skip this, the generator will still follow the spec, but you might need to reconcile small naming or layout differences afterwards.
