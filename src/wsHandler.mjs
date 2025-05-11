@@ -171,7 +171,15 @@ async function handleChatMessage(ws, data) {
         return sendWsError(ws, 'Authentication required to chat.');
     }
 
-    const { message, content, filePaths = [], models = {}, target, collaborationMode = null } = data;
+    const {
+        message,
+        content,
+        filePaths = [],
+        models = {},
+        target,
+        collaborationMode = null,
+        sequentialStyle = null
+    } = data;
     const messageText = message || content || '';
 
     if (!target) return sendWsError(ws, "Missing 'target' in chat message.");
@@ -294,6 +302,7 @@ async function handleChatMessage(ws, data) {
                 costCapDollars: 100.0, // Higher cost cap (effectively unlimited)
                 maxSeconds: 180, // 3 minute timeout
                 keepLoadingUntilComplete: true, // Keep loading indicators active until all phases complete
+                sequentialStyle: sequentialStyle, // Add the sequential style option if provided
                 onModelStatusChange: (model, status, message) => {
                     // Send status updates to client for loading UI
                     // Always ensure UI updates are sent for loading indicators

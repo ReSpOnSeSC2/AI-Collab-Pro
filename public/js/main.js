@@ -372,7 +372,15 @@ function handleSendMessage(messageText) {
     // Check if collaboration toggles are checked
     const enhancedCollabToggle = document.getElementById('enhanced-collab-toggle');
     const ignoreFailuresToggle = document.getElementById('ignore-failures-toggle');
-    
+
+    // Get sequential style if in sequential critique mode
+    const sequentialStyleSelector = document.getElementById('sequential-style');
+    let sequentialStyle = null;
+    if (state.collaboration.mode === 'sequential_critique_chain' && sequentialStyleSelector) {
+        sequentialStyle = sequentialStyleSelector.value;
+        console.log(`Using sequential style for chat: ${sequentialStyle}`);
+    }
+
     const payload = {
         type: 'chat',
         target: activeAISystems.length > 1 ? 'collab' : activeAISystems[0],
@@ -382,7 +390,8 @@ function handleSendMessage(messageText) {
         collaborationMode: state.collaboration.mode,
         userId: state.userId, // Include user ID
         useEnhancedCollab: enhancedCollabToggle && enhancedCollabToggle.checked, // Add enhanced collab flag based on toggle state
-        ignoreFailingModels: ignoreFailuresToggle && ignoreFailuresToggle.checked // Add ignore failures flag based on toggle state
+        ignoreFailingModels: ignoreFailuresToggle && ignoreFailuresToggle.checked, // Add ignore failures flag based on toggle state
+        sequentialStyle: sequentialStyle // Add sequential style option if applicable
     };
 
     const success = ConnectionManager.sendMessageToServer(payload);

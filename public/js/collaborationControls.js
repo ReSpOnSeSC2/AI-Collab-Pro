@@ -9,6 +9,8 @@ let collabModeSelector;
 let collabModeDescription;
 let collabStyleSelector;
 let collabStyleContainer;
+let sequentialStyleSelector;
+let sequentialStyleContainer;
 let modeContainer;
 
 // Available collaboration modes
@@ -103,6 +105,13 @@ export function initialize() {
     </div>
     <div class="collab-style-container ms-2" id="collab-style-container" ${currentMode === 'individual' ? 'style="display: none;"' : ''}>
       <select class="form-select form-select-sm py-0" style="height: 24px;" id="collab-style" aria-label="Collaboration Style">
+        <option value="balanced" selected title="Balanced insights">Balanced</option>
+        <option value="contrasting" title="Highlight differences">Contrasting</option>
+        <option value="harmonious" title="Find common ground">Harmonious</option>
+      </select>
+    </div>
+    <div class="sequential-style-container ms-2" id="sequential-style-container" style="display: none;">
+      <select class="form-select form-select-sm py-0" style="height: 24px;" id="sequential-style" aria-label="Sequential Style">
         <option value="balanced" selected title="Balanced insights">Balanced</option>
         <option value="contrasting" title="Highlight differences">Contrasting</option>
         <option value="harmonious" title="Find common ground">Harmonious</option>
@@ -287,6 +296,8 @@ export function initialize() {
   collabModeSelector = document.getElementById('collab-mode-dropdown');
   collabStyleSelector = document.getElementById('collab-style');
   collabStyleContainer = document.getElementById('collab-style-container');
+  sequentialStyleSelector = document.getElementById('sequential-style');
+  sequentialStyleContainer = document.getElementById('sequential-style-container');
   modeContainer = document.getElementById('enhanced-collab-container');
   
   // Add event listeners
@@ -304,27 +315,37 @@ function setupEventListeners() {
       e.preventDefault();
       const mode = e.currentTarget.dataset.mode;
       const details = COLLABORATION_MODES[mode];
-      
+
       // Update UI
       document.getElementById('selected-mode-name').textContent = details.name;
       const iconElement = collabModeSelector.querySelector('i');
       iconElement.className = `bi ${details.icon} me-1`;
-      
+
       // Update active class
       modeItems.forEach(mi => mi.classList.remove('active'));
       e.currentTarget.classList.add('active');
-      
+
       // Toggle style visibility
       modeContainer.style.display = mode === 'individual' ? 'none' : 'block';
-      
+
+      // Toggle sequential style selector visibility
+      if (sequentialStyleContainer) {
+        sequentialStyleContainer.style.display = mode === 'sequential_critique_chain' ? 'block' : 'none';
+      }
+
+      // Toggle regular style selector visibility
+      if (collabStyleContainer) {
+        collabStyleContainer.style.display = mode !== 'individual' && mode !== 'sequential_critique_chain' ? 'block' : 'none';
+      }
+
       // Close dropdown (optional - Bootstrap usually handles this)
       const dropdownMenu = document.querySelector('.collab-mode-dropdown .dropdown-menu');
       if (dropdownMenu.classList.contains('show')) {
         dropdownMenu.classList.remove('show');
       }
-      
+
       // Dispatch event
-      const event = new CustomEvent('collab-mode-change', { 
+      const event = new CustomEvent('collab-mode-change', {
         detail: { mode: mode }
       });
       document.dispatchEvent(event);
@@ -341,6 +362,21 @@ function setupEventListeners() {
       detail: { style: style }
     });
     document.dispatchEvent(event);
+  });
+
+  // Sequential style selection
+  sequentialStyleSelector.addEventListener('change', (e) => {
+    const style = e.target.value;
+
+    // Dispatch event
+    const event = new CustomEvent('sequential-style-change', {
+      detail: {
+        sequentialStyle: style
+      }
+    });
+    document.dispatchEvent(event);
+
+    console.log(`Sequential critique style set to: ${style}`);
   });
 
   // Info button
@@ -370,7 +406,12 @@ export function setMode(mode) {
 
   // Toggle style selector visibility
   if (collabStyleContainer) {
-    collabStyleContainer.style.display = mode === 'individual' ? 'none' : 'block';
+    collabStyleContainer.style.display = mode !== 'individual' && mode !== 'sequential_critique_chain' ? 'block' : 'none';
+  }
+
+  // Toggle sequential style selector visibility
+  if (sequentialStyleContainer) {
+    sequentialStyleContainer.style.display = mode === 'sequential_critique_chain' ? 'block' : 'none';
   }
 
   // Toggle enhanced collab toggle visibility

@@ -65,6 +65,9 @@ ai-collaboration-hub-refactored/
 │   │   │   ├── agent-response.mjs              # Enhanced API response handling with method compatibility
 │   │   │   ├── parallel-collaboration.mjs      # Parallel execution implementation with client validation
 │   │   │   ├── enhanced-collab-integration.mjs # Integration module with improved client handling
+│   │   │   ├── sequential-critique-chain.mjs # Sequential critique chain implementation
+│   │   │   ├── sequential-style-options.mjs # Style options for sequential critique chain
+│   │   │   ├── collaboration-options.mjs # Configuration options for collaboration modes
 │   │   │   └── index.mjs
 │   │   ├── billing/
 │   │   │   └── costControl.mjs    # Cost estimation and tracking

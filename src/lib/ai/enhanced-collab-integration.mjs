@@ -6,6 +6,9 @@
  */
 
 import { executeParallelRoundTableCollaboration } from './parallel-collaboration.mjs';
+import { executeSequentialCritiqueChain } from './sequential-critique-chain.mjs';
+import { applySequentialStyle, SEQUENTIAL_STYLES } from './sequential-style-options.mjs';
+import { getOptimalAgentOrder } from './collaboration-options.mjs';
 import { estimateCost as originalEstimateCost, trackCost as originalTrackCost } from '../billing/costControl.mjs';
 
 // Import security and cost utilities from the main collaboration module
@@ -139,8 +142,9 @@ export async function enhancedRunCollab(options) {
     }),
     extractVotedAgent = () => availableAgents[0],
     getAgentWithHighestTokenLimit = () => availableAgents[0],
-    // These functions should be imported from original module
-    executeSequentialCritiqueChain = async () => { throw new Error("Sequential critique not implemented in enhanced version") },
+    // We now import the actual executeSequentialCritiqueChain function,
+    // but keep this as a fallback option in case we need to override
+    customExecuteSequentialCritiqueChain = null,
     executeValidatedConsensus = async () => { throw new Error("Validated consensus not implemented in enhanced version") }
   } = options;
   
@@ -248,19 +252,55 @@ export async function enhancedRunCollab(options) {
         break;
         
       case 'sequential_critique_chain':
-        // For now, fall back to original implementation for other modes
-        console.log(`Using original implementation for ${mode} mode`);
-        result = await executeSequentialCritiqueChain(
-          sanitizedPrompt, 
-          availableAgents, 
-          redisChannel, 
-          timeoutController.signal, 
-          costTracker,
-          {
-            ignoreFailingModels,
-            models
+        try {
+          console.log(`🚀 Executing sequential critique chain with ${availableAgents.length} agents`);
+
+          // Get optimal agent order for sequential critique
+          const orderedAgents = getOptimalAgentOrder(availableAgents, 'sequentialCritique');
+          console.log(`📋 Ordered agents for sequential chain: ${orderedAgents.join(', ')}`);
+
+          // Determine which style option to use
+          const sequentialStyle = options.sequentialStyle || 'balanced';
+          console.log(`🎨 Using sequential style option: ${sequentialStyle}`);
+
+          // Use override function if provided, otherwise use our imported function
+          const sequentialCritiqueFunction = customExecuteSequentialCritiqueChain || executeSequentialCritiqueChain;
+
+          result = await sequentialCritiqueFunction(
+            sanitizedPrompt,
+            orderedAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker,
+            {
+              ignoreFailingModels,
+              continueWithAvailableModels: options.continueWithAvailableModels || true,
+              styleOption: sequentialStyle,
+              models,
+              clients,
+              publishEvent,
+              estimateTokenCount,
+              constructPrompt,
+              onModelStatusChange: options.onModelStatusChange
+            }
+          );
+        } catch (sequentialError) {
+          console.error(`❌ Error in sequential critique chain:`, sequentialError);
+
+          // If ignoreFailingModels is true, generate a simple summary
+          if (ignoreFailingModels) {
+            console.log(`🧯 Sequential chain error but ignoreFailingModels=true, generating fallback summary`);
+            result = {
+              answer: `I encountered an issue with the sequential critique chain: ${sequentialError.message}. Here's a simple response: The AI models were unable to complete the sequential critique process effectively. Please try again with a different prompt or check API configurations.`,
+              leadAgent: availableAgents[0],
+              iterations: [],
+              spentUSD: costTracker.getTotalSpent() // Use what we spent so far
+            };
+          } else {
+            // If ignoreFailingModels is false, rethrow the error
+            throw sequentialError;
           }
-        );
+        }
         break;
         
       case 'validated_consensus':

@@ -1,0 +1,120 @@
+/**
+ * Styling for Sequential Style Options
+ */
+
+.sequential-style-container {
+  display: none; /* Initially hidden, shown only when sequential mode active */
+}
+
+.sequential-style-options {
+  margin-top: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #fafafa;
+}
+
+.sequential-style-options h4 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #555;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+.style-options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.style-option {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.style-option:hover {
+  background-color: #f0f7ff;
+  border-color: #a0c5ff;
+}
+
+.style-option.selected {
+  background-color: #e6f0ff;
+  border-color: #2b7eff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.style-option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.style-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.style-selector {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.style-selector input[type="radio"] {
+  opacity: 0;
+  position: absolute;
+}
+
+.style-selector .checkmark {
+  height: 18px;
+  width: 18px;
+  background-color: #fff;
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+}
+
+.style-selector.checked .checkmark:after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #2b7eff;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.style-description {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .sequential-style-options {
+    padding: 8px;
+  }
+  
+  .style-option {
+    padding: 8px;
+  }
+  
+  .style-name {
+    font-size: 13px;
+  }
+  
+  .style-description {
+    font-size: 12px;
+  }
+}
