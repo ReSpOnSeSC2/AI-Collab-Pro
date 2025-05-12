@@ -12,6 +12,7 @@ import * as MCPClient from './mcpClient.js'; // Assuming mcpClient.js exports ne
 import * as CodePreviewManager from './codePreviewManager.js';
 import * as CollaborationControls from './collaborationControls.js';
 import * as CollaborationLimits from './collaborationLimits.js';
+import * as ContextManager from './contextManager.js';
 import LoadingManager from './loadingManager.fixed.js';
 
 console.log('AI Hub Main Module (main.js) Initializing...');
@@ -36,7 +37,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Content Loaded - Initializing AI Hub App v8.0.1');
     UIManager.initializeUI(); // Cache elements that exist initially
     UIManager.applySavedTheme();
-    
+
+    // Make ConnectionManager available globally
+    window.ConnectionManager = ConnectionManager;
+
     // Initialize code preview manager
     CodePreviewManager.initialize();
 
@@ -108,6 +112,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize collaboration limits monitoring
         CollaborationLimits.initialize();
 
+        // Initialize context manager
+        ContextManager.initializeContextManager();
+        // Expose to window for event routing
+        window.contextManager = ContextManager;
+
         UIManager.setupAccessibility();
         UIManager.updateColumnWidths();
         UIManager.setupMobileColumnActivation(state.isMobile);
@@ -129,6 +138,11 @@ function handleAuthLogin(event) {
     if (state.mcpClient && state.userId) {
         state.mcpClient.setUserId(state.userId); // Assuming MCP client has a method to set user ID
         UIManager.refreshPendingOperations(); // Refresh MCP UI if needed
+    }
+
+    // Handle context for newly authenticated user if session ID is available
+    if (event.detail?.sessionId) {
+        ContextManager.processAuthResponse(event.detail);
     }
 }
 
@@ -168,18 +182,18 @@ function handleToggleCliFullscreen() {
 
 function handleWebSocketMessage(data) {
     // Skip all internal protocol messages silently
-    if (data.type === 'ping' || data.type === 'pong' || 
+    if (data.type === 'ping' || data.type === 'pong' ||
         data.type === 'debug_ping' || data.type === 'debug_pong') {
         // Don't do anything with protocol messages
         return;
     }
-    
+
     // Fix for handling unknown message types
     if (!data.type || typeof data.type !== 'string') {
         console.debug('Received message with missing or invalid type:', data);
         return;
     }
-    
+
     switch (data.type) {
         case 'response':
             UIManager.handleAiResponse(data, state.currentMessageElements);
@@ -227,6 +241,38 @@ function handleWebSocketMessage(data) {
             break;
         case 'authentication_success':
             console.log("Server confirmed authentication for:", data.userId);
+            // Process context information if available
+            ContextManager.processAuthResponse(data);
+            break;
+        // Context management message handlers
+        case 'context_status':
+            ContextManager.handleContextStatus(data);
+            break;
+        case 'context_reset':
+            ContextManager.handleContextReset(data);
+            break;
+        case 'context_trimmed':
+            ContextManager.handleContextTrimmed(data);
+            break;
+        case 'context_warning':
+            ContextManager.handleContextWarning(data);
+            break;
+        case 'max_context_size_updated':
+            ContextManager.handleMaxContextSizeUpdated(data);
+            break;
+        case 'context_mode_updated':
+            ContextManager.handleContextModeUpdated(data);
+            // Update context toggle state
+            const toggleBtn = document.getElementById('context-toggle-btn');
+            if (toggleBtn) {
+                if (data.mode === 'none') {
+                    toggleBtn.classList.remove('active');
+                    toggleBtn.textContent = 'OFF';
+                } else {
+                    toggleBtn.classList.add('active');
+                    toggleBtn.textContent = 'ON';
+                }
+            }
             break;
         case 'mcp_context_registered':
         case 'mcp_files_listed':
@@ -295,6 +341,9 @@ function handleSendMessage(messageText) {
         UIManager.showInputError('Message cannot be empty.');
         return;
     }
+
+    // Make connectionManager available globally for contextToggle script
+    window.connectionManager = ConnectionManager;
 
     const activeColumnsData = UIManager.getActiveAndVisibleColumns();
     const activeAISystems = activeColumnsData.map(colData => colData.id);

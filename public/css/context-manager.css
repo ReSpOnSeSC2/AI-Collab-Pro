@@ -1,0 +1,332 @@
+/**
+ * Context Manager Styles
+ * Styling for the context management UI elements
+ */
+
+/* New simple context toggle styling */
+.simple-context-toggle {
+  background: rgba(33, 150, 243, 0.05);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  min-width: 180px;
+  gap: 20px; /* Space between text and button */
+}
+
+/* Toggle button styling */
+.toggle-btn {
+  background-color: #ccc;
+  color: #555;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Active (ON) state */
+.toggle-btn.active {
+  background-color: #2196F3;
+  color: white;
+}
+
+.context-toggle-switch-label {
+  display: flex;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.context-toggle-text {
+  margin-right: 8px;
+  font-size: 0.875rem;
+}
+
+.context-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.context-toggle-slider {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+  background-color: #ccc;
+  border-radius: 20px;
+  transition: .4s;
+}
+
+.context-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+
+.context-toggle-input:checked + .context-toggle-slider {
+  background-color: #2196F3;
+}
+
+.context-toggle-input:focus + .context-toggle-slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+.context-toggle-input:checked + .context-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Context Status Display */
+.context-status {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #333;
+}
+
+/* Progress Bar */
+.context-progress-container {
+  width: 100%;
+  height: 6px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.context-progress-bar {
+  height: 100%;
+  width: 0%;
+  background-color: #2ecc71;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Context Warning */
+.context-warning {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #fff8e1;
+  border-left: 4px solid #f39c12;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  padding: 12px 16px;
+  border-radius: 4px;
+  max-width: 320px;
+  z-index: 10000;
+  font-size: 0.875rem;
+  align-items: flex-start;
+}
+
+.context-warning .warning-icon {
+  margin-right: 12px;
+  font-size: 1.5rem;
+}
+
+.context-warning .warning-message {
+  flex: 1;
+}
+
+.context-warning p {
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+.context-warning ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.context-warning .warning-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0;
+  margin-left: 8px;
+  color: #666;
+}
+
+.context-warning .warning-close:hover {
+  color: #000;
+}
+
+/* Action Buttons */
+.context-action-button {
+  padding: 6px 12px;
+  margin: 0 4px;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s ease;
+}
+
+.context-action-button:hover {
+  background-color: #e0e0e0;
+}
+
+.context-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-actions {
+  display: flex;
+  margin: 8px 0;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Context Mode Selector */
+.context-mode-container {
+  display: flex;
+  align-items: center;
+  margin: 0 4px;
+}
+
+.context-mode-label {
+  margin-right: 8px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.context-mode-selector {
+  padding: 6px 12px;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s ease;
+  min-width: 140px;
+}
+
+.context-mode-selector:hover {
+  background-color: #e0e0e0;
+}
+
+/* Toast Message */
+.context-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: #333;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  font-size: 0.875rem;
+  z-index: 10001;
+}
+
+.context-toast.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .context-status {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+  }
+
+  .context-warning {
+    background-color: #33270d;
+    border-left-color: #f39c12;
+    color: #e0e0e0;
+  }
+
+  .context-action-button {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .context-action-button:hover {
+    background-color: #444;
+  }
+
+  .context-progress-container {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .context-memory-toggle-container {
+    background: rgba(33, 150, 243, 0.1);
+    border-color: rgba(33, 150, 243, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    color: #e0e0e0;
+  }
+
+  .context-memory-toggle-container .form-check-input:checked {
+    background-color: #4285F4;
+    border-color: #4285F4;
+  }
+
+  .context-toggle-text {
+    color: #e0e0e0;
+  }
+
+  .context-toggle-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .context-memory-toggle {
+    background: rgba(33, 150, 243, 0.1);
+    border-color: rgba(33, 150, 243, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .context-memory-toggle .form-check-input:checked {
+    background-color: #4285F4;
+    border-color: #4285F4;
+  }
+
+  .context-toggle-slider {
+    background-color: #555;
+  }
+
+  .context-toggle-input:checked + .context-toggle-slider {
+    background-color: #4285F4;
+  }
+}
+
+/* Responsive Layout */
+@media (max-width: 768px) {
+  .context-warning {
+    left: 20px;
+    right: 20px;
+    max-width: none;
+  }
+  
+  .context-actions {
+    flex-direction: column;
+  }
+  
+  .context-action-button {
+    margin: 4px 0;
+  }
+}

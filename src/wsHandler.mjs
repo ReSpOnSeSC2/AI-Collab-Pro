@@ -20,6 +20,18 @@ const latestResponses = { claude: "", gemini: "", chatgpt: "", grok: "", deepsee
 const wsUserSessions = new Map(); // ws -> { userId, sessionId }
 const mcpUserSessions = new Map(); // userId -> MCP sessionId (from MCP registration) - Needed? Maybe just use ws session
 
+// Import context manager functionality
+import {
+  getOrCreateContext,
+  addMessageToContext,
+  getFormattedContextHistory,
+  updateTargetModels,
+  trimContextIfNeeded,
+  setContextMode,
+  getContextModes,
+  resetContext
+} from './lib/contextManager.mjs';
+
 // --- WebSocket Server Initialization ---
 export default function initializeWebSocketHandler(wss) {
     console.log('WebSocket Handler: Initializing...');
@@ -61,6 +73,21 @@ export default function initializeWebSocketHandler(wss) {
                         break;
                     case 'cancel_collaboration':
                         handleCancelCollaboration(ws, data);
+                        break;
+                    case 'context_status':
+                        await handleContextStatus(ws, data);
+                        break;
+                    case 'reset_context':
+                        await handleResetContext(ws, data);
+                        break;
+                    case 'trim_context':
+                        await handleTrimContext(ws, data);
+                        break;
+                    case 'set_max_context_size':
+                        await handleSetMaxContextSize(ws, data);
+                        break;
+                    case 'set_context_mode':
+                        await handleSetContextMode(ws, data);
                         break;
                     case 'debug_ping':
                         sendWsMessage(ws, { type: 'debug_pong', timestamp: Date.now(), message: data.message || 'Pong!' });
@@ -158,9 +185,29 @@ function sendWsError(ws, message, target = null, isMcpError = false) {
 function handleAuthentication(ws, data) {
     if (data.userId && typeof data.userId === 'string') {
         ws.userId = data.userId;
-        wsUserSessions.set(ws, { userId: ws.userId, sessionId: ws.connectionId }); // Store mapping
-        sendWsMessage(ws, { type: 'authentication_success', userId: ws.userId });
-        console.log(`User ${ws.userId} authenticated for WebSocket session ${ws.connectionId}.`);
+        ws.sessionId = ws.connectionId; // Use connectionId as sessionId
+
+        // Store mapping
+        wsUserSessions.set(ws, { userId: ws.userId, sessionId: ws.sessionId });
+
+        // Initialize a context for this session
+        const context = getOrCreateContext(ws.userId, ws.sessionId);
+
+        sendWsMessage(ws, {
+            type: 'authentication_success',
+            userId: ws.userId,
+            sessionId: ws.sessionId,
+            contextInfo: {
+                id: context.id,
+                messageCount: context.messages.length,
+                contextSize: context.contextSize,
+                maxContextSize: context.maxContextSize,
+                percentUsed: Math.round((context.contextSize / context.maxContextSize) * 100),
+                isNearLimit: context.isNearLimit
+            }
+        });
+
+        console.log(`User ${ws.userId} authenticated for WebSocket session ${ws.sessionId}.`);
     } else {
         sendWsError(ws, "User ID missing or invalid for authentication.");
     }
@@ -209,24 +256,79 @@ async function handleChatMessage(ws, data) {
         return sendWsError(ws, "No available AI models selected for this request.");
     }
 
-    // --- Prepare context (including files) ---
-    // TODO: Integrate file reading logic here or call a helper
-    const fileContext = await prepareFileContextForAI(filePaths); // Implement this function
-    const fullPrompt = fileContext ? `${fileContext}\n\nUser Query:\n${messageText}` : messageText;
+    // --- Prepare context (including files and conversation history) ---
+    // Get file context
+    const fileContext = await prepareFileContextForAI(filePaths);
+
+    // Get conversation history from context manager
+    let historyContext = '';
+    if (ws.sessionId) {
+      try {
+        historyContext = await getFormattedContextHistory(ws.userId, ws.sessionId);
+
+        // Update target models in the context
+        if (modelsToQuery.length > 0) {
+          await updateTargetModels(ws.userId, ws.sessionId, modelsToQuery);
+        }
+      } catch (error) {
+        console.error(`Error retrieving context history: ${error.message}`);
+        // Continue without context if there's an error
+      }
+    }
+
+    // Combine all context elements
+    const fullPrompt = `${historyContext}${fileContext ? `${fileContext}\n\n` : ''}User Query:\n${messageText}`;
 
     // --- Define Callbacks for Streaming ---
     const onChunk = (aiTarget, chunkText) => {
         sendWsMessage(ws, { type: 'response', target: aiTarget, content: chunkText, start: !latestResponses[aiTarget] }); // Indicate start on first chunk
         latestResponses[aiTarget] += chunkText; // Accumulate for summary/build
     };
-    const onComplete = (aiTarget) => {
+    const onComplete = async (aiTarget) => {
         sendWsMessage(ws, { type: 'response', target: aiTarget, end: true });
         console.log(`Streaming complete for ${aiTarget}`);
+
+        // Store the complete response in the context
+        if (ws.sessionId && latestResponses[aiTarget]) {
+            try {
+                const contextResponse = latestResponses[aiTarget];
+
+                // Add response to conversation context
+                const result = await addResponseToContext(ws.userId, ws.sessionId, aiTarget, contextResponse);
+
+                // Check if we need to notify about context limits
+                if (result.isNearLimit) {
+                    // Notify the client that context is near limit
+                    sendWsMessage(ws, {
+                        type: 'context_warning',
+                        percentUsed: result.percentUsed,
+                        contextSize: result.contextSize,
+                        maxSize: result.maxContextSize
+                    });
+                }
+            } catch (error) {
+                console.error(`Error storing response in context: ${error.message}`);
+                // Continue even if there's an error with the context
+            }
+        }
     };
-    const onError = (aiTarget, error) => {
+    const onError = async (aiTarget, error) => {
         sendWsError(ws, `Error from ${aiTarget}: ${error.message}`, aiTarget);
         sendWsMessage(ws, { type: 'response', target: aiTarget, end: true }); // Ensure stream ends on client
         latestResponses[aiTarget] = `Error: ${error.message}`; // Store error
+
+        // Store the error in context
+        if (ws.sessionId) {
+            try {
+                const errorMsg = `Error: ${error.message}`;
+
+                // Add error response to context
+                await addResponseToContext(ws.userId, ws.sessionId, aiTarget, errorMsg);
+            } catch (contextError) {
+                console.error(`Error storing error response in context: ${contextError.message}`);
+                // Continue even if there's an error with the context
+            }
+        }
     };
     const onSummaryChunk = (chunkText) => {
         // Send summary chunk to all involved models' UIs
@@ -256,10 +358,39 @@ async function handleChatMessage(ws, data) {
     modelsToQuery.forEach(id => { latestResponses[id] = ''; });
     latestResponses.summary = '';
 
+    // Create a new message entry in the context
+    if (ws.sessionId) {
+      try {
+        const userMessage = {
+          type: 'user',
+          content: messageText,
+          timestamp: new Date(),
+          models: modelsToQuery,
+          responses: {}
+        };
+
+        // Add the message to context
+        const contextInfo = await addMessageToContext(ws.userId, ws.sessionId, userMessage);
+
+        // If context is near limit, send warning to client
+        if (contextInfo.isNearLimit) {
+          sendWsMessage(ws, {
+            type: 'context_warning',
+            percentUsed: contextInfo.percentUsed,
+            contextSize: contextInfo.contextSize,
+            maxSize: contextInfo.maxSize
+          });
+        }
+      } catch (error) {
+        console.error(`Error adding message to context: ${error.message}`);
+        // Continue even if there's an error with the context
+      }
+    }
+
     // Send initial "Thinking..." message to relevant UIs
-     modelsToQuery.forEach(id => {
-         sendWsMessage(ws, { type: 'response', target: id, start: true, model: models[id]?.[0] || `Default ${id}` }); // Show model being used
-     });
+    modelsToQuery.forEach(id => {
+        sendWsMessage(ws, { type: 'response', target: id, start: true, model: models[id]?.[0] || `Default ${id}` }); // Show model being used
+    });
 
 
     if (modelsToQuery.length === 1) {
@@ -483,6 +614,181 @@ function handleSetCollabMode(ws, data) {
         // Optionally broadcast to other clients
     } else {
         sendWsError(ws, `Invalid collaboration mode: ${mode}`);
+    }
+}
+
+// --- Context Management Handlers ---
+
+/**
+ * Handles a request for context status
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleContextStatus(ws, data) {
+    if (!ws.userId || !ws.sessionId) {
+        return sendWsError(ws, 'Authentication required to check context status.');
+    }
+
+    try {
+        const context = await getOrCreateContext(ws.userId, ws.sessionId);
+
+        sendWsMessage(ws, {
+            type: 'context_status',
+            messageCount: context.messages.length,
+            contextSize: context.contextSize,
+            maxContextSize: context.maxContextSize,
+            percentUsed: Math.round((context.contextSize / context.maxContextSize) * 100),
+            isNearLimit: context.contextSize >= (context.maxContextSize * 0.8),
+            contextMode: context.contextMode,
+            created: context.created,
+            lastUpdated: context.lastUpdated
+        });
+    } catch (error) {
+        console.error('Error in handleContextStatus:', error);
+        sendWsError(ws, 'Error retrieving context status: ' + error.message);
+    }
+}
+
+/**
+ * Handles a request to reset the conversation context
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleResetContext(ws, data) {
+    if (!ws.userId || !ws.sessionId) {
+        return sendWsError(ws, 'Authentication required to reset context.');
+    }
+
+    try {
+        const newContext = await resetContext(ws.userId, ws.sessionId);
+
+        sendWsMessage(ws, {
+            type: 'context_reset',
+            messageCount: 0,
+            contextSize: 0,
+            maxContextSize: newContext.maxContextSize,
+            contextMode: newContext.contextMode,
+            percentUsed: 0,
+            message: 'Conversation context has been reset.'
+        });
+
+        console.log(`User ${ws.userId} reset context for session ${ws.sessionId}`);
+    } catch (error) {
+        console.error('Error in handleResetContext:', error);
+        sendWsError(ws, 'Error resetting context: ' + error.message);
+    }
+}
+
+/**
+ * Handles a request to trim the context if it's too large
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleTrimContext(ws, data) {
+    if (!ws.userId || !ws.sessionId) {
+        return sendWsError(ws, 'Authentication required to trim context.');
+    }
+
+    try {
+        const trimInfo = await trimContextIfNeeded(ws.userId, ws.sessionId);
+
+        sendWsMessage(ws, {
+            type: 'context_trimmed',
+            trimmed: trimInfo.trimmed,
+            messagesRemoved: trimInfo.removed || 0,
+            percentUsed: trimInfo.percentUsed,
+            message: trimInfo.trimmed
+                ? `Context trimmed. Removed ${trimInfo.removed} oldest messages.`
+                : 'Context is within size limits. No trimming needed.'
+        });
+    } catch (error) {
+        console.error('Error in handleTrimContext:', error);
+        sendWsError(ws, 'Error trimming context: ' + error.message);
+    }
+}
+
+/**
+ * Handles a request to set the maximum context size
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleSetMaxContextSize(ws, data) {
+    if (!ws.userId || !ws.sessionId) {
+        return sendWsError(ws, 'Authentication required to set max context size.');
+    }
+
+    const { maxSize } = data;
+
+    if (!maxSize || typeof maxSize !== 'number' || maxSize < 1000) {
+        return sendWsError(ws, 'Valid max size is required (at least 1000 characters).');
+    }
+
+    try {
+        const result = await setMaxContextSize(ws.userId, ws.sessionId, maxSize);
+
+        sendWsMessage(ws, {
+            type: 'max_context_size_updated',
+            maxSize: result.maxSize,
+            currentSize: result.currentSize,
+            percentUsed: result.percentUsed,
+            message: `Maximum context size updated to ${maxSize} characters.`
+        });
+    } catch (error) {
+        console.error('Error in handleSetMaxContextSize:', error);
+        sendWsError(ws, error.message || 'Failed to set max context size.');
+    }
+}
+
+/**
+ * Handles a request to set the context mode
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleSetContextMode(ws, data) {
+    if (!ws.userId || !ws.sessionId) {
+        return sendWsError(ws, 'Authentication required to set context mode.');
+    }
+
+    const { mode } = data;
+
+    if (!mode) {
+        return sendWsError(ws, 'Context mode is required.');
+    }
+
+    try {
+        // Get available modes
+        const availableModes = getContextModes();
+        // Validate mode is one of the available ones
+        if (!Object.values(availableModes).includes(mode)) {
+            return sendWsError(ws, `Invalid context mode: ${mode}. Valid modes are: ${Object.values(availableModes).join(', ')}`);
+        }
+
+        const result = await setContextMode(ws.userId, ws.sessionId, mode);
+
+        sendWsMessage(ws, {
+            type: 'context_mode_updated',
+            mode: result.mode,
+            messageCount: result.messageCount,
+            contextSize: result.contextSize,
+            percentUsed: result.percentUsed,
+            message: `Context mode updated to ${mode}.`
+        });
+
+        // Also send a system message to all columns to indicate the mode change
+        const modeDescriptions = {
+            [availableModes.NONE]: "No context (each message treated independently)",
+            [availableModes.SUMMARY]: "Summary context (condensed history)",
+            [availableModes.FULL]: "Full context (complete conversation history)"
+        };
+
+        sendWsMessage(ws, {
+            type: 'system_message',
+            message: `Context mode set to: ${modeDescriptions[mode] || mode}`
+        });
+
+    } catch (error) {
+        console.error('Error in handleSetContextMode:', error);
+        sendWsError(ws, error.message || 'Failed to set context mode.');
     }
 }
 

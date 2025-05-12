@@ -10,6 +10,7 @@ import uploadRouter from './upload.mjs';
 import responsesRouter from './responses.mjs';
 import collaborationRouter from './collaboration.mjs';
 import mcpRouter from './mcp.mjs';
+import contextRouter from './context.mjs';
 import authRouter from './auth-routes.mjs'; // Updated to use new auth routes
 import { optionalAuth, authenticateUser } from './auth-routes.mjs'; // Updated import
 
@@ -25,6 +26,7 @@ router.use(uploadRouter); // Handles /upload (mounted at /api/upload)
 router.use('/responses', responsesRouter); // Handles /api/responses/*
 router.use('/collaboration', collaborationRouter); // Handles /api/collaboration/*
 router.use('/mcp', mcpRouter); // Handles /api/mcp/*
+router.use('/context', contextRouter); // Handles /api/context/*
 
 // Optional: Add a root API route for discovery
 router.get('/', optionalAuth, (req, res) => {
@@ -61,7 +63,12 @@ router.get('/', optionalAuth, (req, res) => {
             '/mcp/pending-operations',
             '/mcp/approve-operation',
             '/mcp/reject-operation',
-            // Add other MCP endpoints as they are implemented in mcp.mjs
+            // Context management endpoints
+            '/context/list',
+            '/context/status',
+            '/context/reset',
+            '/context/trim',
+            '/context/max-size',
         ]
     });
 });

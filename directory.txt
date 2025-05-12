@@ -3,10 +3,12 @@ ai-collaboration-hub-refactored/
 │   ├── css/
 │   │   ├── main.css
 │   │   ├── loading-progress.css
+│   │   ├── context-manager.css
 │   ├── js/
 │   │   ├── auth.js           # Authentication handling
 │   │   ├── uiManager.js
 │   │   ├── connectionManager.js
+│   │   ├── contextManager.js  # Context persistence management
 │   │   ├── modelLoader.js
 │   │   ├── authHandler.js
 │   │   ├── mcpClient.js
@@ -16,6 +18,7 @@ ai-collaboration-hub-refactored/
 │   │   ├── loadingManager.fixed.js     # Fixed loading screen handling
 │   │   ├── collaborationControls.js    # UI controls for collaboration modes
 │   │   ├── collaborationLimits.js     # Timeout warnings and limits monitoring
+│   │   ├── contextToggle.js           # Simple context memory toggle
 │   │   ├── applySavedTheme.js          # Standalone theme handling
 │   │   └── debugUtils.js
 │   ├── config/
@@ -38,6 +41,7 @@ ai-collaboration-hub-refactored/
 │   ├── Architecture.md       # System architecture documentation
 │   ├── CLI.md                # Omnicode CLI documentation
 │   ├── Collaboration_Modes.md # Detailed description of collaboration modes
+│   ├── context-management.md # Context persistence feature documentation
 │   ├── Demo.md               # 30-minute demonstration script
 │   ├── Development_Guide.md  # Guide for developers working on the codebase
 │   ├── SECURITY.md           # Security architecture and practices
@@ -47,11 +51,16 @@ ai-collaboration-hub-refactored/
 │   │   ├── auth-routes.mjs    # New Passport.js authentication routes
 │   │   ├── collaboration.mjs  # Will be updated for mode/style setting
 │   │   ├── config.mjs
+│   │   ├── context.mjs        # Context management API routes
 │   │   ├── index.mjs
 │   │   ├── mcp.mjs
 │   │   ├── responses.mjs
 │   │   ├── status.mjs
 │   │   └── upload.mjs
+│   ├── models/
+│   │   └── Conversation.mjs   # MongoDB schema for conversation context
+│   ├── services/
+│   │   └── conversationService.mjs # Service for managing conversation contexts
 │   ├── config/
 │   │   └── passport.mjs     # New Passport.js configuration
 │   ├── lib/
@@ -76,14 +85,18 @@ ai-collaboration-hub-refactored/
 │   │   │   └── redis.mjs          # Real-time event streaming
 │   │   ├── mcp/
 │   │   │   └── index.mjs
+│   │   ├── contextManager.mjs    # Context persistence management with MongoDB
 │   │   └── security/
 │   │       └── promptGuard.mjs    # Prompt injection protection
 │   ├── wsHandler.mjs          # Will be updated to call new collaboration orchestrator
 │   └── server.mjs
 ├── uploads/                   # For file uploads
 ├── responses/                 # For saved markdown responses
+├── tools/
+│   └── test-context.mjs      # Test script for context management functionality
 ├── .env
 ├── package.json
 ├── install-collab-improvements.mjs  # Installation script for collab improvements
 ├── README.improvements.md          # Documentation for the improvements
+├── CONTEXT_MANAGEMENT_IMPLEMENTATION.md # Implementation details for context management
 └── PRD.md                     # This file

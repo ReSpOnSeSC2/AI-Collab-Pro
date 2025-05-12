@@ -15,6 +15,7 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import passport from 'passport';
+import mongoose from 'mongoose';
 
 import { initializePassport } from './config/passport.mjs';
 import initializeWebSocketHandler from './wsHandler.mjs';
@@ -32,6 +33,18 @@ const uploadsPath = path.join(__dirname, '../uploads'); // Define uploads path
 const PORT = process.env.PORT || 3001;
 const NEXT_APP_URL = process.env.NEXT_APP_URL || 'http://localhost:3002'; // For Next.js proxy if used
 
+// --- MongoDB Connection ---
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-collab';
+
+// Connect to MongoDB
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
+
 // --- Express App Setup ---
 const app = express();
 const server = http.createServer(app);
@@ -42,7 +55,6 @@ app.use(cookieParser()); // Parse cookies for authentication
 app.use(express.static(publicPath)); // Serve static files from 'public'
 
 // --- Session Configuration ---
-const MONGO_URI = process.env.MONGODB_URI;
 const SESSION_SECRET = process.env.NEXTAUTH_SECRET || 'ai_collab_session_secret_key';
 
 // Configure session with MongoDB store
