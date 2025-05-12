@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        #debug-controls {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 12px;
+            margin-right: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #debug-output {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 200px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        .message-container {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .message-content {
+            margin-top: 5px;
+            padding: 5px;
+            background-color: #fff;
+            border-radius: 3px;
+        }
+        #test-dom {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px dashed #999;
+            border-radius: 5px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-connected {
+            background-color: green;
+        }
+        .status-disconnected {
+            background-color: red;
+        }
+        .typing-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Debug Tool</h1>
+    
+    <div id="debug-controls">
+        <h3>WebSocket Status: <span id="ws-status">Unknown</span> <span class="status-indicator" id="status-indicator"></span></h3>
+        <button id="connect-ws">Connect WebSocket</button>
+        <button id="send-test-message">Send Test Message</button>
+        <button id="clear-output">Clear Output</button>
+        <button id="test-ui-render">Test UI Rendering</button>
+    </div>
+    
+    <h3>Debug Output:</h3>
+    <div id="debug-output"></div>
+    
+    <h3>Test DOM Area:</h3>
+    <div id="test-dom">
+        <div id="test-message-container" class="message-container">
+            <div id="test-message-header">Test Message</div>
+            <div id="test-message-content" class="message-content">Content will appear here</div>
+        </div>
+        <div class="typing-indicator" id="test-typing-indicator">AI is typing...</div>
+    </div>
+
+    <script>
+        // Debug utilities
+        const debugOutput = document.getElementById('debug-output');
+        const wsStatus = document.getElementById('ws-status');
+        const statusIndicator = document.getElementById('status-indicator');
+        const testMessageContent = document.getElementById('test-message-content');
+        const testTypingIndicator = document.getElementById('test-typing-indicator');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugOutput.innerHTML += `[${timestamp}] ${message}\n`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+        
+        function clearLog() {
+            debugOutput.innerHTML = '';
+        }
+        
+        function updateStatus(connected) {
+            wsStatus.textContent = connected ? 'Connected' : 'Disconnected';
+            statusIndicator.className = 'status-indicator ' + (connected ? 'status-connected' : 'status-disconnected');
+        }
+        
+        // WebSocket handling
+        let ws = null;
+        
+        function connectWebSocket() {
+            // Use the same WebSocket URL as your main app
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/api/ws`;
+            
+            log(`Attempting to connect to ${wsUrl}`);
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    log('WebSocket connected successfully!');
+                    updateStatus(true);
+                };
+                
+                ws.onclose = (event) => {
+                    log(`WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
+                    updateStatus(false);
+                    ws = null;
+                };
+                
+                ws.onerror = (error) => {
+                    log(`WebSocket error: ${error}`);
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received message: ${JSON.stringify(data, null, 2)}`);
+                        
+                        // If it's a response message with content, try to render it
+                        if (data.type === 'response' && data.content) {
+                            testMessageContent.textContent += data.content;
+                            // Hide typing indicator if this is the end message
+                            if (data.end) {
+                                testTypingIndicator.style.display = 'none';
+                            }
+                        }
+                    } catch (e) {
+                        log(`Error parsing message: ${e.message}`);
+                    }
+                };
+            } catch (error) {
+                log(`Error creating WebSocket: ${error.message}`);
+            }
+        }
+        
+        function sendTestMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected. Please connect first.');
+                return;
+            }
+            
+            // Send a message similar to what your app would send
+            const message = {
+                type: 'chat',
+                target: 'claude', // or whatever target you use
+                message: 'This is a test message from the debug tool'
+            };
+            
+            try {
+                ws.send(JSON.stringify(message));
+                log(`Test message sent: ${JSON.stringify(message)}`);
+                
+                // Show typing indicator
+                testTypingIndicator.style.display = 'inline-block';
+            } catch (e) {
+                log(`Error sending message: ${e.message}`);
+            }
+        }
+        
+        function testUIRendering() {
+            const sampleMessage = 'This is a test message rendered directly by the UI.\nTesting if basic DOM manipulation works.';
+            
+            // Clear previous content
+            testMessageContent.textContent = '';
+            
+            // Show typing indicator
+            testTypingIndicator.style.display = 'inline-block';
+            
+            // Simulate typing effect
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index < sampleMessage.length) {
+                    testMessageContent.textContent += sampleMessage[index];
+                    index++;
+                } else {
+                    clearInterval(interval);
+                    testTypingIndicator.style.display = 'none';
+                    log('UI rendering test complete');
+                }
+            }, 50);
+        }
+        
+        // Event listeners
+        document.getElementById('connect-ws').addEventListener('click', connectWebSocket);
+        document.getElementById('send-test-message').addEventListener('click', sendTestMessage);
+        document.getElementById('clear-output').addEventListener('click', clearLog);
+        document.getElementById('test-ui-render').addEventListener('click', testUIRendering);
+        
+        // Initial setup
+        updateStatus(false);
+    </script>
+</body>
+</html>

@@ -57,7 +57,7 @@ export default function initializeWebSocketHandler(wss) {
                 // --- Message Routing ---
                 switch (data.type) {
                     case 'authenticate':
-                        handleAuthentication(ws, data);
+                        await handleAuthentication(ws, data);
                         break;
                     case 'chat':
                         await handleChatMessage(ws, data);
@@ -182,7 +182,7 @@ function sendWsError(ws, message, target = null, isMcpError = false) {
 
 // --- Message Handlers ---
 
-function handleAuthentication(ws, data) {
+async function handleAuthentication(ws, data) {
     if (data.userId && typeof data.userId === 'string') {
         ws.userId = data.userId;
         ws.sessionId = ws.connectionId; // Use connectionId as sessionId
@@ -190,24 +190,41 @@ function handleAuthentication(ws, data) {
         // Store mapping
         wsUserSessions.set(ws, { userId: ws.userId, sessionId: ws.sessionId });
 
-        // Initialize a context for this session
-        const context = getOrCreateContext(ws.userId, ws.sessionId);
+        try {
+            // Initialize a context for this session
+            const context = await getOrCreateContext(ws.userId, ws.sessionId);
 
-        sendWsMessage(ws, {
-            type: 'authentication_success',
-            userId: ws.userId,
-            sessionId: ws.sessionId,
-            contextInfo: {
-                id: context.id,
-                messageCount: context.messages.length,
-                contextSize: context.contextSize,
-                maxContextSize: context.maxContextSize,
-                percentUsed: Math.round((context.contextSize / context.maxContextSize) * 100),
-                isNearLimit: context.isNearLimit
+            // Defensive check: Ensure context and context.messages are defined
+            if (!context || !context.messages) {
+                console.error(`Failed to retrieve or initialize context properly for userId: ${ws.userId}, sessionId: ${ws.sessionId}. Context:`, context);
+                sendWsError(ws, "Internal server error: Could not initialize session context.");
+                return;
             }
-        });
 
-        console.log(`User ${ws.userId} authenticated for WebSocket session ${ws.sessionId}.`);
+            // Also, ensure other properties exist or provide defaults
+            const contextSize = context.contextSize || 0;
+            const maxContextSize = context.maxContextSize || 1; // Avoid division by zero
+            const isNearLimit = context.isNearLimit || false;
+
+            sendWsMessage(ws, {
+                type: 'authentication_success',
+                userId: ws.userId,
+                sessionId: ws.sessionId,
+                contextInfo: {
+                    id: context._id || context.id, // Mongoose documents use _id, or context.id if you have a virtual
+                    messageCount: context.messages.length,
+                    contextSize: contextSize,
+                    maxContextSize: maxContextSize,
+                    percentUsed: maxContextSize > 0 ? Math.round((contextSize / maxContextSize) * 100) : 0,
+                    isNearLimit: isNearLimit
+                }
+            });
+
+            console.log(`User ${ws.userId} authenticated for WebSocket session ${ws.sessionId}.`);
+        } catch (error) {
+            console.error(`Error during authentication for userId: ${ws.userId}, sessionId: ${ws.sessionId}:`, error);
+            sendWsError(ws, "Internal server error during authentication.");
+        }
     } else {
         sendWsError(ws, "User ID missing or invalid for authentication.");
     }

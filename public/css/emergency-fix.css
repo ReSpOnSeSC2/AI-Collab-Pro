@@ -1,0 +1,123 @@
+/**
+ * Emergency CSS fixes for AI messages display
+ */
+
+/* Force message visibility */
+.message,
+.message-ai,
+.claude-message,
+.gemini-message,
+.chatgpt-message,
+.grok-message,
+.deepseek-message,
+.llama-message {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 20px !important;
+    margin: 10px 0 !important;
+    padding: 10px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 8px !important;
+    background-color: rgba(255, 255, 255, 0.7) !important;
+    position: relative !important;
+    z-index: 100 !important;
+    overflow: visible !important;
+    width: calc(100% - 20px) !important;
+    box-sizing: border-box !important;
+}
+
+/* Force message content visibility */
+.message-content {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 10px !important;
+    padding: 5px !important;
+    margin-top: 5px !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    color: #000 !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Dark theme adjustments */
+.theme-dark .message,
+.theme-dark .message-ai,
+.theme-dark .claude-message,
+.theme-dark .gemini-message,
+.theme-dark .chatgpt-message,
+.theme-dark .grok-message,
+.theme-dark .deepseek-message,
+.theme-dark .llama-message {
+    background-color: rgba(40, 40, 40, 0.7) !important;
+    border-color: #444 !important;
+}
+
+.theme-dark .message-content {
+    color: #eee !important;
+    background-color: rgba(50, 50, 50, 0.9) !important;
+}
+
+/* Special styling for emergency fixed messages */
+.emergency-fix {
+    border: 2px solid #ff9900 !important;
+    box-shadow: 0 0 10px rgba(255, 153, 0, 0.5) !important;
+}
+
+/* Fix for typing indicators */
+.typing-indicator {
+    display: none !important; /* Hide all typing indicators by default */
+}
+
+/* Message containers */
+.messages-container,
+#claude-messages,
+#gemini-messages,
+#chatgpt-messages,
+#grok-messages,
+#deepseek-messages,
+#llama-messages {
+    overflow-y: auto !important;
+    min-height: 100px !important;
+    max-height: 80vh !important;
+    padding: 10px !important;
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* Code blocks in messages */
+.message-content pre,
+.message-content code {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: pre !important;
+    background-color: #f6f8fa !important;
+    border: 1px solid #ddd !important;
+    border-radius: 3px !important;
+    padding: 10px !important;
+    margin: 10px 0 !important;
+    color: #333 !important;
+}
+
+.theme-dark .message-content pre,
+.theme-dark .message-content code {
+    background-color: #2d2d2d !important;
+    border-color: #444 !important;
+    color: #eee !important;
+}
+
+/* Force correct visibility for chat columns */
+.chat-column {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+}
+
+.active-column {
+    display: block !important;
+    visibility: visible !important;
+    border: 2px solid green !important;
+}

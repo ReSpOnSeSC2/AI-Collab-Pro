@@ -1,0 +1,318 @@
+/**
+ * Files & Folders Access System
+ * Styling for the AI-Collab file access functionality
+ */
+
+/* Main Panels */
+.files-folders-panel,
+.modification-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: -400px; /* Start off-screen */
+  width: 400px;
+  background-color: #fff;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1050;
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.files-folders-panel.show,
+.modification-panel.show {
+  right: 0;
+}
+
+/* Panel Headers */
+.panel-header {
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1060; /* Ensure headers are above other elements */
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Panel Bodies */
+.panel-body {
+  padding: 15px;
+  flex-grow: 1;
+  overflow-y: auto;
+  z-index: 1060; /* Ensure content is above other elements */
+}
+
+/* Make sure all buttons are clickable */
+.files-folders-panel button,
+.modification-panel button {
+  position: relative;
+  z-index: 1070; /* Higher than panel elements */
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* File List */
+.file-list-container {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
+}
+
+.file-list-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.file-list-item:hover {
+  background-color: #f8f9fa;
+}
+
+.file-list-item .file-icon {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.file-list-item.directory .file-icon {
+  color: #ffc107;
+}
+
+.file-list-item.file .file-icon {
+  color: #6c757d;
+}
+
+.file-list-item .file-name {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-list-item .file-meta {
+  font-size: 0.8rem;
+  color: #6c757d;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Breadcrumb Navigation */
+.breadcrumb-container {
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 5px 0;
+}
+
+.breadcrumb {
+  margin-bottom: 0;
+}
+
+/* Modifications List */
+.modifications-list {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.modification-item {
+  margin-bottom: 20px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.modification-header {
+  padding: 10px 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modification-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.modification-type.create {
+  background-color: #d1e7dd;
+  color: #0a5239;
+}
+
+.modification-type.edit {
+  background-color: #e2e3ff;
+  color: #2c3089;
+}
+
+.modification-type.delete {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+.modification-content {
+  padding: 15px;
+}
+
+.diff-view {
+  font-family: monospace;
+  white-space: pre-wrap;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.diff-view .line-added {
+  background-color: #e6ffed;
+  color: #22863a;
+}
+
+.diff-view .line-removed {
+  background-color: #ffeef0;
+  color: #cb2431;
+}
+
+.modification-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px;
+  border-top: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.modification-actions button {
+  margin-left: 10px;
+}
+
+/* Folder Structure View */
+.folder-structure {
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.folder-item {
+  padding: 2px 0 2px 20px;
+  position: relative;
+}
+
+.folder-item:before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #dee2e6;
+}
+
+.folder-item:last-child:before {
+  height: 50%;
+}
+
+.folder-item:after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background-color: #dee2e6;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .files-folders-panel,
+  .modification-panel {
+    background-color: #1a1a1a;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
+  }
+  
+  .panel-header {
+    background-color: #212529;
+    border-bottom-color: #343a40;
+  }
+
+  .panel-header h3 {
+    color: #e9ecef;
+  }
+  
+  .file-list-container {
+    border-color: #343a40;
+  }
+  
+  .file-list-item {
+    border-bottom-color: #343a40;
+  }
+  
+  .file-list-item:hover {
+    background-color: #2a2a2a;
+  }
+  
+  .file-list-item.directory .file-icon {
+    color: #ffd43b;
+  }
+  
+  .file-list-item.file .file-icon {
+    color: #adb5bd;
+  }
+  
+  .file-list-item .file-meta {
+    color: #adb5bd;
+  }
+  
+  .modification-item {
+    border-color: #343a40;
+  }
+  
+  .modification-header {
+    background-color: #212529;
+    border-bottom-color: #343a40;
+  }
+  
+  .diff-view {
+    background-color: #212529;
+    color: #e9ecef;
+  }
+  
+  .diff-view .line-added {
+    background-color: rgba(40, 167, 69, 0.2);
+    color: #9be9a8;
+  }
+  
+  .diff-view .line-removed {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #f1aeb5;
+  }
+  
+  .modification-actions {
+    background-color: #212529;
+    border-top-color: #343a40;
+  }
+  
+  .folder-structure {
+    background-color: #212529;
+  }
+  
+  .folder-item:before,
+  .folder-item:after {
+    background-color: #343a40;
+  }
+}

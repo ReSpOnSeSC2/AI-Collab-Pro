@@ -1,0 +1,117 @@
+/**
+ * Handles incoming AI response data and updates the UI.
+ * @param {object} data - The WebSocket message data for the response.
+ * @param {object} currentMessageElements - State object holding references to ongoing message elements.
+ */
+export function handleAiResponse(data, currentMessageElements) {
+    // Skip ping/pong messages
+    if (data.type === 'ping' || data.type === 'pong') {
+        return;
+    }
+
+    try {
+        // Ensure data is properly structured
+        if (!data || typeof data !== 'object') {
+            console.error("UIManager: Invalid AI response data:", data);
+            return;
+        }
+
+        const { target, content, start, end, model, error, summary } = data;
+        if (!target) { console.error("UIManager: AI response missing target:", data); return; }
+
+        const messagesContainer = getMessageContainer(target);
+        if (!messagesContainer) {
+            console.warn(`UIManager: Message container not found for target: ${target}`);
+            return;
+        }
+
+        removeTypingIndicator(messagesContainer); // Remove indicator on any response part
+
+        if (error) {
+            addSystemMessage(messagesContainer, `Error from ${target}: ${error}`, 'danger');
+            if (currentMessageElements[target]) currentMessageElements[target] = null; // Clear state on error
+            return;
+        }
+
+        // Ensure content is defined to avoid 'length' errors
+        const safeContent = content || '';
+
+        // Handle start of a new message or summary
+        if (start) {
+            // If it's a summary starting, potentially clear previous non-summary message element for this target
+            if (summary && currentMessageElements[target] && !currentMessageElements[target].isSummary) {
+                currentMessageElements[target] = null;
+            }
+            // If it's a regular message starting, clear previous summary element for this target
+            if (!summary && currentMessageElements[target] && currentMessageElements[target].isSummary) {
+                currentMessageElements[target] = null;
+            }
+
+            // Only create a new element if one doesn't exist for this target/summary type
+            if (!currentMessageElements[target]) {
+                const messageElement = document.createElement('div');
+                messageElement.className = `${CSS_CLASSES.MESSAGE_AI_BASE} ${target}-message ${summary ? 'summary-message' : ''}`;
+
+                if (model) {
+                    const modelInfoEl = document.createElement('div');
+                    modelInfoEl.className = 'model-indicator';
+                    modelInfoEl.textContent = model;
+                    messageElement.appendChild(modelInfoEl);
+                }
+                if (summary) {
+                    const summaryTitle = document.createElement('div');
+                    summaryTitle.className = 'summary-title'; // Add class for styling
+                    summaryTitle.innerHTML = '<strong>Collaborative Summary:</strong>';
+                    messageElement.appendChild(summaryTitle);
+                }
+
+                const contentEl = document.createElement('div');
+                contentEl.className = 'message-content';
+                messageElement.appendChild(contentEl);
+
+                messagesContainer.appendChild(messageElement);
+
+                currentMessageElements[target] = {
+                    element: messageElement,
+                    contentElement: contentEl,
+                    fullContent: '', // Store raw markdown content
+                    isSummary: !!summary,
+                };
+                scrollToBottom(messagesContainer);
+            }
+        }
+
+        // Update message content with streamed tokens
+        if (currentMessageElements[target]) {
+            const current = currentMessageElements[target];
+            current.fullContent += safeContent;
+
+            try {
+                // Render markdown incrementally
+                current.contentElement.innerHTML = marked.parse(current.fullContent);
+                // Add copy buttons to code blocks and highlight syntax
+                current.contentElement.querySelectorAll('pre code').forEach(block => {
+                    if (!block.classList.contains('hljs')) {
+                        highlightElement(block);
+                        addCopyButtonToCodeBlock(block.parentElement);
+                    }
+                });
+            } catch (e) {
+                console.warn("Failed to parse AI response markdown:", e);
+                // Just append as text if markdown parsing fails
+                current.contentElement.textContent = current.fullContent;
+            }
+            
+            scrollToBottom(messagesContainer);
+        }
+
+        // If this is the end of a message, finalize it
+        if (end && currentMessageElements[target]) {
+            // Nothing special to do on end currently, maybe add a "completed" class or animation?
+            currentMessageElements[target] = null; // Clear reference to indicate we're done with this message
+        }
+    } catch (err) {
+        console.error("UI Error: Error processing message:", err.message);
+        return;
+    }
+}
