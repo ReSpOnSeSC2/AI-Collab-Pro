@@ -22,7 +22,8 @@ const MessageSchema = new mongoose.Schema({
   responses: {
     type: Map,
     of: String,
-    default: new Map()
+    // Use a function to ensure each message gets its own Map instance
+    default: () => new Map()
   },
   models: {
     type: [String],
