@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Voting Statistics</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+  <style>
+    :root {
+      --sidebar-width: 260px;
+    }
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
+    }
+    .sidebar {
+      width: var(--sidebar-width);
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background-color: #202123;
+      color: #fff;
+      transition: transform 0.3s;
+      z-index: 1000;
+    }
+    .sidebar-header {
+      padding: 1.5rem 1rem;
+      border-bottom: 1px solid #444;
+    }
+    .main-content {
+      margin-left: var(--sidebar-width);
+      padding: 2rem;
+      transition: margin 0.3s;
+    }
+    .card {
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+    }
+    .card-header {
+      font-weight: 600;
+      background-color: #f8f9fa;
+    }
+    .stats-card {
+      border-left: 4px solid #4c6ef5;
+    }
+    .sidebar-menu .nav-link {
+      color: #adb5bd;
+      padding: 0.75rem 1rem;
+      border-radius: 0.25rem;
+      margin: 0.25rem 0.5rem;
+    }
+    .sidebar-menu .nav-link:hover,
+    .sidebar-menu .nav-link.active {
+      background-color: #343a40;
+      color: #fff;
+    }
+    .sidebar-menu .nav-link i {
+      margin-right: 0.75rem;
+      width: 1.25rem;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.show {
+        transform: translateX(0);
+      }
+      .main-content {
+        margin-left: 0;
+      }
+      .show-sidebar-btn {
+        display: block !important;
+      }
+    }
+    .show-sidebar-btn {
+      display: none;
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 1001;
+    }
+    .spinner-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .filter-section {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .filter-section .form-select, .filter-section .btn {
+      height: 38px;
+    }
+    .custom-tooltip {
+      position: relative;
+      cursor: pointer;
+    }
+    .custom-tooltip:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: -30px;
+      left: 0;
+      background-color: #343a40;
+      color: #fff;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    .badge-count {
+      font-size: 0.85rem;
+      margin-left: 0.5rem;
+      background-color: #495057;
+    }
+    .table th {
+      font-weight: 600;
+      border-bottom-width: 2px;
+    }
+    .export-btn {
+      margin-bottom: 1rem;
+    }
+    .feedback-card {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .rating-distribution-container {
+      height: 200px;
+    }
+    .key-insight {
+      border-left: 4px solid #20c997;
+      padding-left: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <button class="btn btn-dark show-sidebar-btn">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h4>Admin Dashboard</h4>
+    </div>
+    <div class="sidebar-menu">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link" href="admin-models.html">
+            <i class="fas fa-microchip"></i> Models
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="admin-voting.html">
+            <i class="fas fa-poll"></i> Voting Statistics
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">
+            <i class="fas fa-users"></i> Users
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">
+            <i class="fas fa-comment-alt"></i> Conversations
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+        </li>
+        <li class="nav-item mt-3">
+          <a class="nav-link" href="hub.html">
+            <i class="fas fa-arrow-left"></i> Back to Main App
+          </a>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="container-fluid">
+      <div class="row mb-4">
+        <div class="col-12">
+          <h1>Voting & Feedback Analytics</h1>
+          <p class="text-muted">Analyze user feedback and voting patterns for all AI responses</p>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <div class="row">
+          <div class="col-md-3 mb-2">
+            <select id="model-filter" class="form-select">
+              <option value="">All Models</option>
+              <option value="claude">Claude</option>
+              <option value="gemini">Gemini</option>
+              <option value="chatgpt">ChatGPT</option>
+              <option value="grok">Grok</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="llama">Llama</option>
+            </select>
+          </div>
+          <div class="col-md-3 mb-2">
+            <select id="question-type-filter" class="form-select">
+              <option value="">All Question Types</option>
+              
+              <!-- STEM Fields -->
+              <optgroup label="STEM Fields">
+                <option value="algebra">Algebra</option>
+                <option value="geometry">Geometry</option>
+                <option value="calculus">Calculus</option>
+                <option value="statistics">Statistics</option>
+                <option value="probability">Probability</option>
+                <option value="physics">Physics</option>
+                <option value="chemistry">Chemistry</option>
+                <option value="biology">Biology</option>
+                <option value="astronomy">Astronomy</option>
+                <option value="earth_science">Earth Science</option>
+                <option value="computer_science">Computer Science</option>
+                <option value="programming">Programming</option>
+                <option value="algorithms">Algorithms</option>
+                <option value="data_structures">Data Structures</option>
+                <option value="web_development">Web Development</option>
+                <option value="mobile_development">Mobile Development</option>
+                <option value="devops">DevOps</option>
+                <option value="cybersecurity">Cybersecurity</option>
+                <option value="ai_and_ml">AI & Machine Learning</option>
+                <option value="deep_learning">Deep Learning</option>
+                <option value="natural_language_processing">Natural Language Processing</option>
+                <option value="computer_vision">Computer Vision</option>
+                <option value="robotics">Robotics</option>
+                <option value="data_science">Data Science</option>
+                <option value="data_analysis">Data Analysis</option>
+                <option value="big_data">Big Data</option>
+                <option value="blockchain">Blockchain</option>
+                <option value="cryptocurrency">Cryptocurrency</option>
+                <option value="quantum_computing">Quantum Computing</option>
+                <option value="engineering">Engineering</option>
+                <option value="electrical_engineering">Electrical Engineering</option>
+                <option value="mechanical_engineering">Mechanical Engineering</option>
+                <option value="civil_engineering">Civil Engineering</option>
+                <option value="biotechnology">Biotechnology</option>
+                <option value="genetics">Genetics</option>
+              </optgroup>
+              
+              <!-- Social Sciences -->
+              <optgroup label="Social Sciences">
+                <option value="psychology">Psychology</option>
+                <option value="sociology">Sociology</option>
+                <option value="anthropology">Anthropology</option>
+                <option value="economics">Economics</option>
+                <option value="political_science">Political Science</option>
+                <option value="international_relations">International Relations</option>
+                <option value="history">History</option>
+                <option value="archaeology">Archaeology</option>
+                <option value="geography">Geography</option>
+                <option value="urban_planning">Urban Planning</option>
+                <option value="demography">Demography</option>
+                <option value="linguistics">Linguistics</option>
+              </optgroup>
+              
+              <!-- Humanities -->
+              <optgroup label="Humanities">
+                <option value="philosophy">Philosophy</option>
+                <option value="ethics">Ethics</option>
+                <option value="logic">Logic</option>
+                <option value="literature">Literature</option>
+                <option value="creative_writing">Creative Writing</option>
+                <option value="poetry">Poetry</option>
+                <option value="drama">Drama</option>
+                <option value="religion">Religion</option>
+                <option value="theology">Theology</option>
+                <option value="classical_studies">Classical Studies</option>
+                <option value="art_history">Art History</option>
+                <option value="visual_arts">Visual Arts</option>
+                <option value="music">Music</option>
+                <option value="music_theory">Music Theory</option>
+                <option value="film_studies">Film Studies</option>
+                <option value="media_studies">Media Studies</option>
+              </optgroup>
+              
+              <!-- Business & Finance -->
+              <optgroup label="Business & Finance">
+                <option value="marketing">Marketing</option>
+                <option value="advertising">Advertising</option>
+                <option value="sales">Sales</option>
+                <option value="entrepreneurship">Entrepreneurship</option>
+                <option value="management">Management</option>
+                <option value="human_resources">Human Resources</option>
+                <option value="finance">Finance</option>
+                <option value="accounting">Accounting</option>
+                <option value="investment">Investment</option>
+                <option value="real_estate">Real Estate</option>
+                <option value="banking">Banking</option>
+                <option value="insurance">Insurance</option>
+                <option value="taxation">Taxation</option>
+                <option value="e-commerce">E-Commerce</option>
+              </optgroup>
+              
+              <!-- Health & Medicine -->
+              <optgroup label="Health & Medicine">
+                <option value="medicine">Medicine</option>
+                <option value="anatomy">Anatomy</option>
+                <option value="physiology">Physiology</option>
+                <option value="pharmacology">Pharmacology</option>
+                <option value="nutrition">Nutrition</option>
+                <option value="fitness">Fitness</option>
+                <option value="mental_health">Mental Health</option>
+                <option value="public_health">Public Health</option>
+                <option value="epidemiology">Epidemiology</option>
+                <option value="nursing">Nursing</option>
+                <option value="dentistry">Dentistry</option>
+              </optgroup>
+              
+              <!-- Law & Politics -->
+              <optgroup label="Law & Politics">
+                <option value="law">Law</option>
+                <option value="constitutional_law">Constitutional Law</option>
+                <option value="criminal_law">Criminal Law</option>
+                <option value="civil_law">Civil Law</option>
+                <option value="international_law">International Law</option>
+                <option value="politics">Politics</option>
+                <option value="government">Government</option>
+                <option value="public_policy">Public Policy</option>
+                <option value="public_administration">Public Administration</option>
+              </optgroup>
+              
+              <!-- Other Categories -->
+              <optgroup label="Other Categories">
+                <option value="education">Education</option>
+                <option value="pedagogy">Pedagogy</option>
+                <option value="language_learning">Language Learning</option>
+                <option value="cooking">Cooking</option>
+                <option value="culinary_arts">Culinary Arts</option>
+                <option value="gardening">Gardening</option>
+                <option value="home_improvement">Home Improvement</option>
+                <option value="travel">Travel</option>
+                <option value="tourism">Tourism</option>
+                <option value="sports">Sports</option>
+                <option value="gaming">Gaming</option>
+                <option value="game_design">Game Design</option>
+                <option value="entertainment">Entertainment</option>
+                <option value="fashion">Fashion</option>
+                <option value="lifestyle">Lifestyle</option>
+                <option value="environment">Environment</option>
+                <option value="sustainability">Sustainability</option>
+                <option value="parenting">Parenting</option>
+                <option value="relationships">Relationships</option>
+                <option value="other">Other</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="col-md-3 mb-2">
+            <select id="mode-filter" class="form-select">
+              <option value="">All Modes</option>
+              <option value="individual">Individual</option>
+              <option value="collaborative">Collaborative</option>
+            </select>
+          </div>
+          <div class="col-md-3 mb-2">
+            <button id="apply-filters" class="btn btn-primary w-100">Apply Filters</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Overview -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card stats-card">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2 text-muted">Total Votes</h6>
+              <h2 id="total-votes">-</h2>
+              <p class="card-text mb-0 text-success">
+                <i class="fas fa-arrow-up"></i>
+                <span id="votes-change">-</span>% from last week
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2 text-muted">Average Rating</h6>
+              <h2 id="avg-rating">-</h2>
+              <p class="card-text mb-0" id="avg-rating-change">
+                <i class="fas fa-arrow-up text-success"></i>
+                <span>-</span>% from last week
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2 text-muted">Feedback Provided</h6>
+              <h2 id="feedback-count">-</h2>
+              <p class="card-text mb-0 text-success">
+                <i class="fas fa-arrow-up"></i>
+                <span id="feedback-change">-</span>% from last week
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2 text-muted">Participating Users</h6>
+              <h2 id="user-count">-</h2>
+              <p class="card-text mb-0 text-success">
+                <i class="fas fa-arrow-up"></i>
+                <span id="user-change">-</span>% from last week
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Charts -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title m-0">Individual vs. Collaborative Ratings</h5>
+              <div>
+                <button class="btn btn-sm btn-outline-secondary" id="export-comparison">
+                  <i class="fas fa-download"></i> Export
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="comparison-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title m-0">Rating Distribution</h5>
+              <div>
+                <button class="btn btn-sm btn-outline-secondary" id="export-distribution">
+                  <i class="fas fa-download"></i> Export
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="distribution-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question Type Analysis -->
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title m-0">Ratings by Question Type</h5>
+              <div>
+                <button class="btn btn-sm btn-outline-secondary" id="export-question-types">
+                  <i class="fas fa-download"></i> Export
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="question-type-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Insights Section -->
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="card-title m-0">Key Insights</h5>
+            </div>
+            <div class="card-body">
+              <div id="key-insights">
+                <div class="text-center">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p>Analyzing data for insights...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Stats Table -->
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title m-0">Detailed Statistics</h5>
+              <div>
+                <button class="btn btn-sm btn-outline-secondary" id="export-details">
+                  <i class="fas fa-download"></i> Export CSV
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-striped table-hover" id="detailed-stats">
+                  <thead>
+                    <tr>
+                      <th>Model</th>
+                      <th>Question Type</th>
+                      <th>Mode</th>
+                      <th>Average Rating</th>
+                      <th>Count</th>
+                      <th>Distribution</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Data will be populated via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feedback Analysis -->
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title m-0">Feedback Text Analysis</h5>
+              <div>
+                <button class="btn btn-sm btn-outline-secondary" id="export-feedback">
+                  <i class="fas fa-download"></i> Export
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6>Common Feedback Themes</h6>
+                  <div class="chart-container">
+                    <canvas id="feedback-themes-chart"></canvas>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <h6>Sentiment Analysis</h6>
+                  <div class="chart-container">
+                    <canvas id="sentiment-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="spinner-overlay d-none" id="loading-spinner">
+    <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Toggle sidebar on mobile
+      document.querySelector('.show-sidebar-btn').addEventListener('click', function() {
+        document.querySelector('.sidebar').classList.toggle('show');
+      });
+
+      // Load initial data
+      loadData();
+
+      // Filter button action
+      document.getElementById('apply-filters').addEventListener('click', function() {
+        loadData();
+      });
+
+      // Export buttons
+      document.getElementById('export-comparison').addEventListener('click', function() {
+        exportChartAsImage('comparison-chart', 'individual-vs-collaborative-comparison');
+      });
+      
+      document.getElementById('export-distribution').addEventListener('click', function() {
+        exportChartAsImage('distribution-chart', 'rating-distribution');
+      });
+      
+      document.getElementById('export-question-types').addEventListener('click', function() {
+        exportChartAsImage('question-type-chart', 'ratings-by-question-type');
+      });
+      
+      document.getElementById('export-details').addEventListener('click', function() {
+        exportTableAsCSV('detailed-stats', 'voting-detailed-statistics');
+      });
+      
+      document.getElementById('export-feedback').addEventListener('click', function() {
+        exportChartAsImage('feedback-themes-chart', 'feedback-themes-analysis');
+      });
+    });
+
+    function loadData() {
+      showSpinner();
+      
+      // Get filter values
+      const modelId = document.getElementById('model-filter').value;
+      const questionType = document.getElementById('question-type-filter').value;
+      const mode = document.getElementById('mode-filter').value;
+      
+      // Construct query parameters
+      let queryParams = '';
+      if (modelId) queryParams += `modelId=${encodeURIComponent(modelId)}&`;
+      if (questionType) queryParams += `questionType=${encodeURIComponent(questionType)}&`;
+      if (mode) queryParams += `mode=${encodeURIComponent(mode)}&`;
+      
+      // Remove trailing & if exists
+      if (queryParams.endsWith('&')) {
+        queryParams = queryParams.slice(0, -1);
+      }
+      
+      // Create promise array for all the data fetches
+      const promises = [
+        fetch(`/api/votes/statistics${queryParams ? '?' + queryParams : ''}`).then(res => res.json()),
+        fetch('/api/votes/comparative').then(res => res.json()),
+        fetch('/api/votes/feedback-analysis').then(res => res.json())
+      ];
+      
+      Promise.all(promises)
+        .then(([statsResponse, comparativeResponse, feedbackResponse]) => {
+          // Make sure all responses were successful
+          if (!statsResponse.success || !comparativeResponse.success || !feedbackResponse.success) {
+            throw new Error('One or more API calls failed');
+          }
+          
+          updateOverviewStats(statsResponse.statistics);
+          updateComparisonChart(comparativeResponse.comparison);
+          updateDistributionChart(statsResponse.statistics);
+          updateQuestionTypeChart(statsResponse.statistics);
+          updateDetailedStatsTable(statsResponse.statistics);
+          updateFeedbackAnalysis(feedbackResponse.analysis);
+          generateKeyInsights(statsResponse.statistics, comparativeResponse.comparison, feedbackResponse.analysis);
+          
+          hideSpinner();
+        })
+        .catch(error => {
+          console.error('Error loading data:', error);
+          alert('Failed to load data. Please try again later.');
+          hideSpinner();
+        });
+    }
+
+    function updateOverviewStats(statistics) {
+      // Calculate total votes
+      const totalVotes = statistics.reduce((sum, stat) => sum + stat.count, 0);
+      document.getElementById('total-votes').textContent = totalVotes.toLocaleString();
+      
+      // Calculate average rating across all entries
+      let totalRatingSum = 0;
+      let totalRatingCount = 0;
+      
+      statistics.forEach(stat => {
+        totalRatingSum += stat.averageRating * stat.count;
+        totalRatingCount += stat.count;
+      });
+      
+      const overallAvgRating = totalRatingCount > 0 ? 
+        (totalRatingSum / totalRatingCount).toFixed(1) : '-';
+      document.getElementById('avg-rating').textContent = overallAvgRating;
+      
+      // For demo purposes, set placeholder growth values
+      document.getElementById('votes-change').textContent = '12.3';
+      document.getElementById('feedback-change').textContent = '8.7';
+      document.getElementById('user-change').textContent = '5.2';
+      
+      // Set feedback count (placeholder for now)
+      document.getElementById('feedback-count').textContent = Math.floor(totalVotes * 0.65).toLocaleString();
+      
+      // Set user count (placeholder for now)
+      document.getElementById('user-count').textContent = Math.floor(totalVotes / 3.5).toLocaleString();
+      
+      // Set rating change indicator
+      const ratingChangeElem = document.getElementById('avg-rating-change');
+      // Demo: randomly show increase or decrease
+      if (Math.random() > 0.5) {
+        ratingChangeElem.innerHTML = `<i class="fas fa-arrow-up text-success"></i> <span>1.8</span>% from last week`;
+      } else {
+        ratingChangeElem.innerHTML = `<i class="fas fa-arrow-down text-danger"></i> <span>0.7</span>% from last week`;
+      }
+    }
+
+    function updateComparisonChart(comparison) {
+      const ctx = document.getElementById('comparison-chart').getContext('2d');
+      
+      // Initialize data arrays
+      const labels = [];
+      const individualData = [];
+      const collaborativeData = [];
+      
+      // Process comparison data
+      Object.entries(comparison).forEach(([questionType, data]) => {
+        // Make question type more readable
+        const readableType = questionType
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        labels.push(readableType);
+        
+        // Add rating data (or 0 if not available)
+        individualData.push(data.individual ? data.individual.averageRating : 0);
+        collaborativeData.push(data.collaborative ? data.collaborative.averageRating : 0);
+      });
+      
+      // Check if chart instance exists and destroy it
+      if (window.comparisonChart) {
+        window.comparisonChart.destroy();
+      }
+      
+      // Create new chart
+      window.comparisonChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Individual Mode',
+              data: individualData,
+              backgroundColor: 'rgba(54, 162, 235, 0.7)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 1
+            },
+            {
+              label: 'Collaborative Mode',
+              data: collaborativeData,
+              backgroundColor: 'rgba(255, 99, 132, 0.7)',
+              borderColor: 'rgba(255, 99, 132, 1)',
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            title: {
+              display: true,
+              text: 'Average Rating by Question Type and Mode'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 10,
+              title: {
+                display: true,
+                text: 'Average Rating (1-10)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Question Type'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDistributionChart(statistics) {
+      const ctx = document.getElementById('distribution-chart').getContext('2d');
+      
+      // Initialize rating distribution array (ratings 1-10)
+      const distribution = Array(10).fill(0);
+      
+      // Aggregate all distribution data
+      statistics.forEach(stat => {
+        for (let i = 1; i <= 10; i++) {
+          distribution[i-1] += stat.ratingsDistribution[i] || 0;
+        }
+      });
+      
+      // Check if chart instance exists and destroy it
+      if (window.distributionChart) {
+        window.distributionChart.destroy();
+      }
+      
+      // Create new chart
+      window.distributionChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+          datasets: [{
+            label: 'Number of Votes',
+            data: distribution,
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.7)',
+              'rgba(255, 159, 64, 0.7)',
+              'rgba(255, 205, 86, 0.7)',
+              'rgba(75, 192, 192, 0.7)',
+              'rgba(54, 162, 235, 0.7)',
+              'rgba(153, 102, 255, 0.7)',
+              'rgba(201, 203, 207, 0.7)',
+              'rgba(84, 212, 155, 0.7)',
+              'rgba(145, 233, 109, 0.7)',
+              'rgba(46, 204, 113, 0.7)'
+            ],
+            borderColor: [
+              'rgb(255, 99, 132)',
+              'rgb(255, 159, 64)',
+              'rgb(255, 205, 86)',
+              'rgb(75, 192, 192)',
+              'rgb(54, 162, 235)',
+              'rgb(153, 102, 255)',
+              'rgb(201, 203, 207)',
+              'rgb(84, 212, 155)',
+              'rgb(145, 233, 109)',
+              'rgb(46, 204, 113)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Distribution of Ratings (1-10)'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Number of Votes'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Rating Value'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateQuestionTypeChart(statistics) {
+      const ctx = document.getElementById('question-type-chart').getContext('2d');
+      
+      // Group by question type
+      const questionTypeGroups = {};
+      
+      statistics.forEach(stat => {
+        if (!questionTypeGroups[stat.questionType]) {
+          questionTypeGroups[stat.questionType] = {
+            totalRating: stat.averageRating * stat.count,
+            count: stat.count
+          };
+        } else {
+          questionTypeGroups[stat.questionType].totalRating += stat.averageRating * stat.count;
+          questionTypeGroups[stat.questionType].count += stat.count;
+        }
+      });
+      
+      // Calculate average by question type
+      const labels = [];
+      const data = [];
+      const backgroundColors = [
+        'rgba(255, 99, 132, 0.7)',
+        'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 206, 86, 0.7)',
+        'rgba(75, 192, 192, 0.7)',
+        'rgba(153, 102, 255, 0.7)',
+        'rgba(255, 159, 64, 0.7)',
+        'rgba(201, 203, 207, 0.7)',
+        'rgba(84, 212, 155, 0.7)',
+        'rgba(145, 233, 109, 0.7)',
+        'rgba(46, 204, 113, 0.7)'
+      ];
+      
+      Object.entries(questionTypeGroups).forEach(([type, { totalRating, count }], index) => {
+        const readableType = type
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        labels.push(readableType);
+        data.push((totalRating / count).toFixed(2));
+      });
+      
+      // Check if chart instance exists and destroy it
+      if (window.questionTypeChart) {
+        window.questionTypeChart.destroy();
+      }
+      
+      // Create new chart
+      window.questionTypeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Average Rating',
+            data: data,
+            backgroundColor: backgroundColors.slice(0, labels.length),
+            borderColor: backgroundColors.map(color => color.replace('0.7', '1')),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Average Rating by Question Type'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 10,
+              title: {
+                display: true,
+                text: 'Average Rating (1-10)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Question Type'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDetailedStatsTable(statistics) {
+      const tableBody = document.querySelector('#detailed-stats tbody');
+      tableBody.innerHTML = '';
+      
+      // Sort by count (descending)
+      statistics.sort((a, b) => b.count - a.count);
+      
+      statistics.forEach(stat => {
+        const row = document.createElement('tr');
+        
+        // Format model name
+        const modelCell = document.createElement('td');
+        modelCell.textContent = stat.modelId.charAt(0).toUpperCase() + stat.modelId.slice(1);
+        row.appendChild(modelCell);
+        
+        // Format question type
+        const questionTypeCell = document.createElement('td');
+        const readableType = stat.questionType
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        questionTypeCell.textContent = readableType;
+        row.appendChild(questionTypeCell);
+        
+        // Mode
+        const modeCell = document.createElement('td');
+        modeCell.textContent = stat.mode.charAt(0).toUpperCase() + stat.mode.slice(1);
+        row.appendChild(modeCell);
+        
+        // Average rating
+        const avgRatingCell = document.createElement('td');
+        avgRatingCell.textContent = stat.averageRating.toFixed(2);
+        row.appendChild(avgRatingCell);
+        
+        // Count
+        const countCell = document.createElement('td');
+        countCell.textContent = stat.count;
+        row.appendChild(countCell);
+        
+        // Distribution visualization
+        const distributionCell = document.createElement('td');
+        const distributionDiv = document.createElement('div');
+        distributionDiv.style.width = '100%';
+        distributionDiv.style.height = '30px';
+        distributionDiv.style.display = 'flex';
+        
+        // Create mini-bars for each rating (1-10)
+        for (let i = 1; i <= 10; i++) {
+          const bar = document.createElement('div');
+          const count = stat.ratingsDistribution[i] || 0;
+          const percentage = stat.count > 0 ? (count / stat.count) * 100 : 0;
+          
+          bar.style.height = '100%';
+          bar.style.width = `${10}%`; // Each bar takes equal width
+          bar.style.backgroundColor = getColorForRating(i);
+          bar.style.opacity = percentage > 0 ? 0.3 + (percentage / 100) * 0.7 : 0.1;
+          bar.setAttribute('data-tooltip', `Rating ${i}: ${count} (${percentage.toFixed(1)}%)`);
+          bar.className = 'custom-tooltip';
+          
+          distributionDiv.appendChild(bar);
+        }
+        
+        distributionCell.appendChild(distributionDiv);
+        row.appendChild(distributionCell);
+        
+        tableBody.appendChild(row);
+      });
+    }
+
+    function updateFeedbackAnalysis(analysis) {
+      // Update feedback themes chart
+      const themesCtx = document.getElementById('feedback-themes-chart').getContext('2d');
+      
+      // Sort keywords by frequency
+      const sortedKeywords = Object.entries(analysis.keywordFrequency)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8); // Take top 8 keywords
+      
+      const keywordLabels = sortedKeywords.map(([keyword]) => 
+        keyword.charAt(0).toUpperCase() + keyword.slice(1)
+      );
+      
+      const keywordCounts = sortedKeywords.map(([_, count]) => count);
+      
+      // Check if chart instance exists and destroy it
+      if (window.feedbackThemesChart) {
+        window.feedbackThemesChart.destroy();
+      }
+      
+      // Create new chart
+      window.feedbackThemesChart = new Chart(themesCtx, {
+        type: 'bar',
+        data: {
+          labels: keywordLabels,
+          datasets: [{
+            label: 'Occurrence Count',
+            data: keywordCounts,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Most Common Feedback Themes'
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Occurrence Count'
+              }
+            }
+          }
+        }
+      });
+      
+      // Update sentiment chart (split positive/negative keywords)
+      const sentimentCtx = document.getElementById('sentiment-chart').getContext('2d');
+      
+      const positiveKeywords = ['helpful', 'accurate', 'informative', 'thorough', 'clear', 'creative', 'innovative', 'thoughtful', 'insightful', 'detailed'];
+      const negativeKeywords = ['confusing', 'wrong', 'incorrect', 'unhelpful', 'misleading'];
+      
+      let positiveCount = 0;
+      let negativeCount = 0;
+      
+      positiveKeywords.forEach(keyword => {
+        positiveCount += analysis.keywordFrequency[keyword] || 0;
+      });
+      
+      negativeKeywords.forEach(keyword => {
+        negativeCount += analysis.keywordFrequency[keyword] || 0;
+      });
+      
+      // Check if chart instance exists and destroy it
+      if (window.sentimentChart) {
+        window.sentimentChart.destroy();
+      }
+      
+      // Create new chart
+      window.sentimentChart = new Chart(sentimentCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Positive', 'Negative'],
+          datasets: [{
+            data: [positiveCount, negativeCount],
+            backgroundColor: [
+              'rgba(46, 204, 113, 0.7)',
+              'rgba(231, 76, 60, 0.7)'
+            ],
+            borderColor: [
+              'rgba(46, 204, 113, 1)',
+              'rgba(231, 76, 60, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            },
+            title: {
+              display: true,
+              text: 'Feedback Sentiment'
+            }
+          }
+        }
+      });
+    }
+
+    function generateKeyInsights(statistics, comparison, feedbackAnalysis) {
+      const insightsContainer = document.getElementById('key-insights');
+      insightsContainer.innerHTML = '';
+      
+      const insights = [];
+      
+      // Insight 1: Compare individual vs collaborative overall
+      let individualTotal = 0;
+      let individualCount = 0;
+      let collaborativeTotal = 0;
+      let collaborativeCount = 0;
+      
+      statistics.forEach(stat => {
+        if (stat.mode === 'individual') {
+          individualTotal += stat.averageRating * stat.count;
+          individualCount += stat.count;
+        } else {
+          collaborativeTotal += stat.averageRating * stat.count;
+          collaborativeCount += stat.count;
+        }
+      });
+      
+      const individualAvg = individualCount > 0 ? individualTotal / individualCount : 0;
+      const collaborativeAvg = collaborativeCount > 0 ? collaborativeTotal / collaborativeCount : 0;
+      
+      if (individualCount > 0 && collaborativeCount > 0) {
+        const difference = ((collaborativeAvg - individualAvg) / individualAvg * 100).toFixed(1);
+        const betterMode = collaborativeAvg > individualAvg ? 'Collaborative' : 'Individual';
+        
+        insights.push(`<p class="key-insight mb-4"><strong>${betterMode} mode outperforms ${betterMode === 'Collaborative' ? 'Individual' : 'Collaborative'} mode</strong> by ${Math.abs(difference)}% in average user ratings (${collaborativeAvg.toFixed(1)} vs ${individualAvg.toFixed(1)}).</p>`);
+      }
+      
+      // Insight 2: Find best performing question types
+      const questionTypePerformance = {};
+      
+      statistics.forEach(stat => {
+        if (!questionTypePerformance[stat.questionType]) {
+          questionTypePerformance[stat.questionType] = {
+            totalRating: stat.averageRating * stat.count,
+            count: stat.count
+          };
+        } else {
+          questionTypePerformance[stat.questionType].totalRating += stat.averageRating * stat.count;
+          questionTypePerformance[stat.questionType].count += stat.count;
+        }
+      });
+      
+      // Calculate averages and sort
+      const sortedQuestionTypes = Object.entries(questionTypePerformance)
+        .map(([type, data]) => ({
+          type,
+          average: data.count > 0 ? data.totalRating / data.count : 0,
+          count: data.count
+        }))
+        .filter(item => item.count >= 5) // Only consider types with enough data
+        .sort((a, b) => b.average - a.average);
+      
+      if (sortedQuestionTypes.length > 0) {
+        const topType = sortedQuestionTypes[0];
+        const readableTopType = topType.type
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        insights.push(`<p class="key-insight mb-4"><strong>${readableTopType} questions receive the highest ratings</strong> with an average of ${topType.average.toFixed(1)}/10 across ${topType.count} ratings.</p>`);
+      }
+      
+      // Insight 3: Model comparison
+      const modelPerformance = {};
+      
+      statistics.forEach(stat => {
+        if (!modelPerformance[stat.modelId]) {
+          modelPerformance[stat.modelId] = {
+            totalRating: stat.averageRating * stat.count,
+            count: stat.count
+          };
+        } else {
+          modelPerformance[stat.modelId].totalRating += stat.averageRating * stat.count;
+          modelPerformance[stat.modelId].count += stat.count;
+        }
+      });
+      
+      // Calculate averages and sort
+      const sortedModels = Object.entries(modelPerformance)
+        .map(([model, data]) => ({
+          model,
+          average: data.count > 0 ? data.totalRating / data.count : 0,
+          count: data.count
+        }))
+        .filter(item => item.count >= 5) // Only consider models with enough data
+        .sort((a, b) => b.average - a.average);
+      
+      if (sortedModels.length >= 2) {
+        const topModel = sortedModels[0];
+        const secondModel = sortedModels[1];
+        
+        const topModelName = topModel.model.charAt(0).toUpperCase() + topModel.model.slice(1);
+        const secondModelName = secondModel.model.charAt(0).toUpperCase() + secondModel.model.slice(1);
+        
+        insights.push(`<p class="key-insight mb-4"><strong>${topModelName} is the highest rated model</strong> with an average of ${topModel.average.toFixed(1)}/10, followed by ${secondModelName} with ${secondModel.average.toFixed(1)}/10.</p>`);
+      }
+      
+      // Insight 4: Feedback sentiment analysis
+      const positiveKeywords = ['helpful', 'accurate', 'informative', 'thorough', 'clear', 'creative', 'innovative', 'thoughtful', 'insightful', 'detailed'];
+      const negativeKeywords = ['confusing', 'wrong', 'incorrect', 'unhelpful', 'misleading'];
+      
+      let positiveCount = 0;
+      let negativeCount = 0;
+      
+      positiveKeywords.forEach(keyword => {
+        positiveCount += feedbackAnalysis.keywordFrequency[keyword] || 0;
+      });
+      
+      negativeKeywords.forEach(keyword => {
+        negativeCount += feedbackAnalysis.keywordFrequency[keyword] || 0;
+      });
+      
+      const totalSentiment = positiveCount + negativeCount;
+      
+      if (totalSentiment > 0) {
+        const positivePercentage = (positiveCount / totalSentiment * 100).toFixed(0);
+        insights.push(`<p class="key-insight mb-4"><strong>${positivePercentage}% of feedback contains positive sentiment</strong>, with "helpful" and "accurate" being the most common positive descriptors.</p>`);
+      }
+      
+      // Add insights to container
+      if (insights.length > 0) {
+        insightsContainer.innerHTML = insights.join('');
+      } else {
+        insightsContainer.innerHTML = '<p class="text-center text-muted">Not enough data to generate insights yet.</p>';
+      }
+    }
+
+    // Helper Functions
+    function getColorForRating(rating) {
+      // Red to green gradient
+      if (rating <= 3) {
+        return 'rgba(231, 76, 60, 0.7)'; // Red for low ratings
+      } else if (rating <= 6) {
+        return 'rgba(241, 196, 15, 0.7)'; // Yellow for medium ratings
+      } else {
+        return 'rgba(46, 204, 113, 0.7)'; // Green for high ratings
+      }
+    }
+
+    function showSpinner() {
+      document.getElementById('loading-spinner').classList.remove('d-none');
+    }
+
+    function hideSpinner() {
+      document.getElementById('loading-spinner').classList.add('d-none');
+    }
+
+    function exportChartAsImage(chartId, filename) {
+      const canvas = document.getElementById(chartId);
+      const link = document.createElement('a');
+      link.download = `${filename}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function exportTableAsCSV(tableId, filename) {
+      const table = document.getElementById(tableId);
+      let csv = [];
+      
+      // Get headers
+      const headers = [];
+      const headerCells = table.querySelectorAll('thead th');
+      headerCells.forEach(cell => {
+        headers.push(cell.textContent);
+      });
+      csv.push(headers.join(','));
+      
+      // Get rows
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const rowData = [];
+        const cells = row.querySelectorAll('td');
+        cells.forEach((cell, index) => {
+          // Skip visualization column
+          if (index !== 5) {
+            rowData.push(`"${cell.textContent}"`);
+          } else {
+            rowData.push('""'); // Empty for visualization column
+          }
+        });
+        csv.push(rowData.join(','));
+      });
+      
+      // Download CSV
+      const csvContent = 'data:text/csv;charset=utf-8,' + csv.join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `${filename}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>

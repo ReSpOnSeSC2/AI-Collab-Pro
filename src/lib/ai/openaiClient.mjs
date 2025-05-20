@@ -55,11 +55,17 @@ export async function streamOpenAICompatResponse(provider, modelId, prompt, onCh
 
     try {
         // Set appropriate max_tokens based on provider
-        let maxTokens = 32000; // Default for most models
+        let maxTokens = 32768; // Default for most models - GPT-4.1 has a 32,768 token output limit
         
-        // DeepSeek has a lower max_tokens limit
+        // Set provider-specific limits
         if (provider === 'deepseek') {
             maxTokens = 8000; // DeepSeek supports up to 8k tokens output
+        } else if (provider === 'grok') {
+            maxTokens = 128000; // Grok-3 supports large outputs
+        } else if (provider === 'llama') {
+            maxTokens = 32768; // Llama-4 models support varying limits (this is conservative)
+        } else if (modelToUse === 'gpt-4o') {
+            maxTokens = 8192; // GPT-4o supports up to 8k tokens output
         }
         
         const stream = await client.chat.completions.create({

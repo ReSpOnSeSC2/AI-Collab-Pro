@@ -1,7 +1,7 @@
 /**
  * AI Collaboration Hub - Nexus Interface
  * Main CSS stylesheet for the entire application.
- * Version: 8.0.0
+ * Version: 8.0.1
  */
 
 :root {
@@ -1058,4 +1058,76 @@ pre {
     font-size: 14px;
     line-height: 1.5;
     color: var(--nexus-text);
+}
+
+/* Context Window Display Styles */
+.context-window-row {
+    margin-top: 8px;
+}
+
+.context-windows-wrapper {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.context-window-container {
+    background-color: var(--nexus-card-bg);
+    border: 1px solid var(--nexus-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+#input-context-window-container {
+    border-left: 3px solid var(--status-info, #3b82f6);
+}
+
+#output-context-window-container {
+    border-left: 3px solid var(--status-success, #10b981);
+}
+
+.context-window-label {
+    font-weight: 500;
+    color: var(--nexus-text-secondary);
+    margin-right: 8px;
+}
+
+.context-window-value {
+    font-weight: 600;
+    color: var(--nexus-accent);
+    margin-right: 8px;
+    font-family: var(--nexus-mono);
+}
+
+.context-window-info {
+    font-size: 0.85em;
+    color: var(--nexus-text-secondary);
+    opacity: 0.8;
+}
+
+/* Responsive Styles for Context Window */
+@media (max-width: 768px) {
+    .context-windows-wrapper {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .context-window-container {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 8px 10px;
+    }
+    
+    .context-window-label,
+    .context-window-value,
+    .context-window-info {
+        margin-right: 0;
+        margin-bottom: 2px;
+    }
 }

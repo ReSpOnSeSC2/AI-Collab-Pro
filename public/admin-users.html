@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css?v=8">
+    <script>
+        // Apply theme before DOM content loads to prevent flash
+        (function() {
+            var savedThemeValue = localStorage.getItem('theme') || 'theme-dark';
+            document.documentElement.className = savedThemeValue;
+        })();
+    </script>
+    <style>
+        :root {
+            --sidebar-width: 260px;
+        }
+        body {
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            background-color: #202123;
+            color: #fff;
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid #444;
+        }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            transition: margin 0.3s;
+        }
+        .sidebar-menu .nav-link {
+            color: #adb5bd;
+            padding: 0.75rem 1rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0.5rem;
+        }
+        .sidebar-menu .nav-link:hover,
+        .sidebar-menu .nav-link.active {
+            background-color: #343a40;
+            color: #fff;
+        }
+        .sidebar-menu .nav-link i {
+            margin-right: 0.75rem;
+            width: 1.25rem;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .show-sidebar-btn {
+                display: block !important;
+            }
+        }
+        .show-sidebar-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+        }
+        
+        /* Admin components styling */
+        .admin-card {
+            background-color: var(--nexus-card-bg);
+            border: 1px solid var(--nexus-border);
+            border-radius: var(--nexus-radius);
+            box-shadow: var(--nexus-shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .admin-card-header {
+            background-color: rgba(255, 255, 255, 0.03);
+            padding: 0.8rem 1.2rem;
+            border-bottom: 1px solid var(--nexus-border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .theme-light .admin-card-header {
+            background-color: #f8f9fa;
+        }
+        
+        /* User table styling */
+        .user-table th {
+            position: sticky;
+            top: 0;
+            background-color: var(--nexus-card-bg);
+            z-index: 10;
+            font-weight: 600;
+        }
+        .avatar-sm {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .user-table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .status-badge {
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-active {
+            background-color: #10b981;
+        }
+        .status-inactive {
+            background-color: #6b7280;
+        }
+        .status-suspended {
+            background-color: #ef4444;
+        }
+        .tier-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .tier-free {
+            background-color: rgba(107, 114, 128, 0.2);
+            color: #d1d5db;
+        }
+        .tier-pro {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        .tier-enterprise {
+            background-color: rgba(79, 70, 229, 0.2);
+            color: #818cf8;
+        }
+        .theme-light .tier-free {
+            background-color: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+        }
+        .theme-light .tier-pro {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+        .theme-light .tier-enterprise {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: #4f46e5;
+        }
+        
+        /* User filters */
+        .user-filters {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-radius: var(--nexus-radius);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .theme-light .user-filters {
+            background-color: #f8f9fa;
+        }
+        
+        /* User edit modal */
+        .admin-modal-header {
+            border-bottom: 1px solid var(--nexus-border);
+            padding: 1rem;
+        }
+        .admin-modal-footer {
+            border-top: 1px solid var(--nexus-border);
+            padding: 1rem;
+        }
+        .theme-light .admin-modal-header,
+        .theme-light .admin-modal-footer {
+            border-color: #dee2e6;
+        }
+        
+        /* Spinner for loading states */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <button class="btn btn-dark show-sidebar-btn">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h4>Admin Dashboard</h4>
+        </div>
+        <div class="sidebar-menu">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-models.html">
+                        <i class="fas fa-microchip"></i> Models
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-voting.html">
+                        <i class="fas fa-poll"></i> Voting Statistics
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="admin-users.html">
+                        <i class="fas fa-users"></i> Users
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-conversations.html">
+                        <i class="fas fa-comment-alt"></i> Conversations
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-settings.html">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </li>
+                <li class="nav-item mt-3">
+                    <a class="nav-link" href="hub.html">
+                        <i class="fas fa-arrow-left"></i> Back to Main App
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1>User Management</h1>
+                <p class="text-muted">Manage user accounts, subscriptions, and access permissions</p>
+            </div>
+        </div>
+
+        <!-- User Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <i class="bi bi-people-fill me-2"></i> Total Users
+                    </div>
+                    <div class="card-body text-center">
+                        <h2 id="total-users">-</h2>
+                        <p class="text-muted mb-0"><span id="users-change" class="text-success"><i class="bi bi-arrow-up-short"></i> 12%</span> this month</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <i class="bi bi-person-check-fill me-2"></i> Active Users
+                    </div>
+                    <div class="card-body text-center">
+                        <h2 id="active-users">-</h2>
+                        <p class="text-muted mb-0">Last 30 days</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <i class="bi bi-patch-check-fill me-2"></i> Paid Subscriptions
+                    </div>
+                    <div class="card-body text-center">
+                        <h2 id="paid-users">-</h2>
+                        <p class="text-muted mb-0"><span id="paid-change" class="text-success"><i class="bi bi-arrow-up-short"></i> 5%</span> this month</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <i class="bi bi-calendar me-2"></i> New Users
+                    </div>
+                    <div class="card-body text-center">
+                        <h2 id="new-users">-</h2>
+                        <p class="text-muted mb-0">This month</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Filters -->
+        <div class="user-filters">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="search-users" class="form-control" placeholder="Search users...">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select id="filter-status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select id="filter-tier" class="form-select">
+                        <option value="">All Subscriptions</option>
+                        <option value="free">Free</option>
+                        <option value="pro">Pro</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select id="filter-auth" class="form-select">
+                        <option value="">All Auth Types</option>
+                        <option value="password">Email/Password</option>
+                        <option value="google">Google</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button id="apply-filters" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel-fill me-1"></i> Apply Filters
+                    </button>
+                </div>
+                <div class="col-md-1">
+                    <button id="reset-filters" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Table -->
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div>
+                    <i class="bi bi-people me-2"></i> User Accounts
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" id="export-users">
+                        <i class="bi bi-download me-1"></i> Export
+                    </button>
+                    <button class="btn btn-sm btn-primary" id="add-user" data-bs-toggle="modal" data-bs-target="#user-modal">
+                        <i class="bi bi-person-plus-fill me-1"></i> Add User
+                    </button>
+                </div>
+            </div>
+            <div class="user-table-container p-0">
+                <table class="table table-hover user-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3" style="width: 45px;"></th>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Subscription</th>
+                            <th>Last Login</th>
+                            <th class="text-center">Auth Type</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- User rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <div class="small text-muted" id="users-count">Showing 0 users</div>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" id="prev-page" disabled>
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </button>
+                    <span id="pagination-info">Page 1 of 1</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" id="next-page" disabled>
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- User Edit Modal -->
+    <div class="modal fade" id="user-modal" tabindex="-1" aria-labelledby="user-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header admin-modal-header">
+                    <h5 class="modal-title" id="user-modal-label">Edit User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="user-form">
+                        <input type="hidden" id="user-id">
+                        <div class="mb-3">
+                            <label for="user-name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="user-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="user-email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="user-email" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label for="user-status" class="form-label">Status</label>
+                                <select class="form-select" id="user-status" required>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                </select>
+                            </div>
+                            <div class="col">
+                                <label for="user-tier" class="form-label">Subscription</label>
+                                <select class="form-select" id="user-tier" required>
+                                    <option value="free">Free</option>
+                                    <option value="pro">Pro</option>
+                                    <option value="enterprise">Enterprise</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="user-is-admin" class="form-label">Admin Privileges</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="user-is-admin">
+                                <label class="form-check-label" for="user-is-admin">Grant admin access</label>
+                            </div>
+                            <small class="text-muted">Admins can access all dashboard features and manage users.</small>
+                        </div>
+                        <div id="reset-password-section" class="mb-3">
+                            <label class="form-label">Password</label>
+                            <div class="d-grid">
+                                <button type="button" id="reset-password-btn" class="btn btn-outline-warning">
+                                    <i class="bi bi-key-fill me-1"></i> Send Password Reset Link
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer admin-modal-footer">
+                    <button type="button" class="btn btn-outline-danger me-auto" id="delete-user-btn">
+                        <i class="bi bi-trash me-1"></i> Delete User
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-user-btn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="delete-confirm-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header admin-modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this user?</p>
+                    <p class="text-danger small">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer admin-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="spinner-overlay d-none" id="loading-spinner">
+        <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/admin-users.js"></script>
+</body>
+</html>

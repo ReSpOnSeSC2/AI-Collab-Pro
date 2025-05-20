@@ -24,6 +24,7 @@ const mcpUserSessions = new Map(); // userId -> MCP sessionId (from MCP registra
 import {
   getOrCreateContext,
   addMessageToContext,
+  addResponseToContext,
   getFormattedContextHistory,
   updateTargetModels,
   trimContextIfNeeded,
@@ -282,6 +283,7 @@ async function handleChatMessage(ws, data) {
     if (ws.sessionId) {
       try {
         historyContext = await getFormattedContextHistory(ws.userId, ws.sessionId);
+        console.log(`wsHandler: Retrieved context history. Empty: ${!historyContext}, Length: ${historyContext.length}`);
 
         // Update target models in the context
         if (modelsToQuery.length > 0) {
@@ -430,12 +432,45 @@ async function handleChatMessage(ws, data) {
             console.log(`📋 Using models for collaboration:`, JSON.stringify(models));
             // Send status update message for loading UI
             modelsToQuery.forEach(model => {
-                sendWsMessage(ws, { 
-                    type: 'model_status', 
-                    model: model, 
-                    status: 'processing',
-                    message: 'Starting collaboration'
-                });
+                // Special handling for validated_consensus mode with phase information
+                if (getCollaborationConfig().mode === 'validated_consensus') {
+                    console.log(`WsHandler: Special handling for Validated Consensus mode - model ${model}`);
+                    
+                    // Use phase_change for Validated Consensus to trigger proper progress tracking
+                    // First send phase_change to reset phase
+                    sendWsMessage(ws, { 
+                        type: 'model_status', 
+                        model: model, 
+                        status: 'phase_change',
+                        message: 'Phase 1: Drafting Initial Responses'
+                    });
+                    
+                    // Add a debug message to log the phase change was sent
+                    console.log(`WsHandler: Sent phase_change for ${model} - Phase 1: Drafting Initial Responses`);
+                    
+                    // Send multiple processing status updates with sequential delays to ensure they're processed
+                    const delays = [100, 300, 600];
+                    delays.forEach(delay => {
+                        setTimeout(() => {
+                            sendWsMessage(ws, { 
+                                type: 'model_status', 
+                                model: model, 
+                                status: 'processing',
+                                message: 'Working on initial draft...',
+                                timestamp: new Date().toISOString()
+                            });
+                            console.log(`WsHandler: Sent processing status for ${model} at ${delay}ms delay`);
+                        }, delay);
+                    });
+                } else {
+                    // Default for other collaboration modes
+                    sendWsMessage(ws, { 
+                        type: 'model_status', 
+                        model: model, 
+                        status: 'processing',
+                        message: 'Starting collaboration'
+                    });
+                }
             });
             
             // Use the new collaboration engine with configuration

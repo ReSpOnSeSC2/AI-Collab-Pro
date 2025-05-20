@@ -13,17 +13,25 @@ import Conversation from '../models/Conversation.mjs';
  */
 export async function getOrCreateConversation(userId, sessionId) {
   try {
+    console.log(`getOrCreateConversation called for userId: ${userId}, sessionId: ${sessionId}`);
+    
     let conversation = await Conversation.findOne({ userId, sessionId });
     
     if (!conversation) {
+      console.log(`Creating new conversation for userId: ${userId}, sessionId: ${sessionId}`);
+      
       conversation = new Conversation({
         userId,
         sessionId,
-        contextMode: 'none', // Default to no context
+        contextMode: 'full', // Now defaulting to full context mode instead of 'none'
         messages: [],
         summary: ''
       });
+      
       await conversation.save();
+      console.log(`New conversation created with ID: ${conversation._id}, mode: ${conversation.contextMode}`);
+    } else {
+      console.log(`Found existing conversation: ${conversation._id}, mode: ${conversation.contextMode}, messages: ${conversation.messages.length}`);
     }
     
     return conversation;
@@ -58,6 +66,9 @@ export async function getUserConversations(userId) {
  */
 export async function addMessageToConversation(userId, sessionId, message) {
   try {
+    console.log(`Adding message to conversation - userId: ${userId}, sessionId: ${sessionId}`);
+    console.log(`Message type: ${message.type}, content length: ${message.content?.length || 0}`);
+    
     const conversation = await getOrCreateConversation(userId, sessionId);
     
     // Add the message to the conversation
@@ -70,6 +81,9 @@ export async function addMessageToConversation(userId, sessionId, message) {
     }
     
     await conversation.save();
+    
+    console.log(`Message added successfully. Total messages: ${conversation.messages.length}`);
+    console.log(`Current context mode: ${conversation.contextMode}`);
     
     // Return info about the updated conversation
     return {
@@ -205,7 +219,16 @@ export async function setConversationContextMode(userId, sessionId, mode) {
       throw new Error(`Invalid context mode: ${mode}`);
     }
     
+    console.log(`Setting context mode for user ${userId}, session ${sessionId} to: ${mode}`);
+    
     const conversation = await getOrCreateConversation(userId, sessionId);
+    
+    // Always use 'full' mode if toggling on, for simplicity and to ensure consistent behavior
+    if (mode !== 'none') {
+      mode = 'full';
+      console.log('Forcing mode to full for better context handling');
+    }
+    
     conversation.contextMode = mode;
     
     // If switching to summary mode, make sure we have a summary
@@ -214,6 +237,8 @@ export async function setConversationContextMode(userId, sessionId, mode) {
     }
     
     await conversation.save();
+    
+    console.log(`Context mode updated successfully to: ${mode}`);
     
     return {
       mode: conversation.contextMode,
@@ -363,8 +388,18 @@ export async function getFormattedContextHistory(userId, sessionId) {
   try {
     const conversation = await getOrCreateConversation(userId, sessionId);
     
-    // If no messages or context mode is 'none', return empty string
-    if (conversation.messages.length === 0 || conversation.contextMode === 'none') {
+    console.log(`Getting formatted context history. Mode: ${conversation.contextMode}, Messages: ${conversation.messages.length}`);
+    
+    // Always force context mode to 'full' to ensure history is included - this is a temporary fix
+    if (conversation.contextMode === 'none') {
+      console.log('Overriding context mode from none to full');
+      conversation.contextMode = 'full';
+      await conversation.save();
+    }
+    
+    // If no messages, return empty string
+    if (conversation.messages.length === 0) {
+      console.log('Returning empty context - no messages');
       return '';
     }
     

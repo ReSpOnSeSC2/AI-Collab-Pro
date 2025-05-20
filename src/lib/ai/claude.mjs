@@ -30,7 +30,7 @@ export async function streamClaudeResponse(modelId, prompt, onChunk, onComplete,
     try {
         const stream = await clients.anthropic.messages.create({
             model: modelToUse,
-            max_tokens: 64000, // Claude 3.7 supports up to 64k tokens output
+            max_tokens: 64000, // Claude 3.7 Sonnet has a 64k token output limit
             messages: [{ role: 'user', content: prompt }],
             stream: true,
         });

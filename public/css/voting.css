@@ -1,0 +1,220 @@
+/**
+ * AI Collaboration Hub - Voting System Styles
+ * Styles for the voting and feedback UI components
+ * Version: 1.0.0
+ */
+
+/* Voting Container */
+.voting-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--nexus-border);
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 0 0 var(--nexus-radius) var(--nexus-radius);
+    transition: all 0.3s ease;
+}
+
+.theme-light .voting-container {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.voting-header {
+    margin-bottom: 0.75rem;
+}
+
+.voting-header p {
+    margin-bottom: 0.25rem;
+}
+
+/* Rating Buttons */
+.rating-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.rating-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0.25rem;
+    font-size: 0.875rem;
+    border-radius: 4px;
+    background-color: transparent;
+    border: 1px solid var(--nexus-border);
+    color: var(--nexus-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rating-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--nexus-accent);
+}
+
+.rating-btn.active {
+    background-color: var(--nexus-accent);
+    color: white;
+    border-color: var(--nexus-accent);
+}
+
+/* Ranking Buttons for Individual Mode */
+.ranking-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.rank-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background-color: transparent;
+    border: 1px solid var(--nexus-border);
+    color: var(--nexus-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.rank-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--nexus-accent);
+}
+
+.rank-btn.active {
+    background-color: var(--nexus-accent);
+    color: white;
+    border-color: var(--nexus-accent);
+}
+
+.rank-btn .model-name {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.rank-btn .rank-value {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 0.25rem;
+}
+
+.theme-light .rank-btn .rank-value {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.theme-light .rank-btn.active .rank-value {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Question Type and Feedback */
+.question-type-container,
+.feedback-container {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--nexus-text);
+}
+
+.form-select,
+.form-control {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--nexus-border);
+    color: var(--nexus-text);
+    transition: all 0.15s ease;
+}
+
+.theme-light .form-select,
+.theme-light .form-control {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.form-select:focus,
+.form-control:focus {
+    outline: none;
+    border-color: var(--nexus-accent);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* Submit Button */
+.submit-vote-btn {
+    padding: 0.5rem 1rem;
+    background-color: var(--nexus-accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.submit-vote-btn:hover {
+    background-color: var(--nexus-accent-hover);
+}
+
+.submit-vote-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Vote Status */
+.vote-status {
+    min-height: 24px;
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.vote-status.text-success {
+    color: var(--status-success);
+}
+
+.vote-status.text-danger {
+    color: var(--status-danger);
+}
+
+/* Provider-specific colors for rank buttons */
+.rank-btn[data-model="claude"] {
+    border-left: 3px solid var(--claude-color);
+}
+.rank-btn[data-model="gemini"] {
+    border-left: 3px solid var(--gemini-color);
+}
+.rank-btn[data-model="chatgpt"] {
+    border-left: 3px solid var(--chatgpt-color);
+}
+.rank-btn[data-model="grok"] {
+    border-left: 3px solid var(--grok-color);
+}
+.rank-btn[data-model="deepseek"] {
+    border-left: 3px solid var(--deepseek-color);
+}
+.rank-btn[data-model="llama"] {
+    border-left: 3px solid var(--llama-color);
+}
+
+/* Animation for successful submission */
+@keyframes success-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.submit-success {
+    animation: success-pulse 1s ease-out;
+}

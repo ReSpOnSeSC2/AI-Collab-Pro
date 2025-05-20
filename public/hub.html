@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/css/loading-progress.css?v=8">
     <!-- Add sequential style options CSS -->
     <link rel="stylesheet" href="/css/sequential-style.css?v=1">
-    <!-- Add context manager CSS -->
+    <!-- Context manager CSS -->
     <link rel="stylesheet" href="/css/context-manager.css?v=1">
 </head>
 <body>
@@ -76,10 +76,13 @@
                             <!-- Collaboration controls will be populated by collaborationControls.js -->
                         </div>
 
-                        <!-- New Simple Context Toggle -->
-                        <div class="simple-context-toggle">
-                            <span>Context Memory</span>
-                            <button id="context-toggle-btn" class="toggle-btn active">ON</button>
+                        <!-- Context toggle -->
+                        <div class="context-memory-toggle me-3">
+                            <label class="context-toggle-switch-label">
+                                <span class="context-toggle-text">Model Context:</span>
+                                <input type="checkbox" id="context-toggle-switch" class="context-toggle-input">
+                                <span class="context-toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -245,6 +248,24 @@
             </section>
         </main>
 
+        <!-- Available Context Window Display -->
+        <div class="row context-window-row mb-1">
+            <div class="col-12">
+                <div class="context-windows-wrapper">
+                    <div class="context-window-container" id="input-context-window-container">
+                        <span class="context-window-label">Available Input Context:</span>
+                        <span class="context-window-value" id="input-context-window-value">Loading...</span>
+                        <span class="context-window-info">(tokens)</span>
+                    </div>
+                    <div class="context-window-container" id="output-context-window-container">
+                        <span class="context-window-label">Available Output Context:</span>
+                        <span class="context-window-value" id="output-context-window-value">Loading...</span>
+                        <span class="context-window-info">(tokens)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <footer class="row cli-row">
             <div class="col-12">
                 <!-- Input Area -->
@@ -341,57 +362,11 @@
 
     <!-- Sequential Style Selector -->
     <script src="/js/sequentialStyleSelector.js?v=1"></script>
+    
+    <!-- Context Window Display -->
+    <script src="/js/contextWindow.js?v=1"></script>
 
-    <!-- Inline script for context toggle -->
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Give the connection time to initialize
-        setTimeout(() => {
-            const toggleBtn = document.getElementById('context-toggle-btn');
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', function() {
-                    // Toggle active state
-                    const isActive = this.classList.contains('active');
-
-                    if (isActive) {
-                        // Turn OFF
-                        this.classList.remove('active');
-                        this.textContent = 'OFF';
-                        var newMode = 'none';
-                    } else {
-                        // Turn ON
-                        this.classList.add('active');
-                        this.textContent = 'ON';
-                        var newMode = 'summary';
-                    }
-
-                    console.log(`Setting context mode to: ${newMode}`);
-
-                    try {
-                        // Use the global connection
-                        if (window.ConnectionManager && window.ConnectionManager.sendMessageToServer) {
-                            console.log('Using ConnectionManager to send message');
-                            window.ConnectionManager.sendMessageToServer({
-                                type: 'set_context_mode',
-                                mode: newMode
-                            });
-                        } else if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-                            console.log('Using direct WebSocket to send message');
-                            window.ws.send(JSON.stringify({
-                                type: 'set_context_mode',
-                                mode: newMode
-                            }));
-                        } else {
-                            console.error('No connection available to set context mode');
-                        }
-                    } catch (error) {
-                        console.error('Error sending context mode update:', error);
-                    }
-                });
-            }
-        }, 1000); // Wait 1 second for everything to initialize
-    });
-    </script>
+    <!-- Context toggle script removed -->
 
     <!-- Optional: Load Debug Tools -->
     <!-- <script src="/js/debugUtils.js?v=8"></script> -->

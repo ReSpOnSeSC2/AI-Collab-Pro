@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings - Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css?v=8">
+    <script>
+        // Apply theme before DOM content loads to prevent flash
+        (function() {
+            var savedThemeValue = localStorage.getItem('theme') || 'theme-dark';
+            document.documentElement.className = savedThemeValue;
+        })();
+    </script>
+    <style>
+        :root {
+            --sidebar-width: 260px;
+        }
+        body {
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            background-color: #202123;
+            color: #fff;
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid #444;
+        }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            transition: margin 0.3s;
+        }
+        .sidebar-menu .nav-link {
+            color: #adb5bd;
+            padding: 0.75rem 1rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0.5rem;
+        }
+        .sidebar-menu .nav-link:hover,
+        .sidebar-menu .nav-link.active {
+            background-color: #343a40;
+            color: #fff;
+        }
+        .sidebar-menu .nav-link i {
+            margin-right: 0.75rem;
+            width: 1.25rem;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .show-sidebar-btn {
+                display: block !important;
+            }
+        }
+        .show-sidebar-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+        }
+        
+        /* Admin components styling */
+        .admin-card {
+            background-color: var(--nexus-card-bg);
+            border: 1px solid var(--nexus-border);
+            border-radius: var(--nexus-radius);
+            box-shadow: var(--nexus-shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .admin-card-header {
+            background-color: rgba(255, 255, 255, 0.03);
+            padding: 0.8rem 1.2rem;
+            border-bottom: 1px solid var(--nexus-border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .theme-light .admin-card-header {
+            background-color: #f8f9fa;
+        }
+        
+        /* Settings specific styles */
+        .setting-group {
+            border-bottom: 1px solid var(--nexus-border);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .setting-group:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .setting-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .setting-description {
+            color: var(--nexus-text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .form-check-input:checked {
+            background-color: var(--nexus-accent);
+            border-color: var(--nexus-accent);
+        }
+        .nav-tabs .nav-link {
+            color: var(--nexus-text-secondary);
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-tabs .nav-link:hover {
+            color: var(--nexus-text);
+            border-bottom-color: var(--nexus-border);
+        }
+        .nav-tabs .nav-link.active {
+            color: var(--nexus-accent);
+            background-color: transparent;
+            border-bottom-color: var(--nexus-accent);
+            font-weight: 500;
+        }
+        .token-display {
+            font-family: var(--nexus-mono);
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.75rem;
+            border-radius: 4px;
+            color: var(--nexus-text);
+        }
+        .theme-light .token-display {
+            background-color: #f1f3f5;
+        }
+        .api-method {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        .api-method.get {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        .api-method.post {
+            background-color: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+        .api-method.put {
+            background-color: rgba(230, 126, 34, 0.2);
+            color: #e67e22;
+        }
+        .api-method.delete {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        
+        /* System logs styles */
+        .log-table {
+            font-family: var(--nexus-mono);
+            font-size: 0.8rem;
+        }
+        .log-level {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .log-info {
+            background-color: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+        .log-warn {
+            background-color: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+        }
+        .log-error {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        .log-debug {
+            background-color: rgba(149, 165, 166, 0.2);
+            color: #95a5a6;
+        }
+        
+        /* Code editor for JSON */
+        .json-editor {
+            font-family: var(--nexus-mono);
+            line-height: 1.5;
+            tab-size: 2;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 200px;
+            background-color: rgba(0, 0, 0, 0.2);
+            color: var(--nexus-text);
+            border: 1px solid var(--nexus-border);
+            border-radius: var(--nexus-radius-sm);
+        }
+        .theme-light .json-editor {
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        
+        /* System info card */
+        .system-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--nexus-border);
+        }
+        .system-info-item:last-child {
+            border-bottom: none;
+        }
+        .system-info-label {
+            font-weight: 500;
+            color: var(--nexus-text-secondary);
+        }
+        .system-info-value {
+            font-family: var(--nexus-mono);
+        }
+        
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1100;
+        }
+        
+        /* Spinner for loading states */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <button class="btn btn-dark show-sidebar-btn">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h4>Admin Dashboard</h4>
+        </div>
+        <div class="sidebar-menu">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-models.html">
+                        <i class="fas fa-microchip"></i> Models
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-voting.html">
+                        <i class="fas fa-poll"></i> Voting Statistics
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-users.html">
+                        <i class="fas fa-users"></i> Users
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin-conversations.html">
+                        <i class="fas fa-comment-alt"></i> Conversations
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="admin-settings.html">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </li>
+                <li class="nav-item mt-3">
+                    <a class="nav-link" href="hub.html">
+                        <i class="fas fa-arrow-left"></i> Back to Main App
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1>System Settings</h1>
+                <p class="text-muted">Configure application behavior, manage API access, and view system information</p>
+            </div>
+        </div>
+
+        <!-- Settings Tabs -->
+        <div class="admin-card mb-4">
+            <div class="admin-card-header">
+                <div>
+                    <i class="bi bi-gear-fill me-2"></i> Settings
+                </div>
+                <div>
+                    <button id="save-all-settings" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save me-1"></i> Save All Changes
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- Settings Navigation Tabs -->
+                <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="true">
+                            <i class="bi bi-sliders me-1"></i> General
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">
+                            <i class="bi bi-shield-lock me-1"></i> Security
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button" role="tab" aria-controls="api" aria-selected="false">
+                            <i class="bi bi-code-slash me-1"></i> API
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications" aria-selected="false">
+                            <i class="bi bi-bell me-1"></i> Notifications
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="appearance-tab" data-bs-toggle="tab" data-bs-target="#appearance" type="button" role="tab" aria-controls="appearance" aria-selected="false">
+                            <i class="bi bi-palette me-1"></i> Appearance
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab contents -->
+                <div class="tab-content p-4" id="settingsTabContent">
+                    <!-- General Settings -->
+                    <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+                        <div class="setting-group">
+                            <h5 class="setting-title">Application Settings</h5>
+                            <p class="setting-description">Configure general app behavior and features</p>
+                            
+                            <div class="mb-3">
+                                <label for="app-name" class="form-label">Application Name</label>
+                                <input type="text" class="form-control" id="app-name" value="AI Collaboration Hub">
+                                <div class="form-text">Displayed in browser title and throughout the application</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="session-timeout" class="form-label">Session Timeout (minutes)</label>
+                                <input type="number" class="form-control" id="session-timeout" min="5" max="1440" value="120">
+                                <div class="form-text">Inactive users will be automatically logged out after this period</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-public-signup" checked>
+                                <label class="form-check-label" for="enable-public-signup">Allow Public Sign-ups</label>
+                                <div class="form-text">When disabled, only administrators can create new accounts</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">AI Models</h5>
+                            <p class="setting-description">Default model settings for new users</p>
+                            
+                            <div class="mb-3">
+                                <label for="default-model" class="form-label">Default AI Model</label>
+                                <select class="form-select" id="default-model">
+                                    <option value="claude">Claude (Anthropic)</option>
+                                    <option value="gemini">Gemini (Google)</option>
+                                    <option value="chatgpt" selected>ChatGPT (OpenAI)</option>
+                                    <option value="grok">Grok (xAI)</option>
+                                    <option value="llama">Llama (Meta)</option>
+                                    <option value="deepseek">DeepSeek</option>
+                                </select>
+                                <div class="form-text">The default model shown to new users</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-all-models" checked>
+                                <label class="form-check-label" for="enable-all-models">Enable All Models</label>
+                                <div class="form-text">When disabled, users can only access models explicitly granted to them</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-model-voting" checked>
+                                <label class="form-check-label" for="enable-model-voting">Enable Model Voting/Rating</label>
+                                <div class="form-text">Allows users to rate AI responses and provide feedback</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">Collaboration Features</h5>
+                            <p class="setting-description">Configure collaborative AI interaction options</p>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-collaborative-mode" checked>
+                                <label class="form-check-label" for="enable-collaborative-mode">Enable Collaborative Mode</label>
+                                <div class="form-text">Allows users to create sessions with multiple AI models</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-debate-mode" checked>
+                                <label class="form-check-label" for="enable-debate-mode">Enable Debate Mode</label>
+                                <div class="form-text">Allows users to create debate sessions between AI models</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-critique-mode" checked>
+                                <label class="form-check-label" for="enable-critique-mode">Enable Critique Mode</label>
+                                <div class="form-text">Allows users to have one AI model critique another's responses</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="max-models-per-session" class="form-label">Maximum Models Per Session</label>
+                                <input type="number" class="form-control" id="max-models-per-session" min="1" max="10" value="4">
+                                <div class="form-text">Maximum number of AI models that can be used in a single collaborative session</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Settings -->
+                    <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+                        <div class="setting-group">
+                            <h5 class="setting-title">Authentication</h5>
+                            <p class="setting-description">Configure authentication and account security settings</p>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-google-auth" checked>
+                                <label class="form-check-label" for="enable-google-auth">Google Authentication</label>
+                                <div class="form-text">Allow users to sign in with Google accounts</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-email-auth" checked>
+                                <label class="form-check-label" for="enable-email-auth">Email Authentication</label>
+                                <div class="form-text">Allow users to sign in with email and password</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="require-email-verification" checked>
+                                <label class="form-check-label" for="require-email-verification">Require Email Verification</label>
+                                <div class="form-text">Users must verify their email address before accessing the application</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password-min-length" class="form-label">Minimum Password Length</label>
+                                <input type="number" class="form-control" id="password-min-length" min="8" max="128" value="12">
+                                <div class="form-text">Minimum number of characters required for passwords</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="require-password-complexity" checked>
+                                <label class="form-check-label" for="require-password-complexity">Require Complex Passwords</label>
+                                <div class="form-text">Passwords must include uppercase, lowercase, numbers, and special characters</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">Session Security</h5>
+                            <p class="setting-description">Configure session and login security options</p>
+                            
+                            <div class="mb-3">
+                                <label for="max-login-attempts" class="form-label">Maximum Login Attempts</label>
+                                <input type="number" class="form-control" id="max-login-attempts" min="1" max="10" value="5">
+                                <div class="form-text">Number of failed login attempts before account lockout</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="lockout-duration" class="form-label">Account Lockout Duration (minutes)</label>
+                                <input type="number" class="form-control" id="lockout-duration" min="5" max="1440" value="30">
+                                <div class="form-text">Duration of account lockout after exceeding maximum login attempts</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-ip-blocking" checked>
+                                <label class="form-check-label" for="enable-ip-blocking">Enable IP Blocking</label>
+                                <div class="form-text">Block IP addresses with suspicious activity patterns</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">Admin Accounts</h5>
+                            <p class="setting-description">Manage administrator access</p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Create Admin Account</label>
+                                <div class="input-group mb-3">
+                                    <input type="email" class="form-control" id="admin-email" placeholder="Email address">
+                                    <button class="btn btn-primary" type="button" id="create-admin-btn">Create Admin</button>
+                                </div>
+                                <div class="form-text">Create a new administrator account with full system access</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- API Settings -->
+                    <div class="tab-pane fade" id="api" role="tabpanel" aria-labelledby="api-tab">
+                        <div class="setting-group">
+                            <h5 class="setting-title">API Access</h5>
+                            <p class="setting-description">Manage API features and access control</p>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable-api" checked>
+                                <label class="form-check-label" for="enable-api">Enable API Access</label>
+                                <div class="form-text">Allow programmatic access to the application via the REST API</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="require-api-key" checked>
+                                <label class="form-check-label" for="require-api-key">Require API Key Authentication</label>
+                                <div class="form-text">All API requests must include a valid API key</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="rate-limit" class="form-label">API Rate Limit (requests per minute)</label>
+                                <input type="number" class="form-control" id="rate-limit" min="10" max="10000" value="120">
+                                <div class="form-text">Maximum number of API requests allowed per minute per user</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">API Keys</h5>
+                            <p class="setting-description">Generate and manage API keys for external integrations</p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Generate New API Key</label>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="api-key-name" placeholder="Key Name (e.g., Production, Testing)">
+                                    <button class="btn btn-primary" type="button" id="generate-api-key">Generate Key</button>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3 d-none" id="api-key-display">
+                                <label class="form-label">Your New API Key</label>
+                                <div class="token-display mb-2" id="api-key-value">api_key_123456789abcdef</div>
+                                <div class="form-text text-warning">Please copy this key now. It will not be shown again.</div>
+                            </div>
+                            
+                            <!-- Existing API Keys Table -->
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Created</th>
+                                            <th>Last Used</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Production</td>
+                                            <td>May 10, 2025</td>
+                                            <td>May 14, 2025</td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" title="Revoke Key">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Testing</td>
+                                            <td>Apr 22, 2025</td>
+                                            <td>May 13, 2025</td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" title="Revoke Key">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Development</td>
+                                            <td>Mar 15, 2025</td>
+                                            <td>Apr 30, 2025</td>
+                                            <td><span class="badge bg-danger">Revoked</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-secondary" disabled title="Revoke Key">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">API Documentation</h5>
+                            <p class="setting-description">Available API endpoints and usage examples</p>
+                            
+                            <div class="mb-3">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Endpoint</th>
+                                                <th>Method</th>
+                                                <th>Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><code>/api/models</code></td>
+                                                <td><span class="api-method get">GET</span></td>
+                                                <td>List all available AI models</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/conversations</code></td>
+                                                <td><span class="api-method get">GET</span></td>
+                                                <td>List user conversations</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/conversations</code></td>
+                                                <td><span class="api-method post">POST</span></td>
+                                                <td>Create a new conversation</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/conversations/{id}</code></td>
+                                                <td><span class="api-method get">GET</span></td>
+                                                <td>Get a specific conversation</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/conversations/{id}/messages</code></td>
+                                                <td><span class="api-method post">POST</span></td>
+                                                <td>Send a message to a conversation</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/users</code></td>
+                                                <td><span class="api-method get">GET</span></td>
+                                                <td>List all users (admin only)</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/users/{id}</code></td>
+                                                <td><span class="api-method put">PUT</span></td>
+                                                <td>Update a user (admin only)</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>/api/users/{id}</code></td>
+                                                <td><span class="api-method delete">DELETE</span></td>
+                                                <td>Delete a user (admin only)</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="form-text">
+                                    <a href="#" class="text-decoration-none">View Full API Documentation <i class="bi bi-box-arrow-up-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notification Settings -->
+                    <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+                        <div class="setting-group">
+                            <h5 class="setting-title">Email Notifications</h5>
+                            <p class="setting-description">Configure system email notifications</p>
+                            
+                            <div class="mb-3">
+                                <label for="email-sender" class="form-label">Sender Email Address</label>
+                                <input type="email" class="form-control" id="email-sender" value="no-reply@aicollab.example.com">
+                                <div class="form-text">Address used as the sender for all system emails</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify-new-user" checked>
+                                <label class="form-check-label" for="notify-new-user">New User Registration</label>
+                                <div class="form-text">Send notification to admins when a new user registers</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify-failed-login" checked>
+                                <label class="form-check-label" for="notify-failed-login">Failed Login Attempts</label>
+                                <div class="form-text">Send notification when multiple failed login attempts are detected</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify-subscription-change" checked>
+                                <label class="form-check-label" for="notify-subscription-change">Subscription Changes</label>
+                                <div class="form-text">Send notification when a user's subscription tier changes</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">Admin Alerts</h5>
+                            <p class="setting-description">Configure system monitoring and alerts</p>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="alert-system-error" checked>
+                                <label class="form-check-label" for="alert-system-error">System Errors</label>
+                                <div class="form-text">Send notification when critical system errors occur</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="alert-api-usage" checked>
+                                <label class="form-check-label" for="alert-api-usage">High API Usage</label>
+                                <div class="form-text">Send notification when API usage exceeds normal thresholds</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="alert-database-size" checked>
+                                <label class="form-check-label" for="alert-database-size">Database Size</label>
+                                <div class="form-text">Send notification when database size approaches capacity limits</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="alert-email" class="form-label">Alert Recipient Email</label>
+                                <input type="email" class="form-control" id="alert-email" value="admin@aicollab.example.com">
+                                <div class="form-text">Email address to receive system alerts</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">User Notifications</h5>
+                            <p class="setting-description">Configure user notification defaults</p>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify-welcome-email" checked>
+                                <label class="form-check-label" for="notify-welcome-email">Welcome Email</label>
+                                <div class="form-text">Send welcome email to new users upon registration</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify-account-activity">
+                                <label class="form-check-label" for="notify-account-activity">Account Activity</label>
+                                <div class="form-text">Send notification for important account activity (login from new device, etc.)</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify-product-updates" checked>
+                                <label class="form-check-label" for="notify-product-updates">Product Updates</label>
+                                <div class="form-text">Send notification about new features and product updates</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Appearance Settings -->
+                    <div class="tab-pane fade" id="appearance" role="tabpanel" aria-labelledby="appearance-tab">
+                        <div class="setting-group">
+                            <h5 class="setting-title">Brand Customization</h5>
+                            <p class="setting-description">Customize the application appearance and branding</p>
+                            
+                            <div class="mb-3">
+                                <label for="app-logo" class="form-label">Application Logo</label>
+                                <input type="file" class="form-control" id="app-logo">
+                                <div class="form-text">Recommended size: 200x60px, PNG or SVG format</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="app-favicon" class="form-label">Favicon</label>
+                                <input type="file" class="form-control" id="app-favicon">
+                                <div class="form-text">Recommended size: 32x32px, ICO or PNG format</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="primary-color" class="form-label">Primary Color</label>
+                                <input type="color" class="form-control form-control-color" id="primary-color" value="#3c7eff">
+                                <div class="form-text">Main brand color used throughout the application</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="secondary-color" class="form-label">Secondary Color</label>
+                                <input type="color" class="form-control form-control-color" id="secondary-color" value="#6c757d">
+                                <div class="form-text">Secondary color used for accents and highlights</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">Theme Settings</h5>
+                            <p class="setting-description">Configure application theme options</p>
+                            
+                            <div class="mb-3">
+                                <label for="default-theme" class="form-label">Default Theme</label>
+                                <select class="form-select" id="default-theme">
+                                    <option value="theme-dark" selected>Dark</option>
+                                    <option value="theme-light">Light</option>
+                                    <option value="system">System Default</option>
+                                </select>
+                                <div class="form-text">Default theme for new users and guests</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="allow-theme-toggle" checked>
+                                <label class="form-check-label" for="allow-theme-toggle">Allow Theme Toggle</label>
+                                <div class="form-text">Allow users to switch between light and dark themes</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="font-size" class="form-label">Base Font Size</label>
+                                <select class="form-select" id="font-size">
+                                    <option value="small">Small</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="large">Large</option>
+                                </select>
+                                <div class="form-text">Base font size for UI elements and text</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h5 class="setting-title">Custom CSS</h5>
+                            <p class="setting-description">Add custom CSS for advanced styling</p>
+                            
+                            <div class="mb-3">
+                                <textarea class="form-control json-editor" id="custom-css" rows="6" placeholder="/* Add your custom CSS here */"></textarea>
+                                <div class="form-text">Custom CSS will be applied throughout the application</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info & Logs -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <div>
+                            <i class="bi bi-info-circle-fill me-2"></i> System Information
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" id="refresh-system-info">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="system-info-item">
+                            <div class="system-info-label">Version</div>
+                            <div class="system-info-value">2.4.1</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">Node.js Version</div>
+                            <div class="system-info-value">18.20.8</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">MongoDB Version</div>
+                            <div class="system-info-value">7.0.2</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">System Uptime</div>
+                            <div class="system-info-value">14 days, 7 hours</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">Database Size</div>
+                            <div class="system-info-value">2.7 GB</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">Memory Usage</div>
+                            <div class="system-info-value">1.3 GB / 4.0 GB</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">CPU Usage</div>
+                            <div class="system-info-value">23%</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">Total Users</div>
+                            <div class="system-info-value">3,256</div>
+                        </div>
+                        <div class="system-info-item">
+                            <div class="system-info-label">Total Conversations</div>
+                            <div class="system-info-value">45,728</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <div>
+                            <i class="bi bi-journal-text me-2"></i> System Logs
+                        </div>
+                        <div>
+                            <select class="form-select form-select-sm" id="log-level">
+                                <option value="all">All Levels</option>
+                                <option value="error">Errors Only</option>
+                                <option value="warn">Warnings & Errors</option>
+                                <option value="info">Info & Above</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Level</th>
+                                        <th>Source</th>
+                                        <th>Message</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>2025-05-14 01:43:20</td>
+                                        <td><span class="log-level log-info">INFO</span></td>
+                                        <td>server.js</td>
+                                        <td>Server started on port 3001</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-14 01:43:18</td>
+                                        <td><span class="log-level log-info">INFO</span></td>
+                                        <td>database.js</td>
+                                        <td>Connected to MongoDB database</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-14 01:42:55</td>
+                                        <td><span class="log-level log-warn">WARN</span></td>
+                                        <td>auth.js</td>
+                                        <td>Failed login attempt: jay1988stud@gmail.com</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-14 01:40:22</td>
+                                        <td><span class="log-level log-error">ERROR</span></td>
+                                        <td>api.js</td>
+                                        <td>API rate limit exceeded: IP 192.168.1.105</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-14 01:35:41</td>
+                                        <td><span class="log-level log-info">INFO</span></td>
+                                        <td>users.js</td>
+                                        <td>New user registered: sarah.johnson@example.com</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-14 01:32:10</td>
+                                        <td><span class="log-level log-debug">DEBUG</span></td>
+                                        <td>websocket.js</td>
+                                        <td>WebSocket connection established: client_id_12345</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-14 01:30:45</td>
+                                        <td><span class="log-level log-info">INFO</span></td>
+                                        <td>server.js</td>
+                                        <td>Configuration loaded from .env file</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex justify-content-between align-items-center">
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-2" id="clear-logs">
+                                <i class="bi bi-trash me-1"></i> Clear Logs
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" id="download-logs">
+                                <i class="bi bi-download me-1"></i> Download Logs
+                            </button>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-primary" id="view-all-logs">
+                                View All Logs <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast container for notifications -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="settings-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong class="me-auto">Settings</strong>
+                <small>Just now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Settings saved successfully.
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="spinner-overlay d-none" id="loading-spinner">
+        <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle sidebar on mobile
+            document.querySelector('.show-sidebar-btn')?.addEventListener('click', function() {
+                document.querySelector('.sidebar').classList.toggle('show');
+            });
+            
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Settings toast
+            const settingsToast = new bootstrap.Toast(document.getElementById('settings-toast'));
+            
+            // Save all settings
+            document.getElementById('save-all-settings').addEventListener('click', function() {
+                saveSettings();
+            });
+            
+            // API key generation
+            document.getElementById('generate-api-key').addEventListener('click', function() {
+                const keyName = document.getElementById('api-key-name').value.trim();
+                if (!keyName) {
+                    alert('Please enter a name for the API key.');
+                    return;
+                }
+                
+                // Generate a random API key (in production, this would be a server API call)
+                const apiKey = 'ak_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                
+                // Display the key
+                document.getElementById('api-key-value').textContent = apiKey;
+                document.getElementById('api-key-display').classList.remove('d-none');
+                
+                // Clear the input
+                document.getElementById('api-key-name').value = '';
+            });
+            
+            // Create admin account
+            document.getElementById('create-admin-btn').addEventListener('click', function() {
+                const adminEmail = document.getElementById('admin-email').value.trim();
+                if (!adminEmail) {
+                    alert('Please enter an email address for the admin account.');
+                    return;
+                }
+                
+                showSpinner();
+                
+                // In production, this would be a server API call
+                setTimeout(() => {
+                    // Simulate successful admin creation
+                    hideSpinner();
+                    alert(`Admin creation link sent to ${adminEmail}`);
+                    document.getElementById('admin-email').value = '';
+                }, 500);
+            });
+            
+            // Refresh system info
+            document.getElementById('refresh-system-info').addEventListener('click', function() {
+                showSpinner();
+                
+                // In production, this would be a server API call
+                setTimeout(() => {
+                    // Simulate updated system info
+                    hideSpinner();
+                    // Here you would update the system info values with fresh data
+                }, 500);
+            });
+            
+            // Log filtering
+            document.getElementById('log-level').addEventListener('change', function() {
+                filterLogs(this.value);
+            });
+            
+            // Clear logs
+            document.getElementById('clear-logs').addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
+                    showSpinner();
+                    
+                    // In production, this would be a server API call
+                    setTimeout(() => {
+                        // Simulate cleared logs
+                        hideSpinner();
+                        alert('Logs have been cleared.');
+                    }, 500);
+                }
+            });
+            
+            // Download logs
+            document.getElementById('download-logs').addEventListener('click', function() {
+                showSpinner();
+                
+                // In production, this would generate a file from the server
+                setTimeout(() => {
+                    // Create a sample log file for download
+                    const logContent = "2025-05-14 01:43:20 [INFO] server.js: Server started on port 3001\n" +
+                                      "2025-05-14 01:43:18 [INFO] database.js: Connected to MongoDB database\n" +
+                                      "2025-05-14 01:42:55 [WARN] auth.js: Failed login attempt: jay1988stud@gmail.com\n" +
+                                      "2025-05-14 01:40:22 [ERROR] api.js: API rate limit exceeded: IP 192.168.1.105\n" +
+                                      "2025-05-14 01:35:41 [INFO] users.js: New user registered: sarah.johnson@example.com\n" +
+                                      "2025-05-14 01:32:10 [DEBUG] websocket.js: WebSocket connection established: client_id_12345\n" +
+                                      "2025-05-14 01:30:45 [INFO] server.js: Configuration loaded from .env file";
+                    
+                    const blob = new Blob([logContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `system_logs_${new Date().toISOString().slice(0, 10)}.log`;
+                    link.click();
+                    
+                    URL.revokeObjectURL(url);
+                    hideSpinner();
+                }, 500);
+            });
+            
+            // Date picker for custom theme
+            document.getElementById('default-theme').addEventListener('change', function() {
+                // Apply the selected theme to the document for preview
+                document.documentElement.className = this.value;
+            });
+            
+            // Filter logs by level
+            function filterLogs(level) {
+                const logRows = document.querySelectorAll('.log-table tbody tr');
+                
+                logRows.forEach(row => {
+                    const logLevel = row.querySelector('.log-level').textContent;
+                    
+                    if (level === 'all') {
+                        row.style.display = '';
+                    } else if (level === 'error' && logLevel !== 'ERROR') {
+                        row.style.display = 'none';
+                    } else if (level === 'warn' && !['ERROR', 'WARN'].includes(logLevel)) {
+                        row.style.display = 'none';
+                    } else if (level === 'info' && logLevel === 'DEBUG') {
+                        row.style.display = 'none';
+                    } else {
+                        row.style.display = '';
+                    }
+                });
+            }
+            
+            // Save settings
+            function saveSettings() {
+                showSpinner();
+                
+                // In production, this would be a server API call to save all settings
+                setTimeout(() => {
+                    // Simulate successful save
+                    hideSpinner();
+                    
+                    // Show success toast
+                    settingsToast.show();
+                }, 1000);
+            }
+            
+            // Show loading spinner
+            function showSpinner() {
+                document.getElementById('loading-spinner').classList.remove('d-none');
+            }
+            
+            // Hide loading spinner
+            function hideSpinner() {
+                document.getElementById('loading-spinner').classList.add('d-none');
+            }
+        });
+    </script>
+</body>
+</html>

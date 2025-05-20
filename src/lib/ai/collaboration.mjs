@@ -713,10 +713,17 @@ function getAgentWithHighestTokenLimit(agents, models = {}) {
   });
   
   // Use the agent with the highest token limit for summarization instead of the lead agent
-  const summarizerAgent = getAgentWithHighestTokenLimit(agents.filter(agent => {
-    // Only use agents that are available and didn't error out
-    return availability[agent] && !initialDrafts.find(draft => draft.agent === agent && draft.error);
-  }), options.models);
+  let summarizerAgent = null;
+  try {
+    summarizerAgent = getAgentWithHighestTokenLimit(agents.filter(agent => {
+      // Only use agents that are available and didn't error out
+      return availability[agent] && !initialDrafts.find(draft => draft.agent === agent && draft.error);
+    }), options.models);
+  } catch (err) {
+    console.error("Error getting agent with highest token limit:", err);
+    // Fallback to first available agent
+    summarizerAgent = agents.find(agent => availability[agent] && !initialDrafts.find(draft => draft.agent === agent && draft.error)) || agents[0];
+  }
   
   console.log(`👑 Using ${summarizerAgent} for final summarization (highest token limit)`);
   
@@ -933,9 +940,16 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
   
   // Final summarization by the agent with the highest token limit
   // This ensures we can handle the largest context for summarization
-  var summarizerAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-    availability[agent] && !chain.find(item => item.agent === agent && item.error)
-  ), options.models);
+  var summarizerAgent = null;
+  try {
+    summarizerAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
+      availability[agent] && !chain.find(item => item.agent === agent && item.error)
+    ), options.models);
+  } catch (err) {
+    console.error("Error getting agent with highest token limit:", err);
+    // Fallback to first available agent
+    summarizerAgent = agents.find(agent => availability[agent] && !chain.find(item => item.agent === agent && item.error)) || agents[0];
+  }
   
   console.log(`👑 Using ${summarizerAgent} for final sequential chain summarization (highest token limit)`);
   
@@ -1009,6 +1023,8 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     throw new Error("Validated consensus requires at least 3 agents");
   }
   
+  console.log(`Starting validated consensus mode with ${agents.length} agents`);
+  
   // Assign roles: first 2 agents as co-drafters, rest as verifiers
   var drafterAgents = agents.slice(0, 2);
   var verifierAgents = agents.slice(2);
@@ -1019,6 +1035,16 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     phase: 'co_drafting',
     timestamp: new Date().toISOString()
   });
+
+  // Send status update for UI loading phase
+  if (options && typeof options.onModelStatusChange === 'function') {
+    drafterAgents.forEach(agent => {
+      options.onModelStatusChange(agent, 'phase_change', 'Phase 1: Drafting Initial Responses');
+    });
+    verifierAgents.forEach(agent => {
+      options.onModelStatusChange(agent, 'phase_change', 'Phase 1: Drafting Initial Responses');
+    });
+  }
   
   var drafts = await Promise.all(drafterAgents.map(async function(agent, index) {
     publishEvent(redisChannel, {
@@ -1027,6 +1053,11 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
       phase: 'draft',
       timestamp: new Date().toISOString()
     });
+    
+    // Send status update if callback provided
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(agent, 'processing', 'Creating initial draft');
+    }
     
     var draftPrompt = constructPrompt(
       prompt,
@@ -1037,12 +1068,23 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     try {
       var draftContent = await getAgentResponse(agent, draftPrompt, 'draft', redisChannel, abortSignal, costTracker);
       
+      // Mark this agent as completed for this phase
+      if (options && typeof options.onModelStatusChange === 'function') {
+        options.onModelStatusChange(agent, 'completed', 'Draft completed');
+      }
+      
       return {
         agent: agent,
         content: draftContent
       };
     } catch (error) {
       console.error(`Error getting draft from ${agent}:`, error);
+      
+      // Mark this agent as failed
+      if (options && typeof options.onModelStatusChange === 'function') {
+        options.onModelStatusChange(agent, 'failed', `Failed to create draft: ${error.message}`);
+      }
+      
       return {
         agent: agent,
         content: `[${agent} was unable to provide a draft: ${error.message}]`,
@@ -1106,6 +1148,30 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     timestamp: new Date().toISOString()
   });
   
+  // Send phase change for UI
+  if (options && typeof options.onModelStatusChange === 'function') {
+    // First, mark all agents as completed for previous phase to ensure progress bar updates
+    agents.forEach(agent => {
+      options.onModelStatusChange(agent, 'completed', 'Initial draft phase completed');
+    });
+    
+    // Short delay before changing phase to ensure UI updates
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Now send the phase change for all agents
+    agents.forEach(agent => {
+      options.onModelStatusChange(agent, 'phase_change', 'Phase 2: Fact Checking & Verification');
+    });
+    
+    // Add slight delay then send processing status for this phase
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Set verifier agents to processing state
+    verifierAgents.forEach(agent => {
+      options.onModelStatusChange(agent, 'processing', 'Reviewing claims for accuracy');
+    });
+  }
+  
   var verificationResults = await Promise.all(verifierAgents.map(async function(agent) {
     publishEvent(redisChannel, {
       type: 'agent_thinking',
@@ -1113,6 +1179,11 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
       phase: 'verify',
       timestamp: new Date().toISOString()
     });
+    
+    // Mark verifier as processing
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(agent, 'processing', 'Verifying claims');
+    }
     
     var verifyPrompt = constructPrompt(
       prompt + "\n\nDRAFT TO VERIFY:\n" + initialDraft,
@@ -1123,12 +1194,23 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     try {
       var verificationContent = await getAgentResponse(agent, verifyPrompt, 'verify', redisChannel, abortSignal, costTracker);
       
+      // Mark verifier as completed
+      if (options && typeof options.onModelStatusChange === 'function') {
+        options.onModelStatusChange(agent, 'completed', 'Verification completed');
+      }
+      
       return {
         agent: agent,
         content: verificationContent
       };
     } catch (error) {
       console.error(`Error getting verification from ${agent}:`, error);
+      
+      // Mark verifier as failed
+      if (options && typeof options.onModelStatusChange === 'function') {
+        options.onModelStatusChange(agent, 'failed', `Verification failed: ${error.message}`);
+      }
+      
       return {
         agent: agent,
         content: `[${agent} was unable to provide verification: ${error.message}]`,
@@ -1146,6 +1228,22 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
   var validVerifications = verificationResults.filter(function(verification) { 
     return !verification.error;
   });
+  
+  // Helper function for getting agent with highest token limit
+  function getAgentWithHighestTokenLimit(availableAgents, modelConfigs) {
+    // Default hierarchy based on known token limits if not specified
+    const tokenLimitHierarchy = ['claude', 'grok', 'chatgpt', 'gemini', 'deepseek', 'llama'];
+    
+    // Return first agent in the hierarchy that's in the available list
+    for (const agent of tokenLimitHierarchy) {
+      if (availableAgents.includes(agent)) {
+        return agent;
+      }
+    }
+    
+    // Fallback to first available agent if none match the hierarchy
+    return availableAgents[0];
+  }
   
   // Calculate percentage of lines flagged
   var issuesFound = false;
@@ -1180,10 +1278,36 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
       timestamp: new Date().toISOString()
     });
     
+    // Complete the verification phase before starting the next one
+    if (options && typeof options.onModelStatusChange === 'function') {
+      // Mark all agents as completed for the verification phase
+      agents.forEach(agent => {
+        options.onModelStatusChange(agent, 'completed', 'Verification phase completed');
+      });
+      
+      // Short delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Send phase update for all agents
+      agents.forEach(agent => {
+        options.onModelStatusChange(agent, 'phase_change', 'Phase 3: Revising Based on Feedback');
+      });
+      
+      // Short delay before setting processing state
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
     // Use the agent with the highest token limit for rewriting
-    var rewriterAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-      availability[agent] && !verifierAgents.find(verifier => verifier === agent)
-    ), options.models);
+    var rewriterAgent = null;
+    try {
+      rewriterAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
+        availability[agent] && !verifierAgents.find(verifier => verifier === agent)
+      ), options.models);
+    } catch (err) {
+      console.error("Error getting agent with highest token limit:", err);
+      // Fallback to first available agent
+      rewriterAgent = agents.find(agent => availability[agent] && !verifierAgents.includes(agent)) || agents[0];
+    }
     
     console.log(`👑 Using ${rewriterAgent} for rewriting (highest token limit)`);
     
@@ -1196,7 +1320,25 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     
     // Send status update if callback provided
     if (options && typeof options.onModelStatusChange === 'function') {
+      // Send explicit status updates with timestamps to ensure tracking
+      console.log(`Validated Consensus: Setting ${rewriterAgent} to processing state for rewriting phase`);
+      
+      // Make sure UI knows which models to track for this phase
+      agents.forEach(agent => {
+        if (agent !== rewriterAgent) {
+          // Mark other agents as completed so we track progress correctly
+          options.onModelStatusChange(agent, 'completed', 'Waiting for final revision');
+        }
+      });
+      
+      // Now set the rewriter to processing state
       options.onModelStatusChange(rewriterAgent, 'processing', 'Rewriting based on verification feedback');
+      
+      // Send an additional processing update with a delay to ensure it's captured
+      setTimeout(() => {
+        console.log(`Validated Consensus: Sending delayed processing status for ${rewriterAgent}`);
+        options.onModelStatusChange(rewriterAgent, 'processing', 'Creating improved version with corrections');
+      }, 300);
     }
     
     var verificationsText = validVerifications.map(function(verification) {
@@ -1212,10 +1354,24 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     );
     
     finalResponse = await getAgentResponse(rewriterAgent, rewritePrompt, 'rewrite', redisChannel, abortSignal, costTracker);
+    
+    // Mark rewriter as completed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(rewriterAgent, 'completed', 'Revision completed');
+    }
+    
     finalRationale = "The initial draft was rewritten after fact-checkers identified potential issues.";
   } else {
     // No substantial issues found, use the initial draft
     finalResponse = initialDraft;
+    
+    // Send phase update for final synthesis
+    if (options && typeof options.onModelStatusChange === 'function') {
+      agents.forEach(agent => {
+        options.onModelStatusChange(agent, 'phase_change', 'Phase 3: Finalizing Response');
+        options.onModelStatusChange(agent, 'completed', 'Response finalized');
+      });
+    }
     finalRationale = "The drafted response passed verification with no substantial issues identified.";
   }
   
@@ -1228,8 +1384,25 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     timestamp: new Date().toISOString()
   });
   
+  console.log(`Validated Consensus: Final response generated. Sending final status updates.`);
+  
   // Send status update if callback provided
   if (options && typeof options.onModelStatusChange === 'function') {
+    // First mark all agents as completed before final wrap-up
+    console.log(`Validated Consensus: Marking all ${agents.length} agents as completed`);
+    agents.forEach(agent => {
+      options.onModelStatusChange(agent, 'completed', 'Response finalized');
+    });
+    
+    // Short delay to ensure UI updates
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Send a final phase change to trigger progress bar completion
+    console.log(`Validated Consensus: Sending final phase changes to all agents`);
+    agents.forEach(agent => {
+      options.onModelStatusChange(agent, 'phase_change', 'Final Response Generated');
+    });
+    
     if (issuesFound) {
       options.onModelStatusChange(rewriterAgent, 'completed', 'Rewriting completed');
     }
@@ -1484,9 +1657,16 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
   });
   
   // Use the agent with the highest token limit for amplification
-  var amplifierAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-    availability[agent] && !megaIdeas.find(idea => idea.agent === agent && idea.error)
-  ), options.models);
+  var amplifierAgent = null;
+  try {
+    amplifierAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
+      availability[agent] && !megaIdeas.find(idea => idea.agent === agent && idea.error)
+    ), options.models);
+  } catch (err) {
+    console.error("Error getting agent with highest token limit:", err);
+    // Fallback to first available agent
+    amplifierAgent = agents.find(agent => availability[agent] && !megaIdeas.find(idea => idea.agent === agent && idea.error)) || agents[0];
+  }
   
   console.log(`👑 Using ${amplifierAgent} for idea amplification (highest token limit)`);
   
@@ -1721,9 +1901,16 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
   });
   
   // Use the agent with the highest token limit for final elaboration
-  var elaboratorAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-    availability[agent] && !validValidations.find(validation => validation.agent === agent && validation.error)
-  ), options.models);
+  var elaboratorAgent = null;
+  try {
+    elaboratorAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
+      availability[agent] && !validValidations.find(validation => validation.agent === agent && validation.error)
+    ), options.models);
+  } catch (err) {
+    console.error("Error getting agent with highest token limit:", err);
+    // Fallback to first available agent
+    elaboratorAgent = agents.find(agent => availability[agent] && !validValidations.find(validation => validation.agent === agent && validation.error)) || agents[0];
+  }
   
   console.log(`👑 Using ${elaboratorAgent} for final elaboration (highest token limit)`);
   

@@ -40,6 +40,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Make ConnectionManager available globally
     window.ConnectionManager = ConnectionManager;
+    
+    // Initialize window._appState for global state across modules
+    window._appState = {
+        collaboration: {
+            mode: state.collaboration.mode || 'individual'
+        },
+        debug: true,
+        modelStatusHistory: []
+    };
+    console.log('main.js: Initialized window._appState with collaboration mode:', window._appState.collaboration.mode);
 
     // Initialize code preview manager
     CodePreviewManager.initialize();
@@ -114,8 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Initialize context manager
         ContextManager.initializeContextManager();
-        // Expose to window for event routing
-        window.contextManager = ContextManager;
 
         UIManager.setupAccessibility();
         UIManager.updateColumnWidths();
@@ -140,8 +148,8 @@ function handleAuthLogin(event) {
         UIManager.refreshPendingOperations(); // Refresh MCP UI if needed
     }
 
-    // Handle context for newly authenticated user if session ID is available
-    if (event.detail?.sessionId) {
+    // Process context information if available
+    if (event.detail?.contextInfo) {
         ContextManager.processAuthResponse(event.detail);
     }
 }
@@ -200,12 +208,68 @@ function handleWebSocketMessage(data) {
             break;
         case 'model_status':
             // Handle model status updates including phase changes
+            // Enhanced handling for Validated Consensus mode and other multi-phase collaborations
+            console.log(`main.js: Received model_status for ${data.model}: status=${data.status}, message="${data.message}"`);
+            
+            // Store status in appState for debugging and status tracking
+            if (!window._appState.modelStatusHistory) {
+                window._appState.modelStatusHistory = [];
+            }
+            window._appState.modelStatusHistory.push({
+                timestamp: new Date().toISOString(),
+                model: data.model,
+                status: data.status,
+                message: data.message
+            });
+            
+            // Enhanced phase change detection
             if (data.status === 'phase_change') {
-                // Get the currently active models from UI as a proxy for models in this phase
+                console.log(`main.js: Processing explicit phase change: "${data.message}"`);
+                
+                // Get all visible columns as active models for this phase
                 const activeModelsForPhase = UIManager.getActiveAndVisibleColumns().map(col => col.id);
+                console.log(`main.js: Active models for phase: ${activeModelsForPhase.join(', ')}`);
+                
+                // Update the phase in the loading manager
                 LoadingManager.updateForPhase(data.message, activeModelsForPhase);
-            } else {
+                
+                // Also update individual model status
+                LoadingManager.updateModelStatus(data.model, 'processing', data.message);
+            } else if (
+                // Detect implied phase changes from regular status messages in validated_consensus mode
+                state.collaboration.mode === 'validated_consensus' && 
+                data.message && 
+                (data.message.toLowerCase().includes('validation') ||
+                 data.message.toLowerCase().includes('phase') || 
+                 data.message.toLowerCase().includes('draft') ||
+                 data.message.toLowerCase().includes('revision') ||
+                 data.message.toLowerCase().includes('check') ||
+                 data.message.toLowerCase().includes('final') ||
+                 data.message.toLowerCase().includes('consensus'))
+            ) {
+                console.log(`main.js: Detected implied phase change in message: "${data.message}"`);
+                
+                // Get an updated list of active models
+                const activeModelsForPhase = UIManager.getActiveAndVisibleColumns().map(col => col.id);
+                
+                // First treat as a phase change
+                LoadingManager.updateForPhase(data.message, activeModelsForPhase);
+                
+                // Then update individual model status
                 LoadingManager.updateModelStatus(data.model, data.status, data.message);
+            } else {
+                // Regular status update
+                console.log(`main.js: Processing regular status update for ${data.model}`);
+                LoadingManager.updateModelStatus(data.model, data.status, data.message);
+            }
+            
+            // Debug status counts for Validated Consensus mode
+            if (state.collaboration.mode === 'validated_consensus') {
+                const statuses = {};
+                Object.entries(LoadingManager.modelStatuses || {}).forEach(([model, data]) => {
+                    statuses[data.status] = (statuses[data.status] || 0) + 1;
+                });
+                console.log(`main.js: Current status counts:`, statuses);
             }
             break;
         case 'command-output':
@@ -242,37 +306,35 @@ function handleWebSocketMessage(data) {
         case 'authentication_success':
             console.log("Server confirmed authentication for:", data.userId);
             // Process context information if available
-            ContextManager.processAuthResponse(data);
+            if (data.contextInfo) {
+                console.log("Context info in auth response:", data.contextInfo);
+                ContextManager.processAuthResponse(data);
+            }
             break;
         // Context management message handlers
         case 'context_status':
+            console.log('Main: Received context_status event from server');
             ContextManager.handleContextStatus(data);
             break;
         case 'context_reset':
+            console.log('Main: Received context_reset event from server');
             ContextManager.handleContextReset(data);
             break;
         case 'context_trimmed':
+            console.log('Main: Received context_trimmed event from server');
             ContextManager.handleContextTrimmed(data);
             break;
         case 'context_warning':
+            console.log('Main: Received context_warning event from server');
             ContextManager.handleContextWarning(data);
             break;
         case 'max_context_size_updated':
+            console.log('Main: Received max_context_size_updated event from server');
             ContextManager.handleMaxContextSizeUpdated(data);
             break;
         case 'context_mode_updated':
+            console.log('Main: Received context_mode_updated event from server');
             ContextManager.handleContextModeUpdated(data);
-            // Update context toggle state
-            const toggleBtn = document.getElementById('context-toggle-btn');
-            if (toggleBtn) {
-                if (data.mode === 'none') {
-                    toggleBtn.classList.remove('active');
-                    toggleBtn.textContent = 'OFF';
-                } else {
-                    toggleBtn.classList.add('active');
-                    toggleBtn.textContent = 'ON';
-                }
-            }
             break;
         case 'mcp_context_registered':
         case 'mcp_files_listed':
@@ -293,6 +355,16 @@ function handleWebSocketMessage(data) {
         // Collaboration style handling removed (no backend implementation)
         case 'collab_mode_updated':
             state.collaboration.mode = data.mode;
+            
+            // Make sure window._appState is initialized with collaboration info
+            if (!window._appState) window._appState = {};
+            if (!window._appState.collaboration) window._appState.collaboration = {};
+            
+            // Set the mode explicitly to ensure LoadingManager can access it
+            window._appState.collaboration.mode = data.mode;
+            console.log(`main.js: Updated window._appState.collaboration.mode to ${data.mode}`);
+            
+            // Update UI elements
             CollaborationControls.setMode(data.mode);
             UIManager.addSystemMessageToAll(`Collaboration mode set to: ${data.mode === 'individual' ? 'Individual' : CollaborationControls.COLLABORATION_MODES[data.mode]?.name || data.mode}`);
             break;

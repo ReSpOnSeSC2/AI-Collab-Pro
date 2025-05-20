@@ -1612,6 +1612,11 @@ function handleDropdownSelection(provider, modelId, modelName, optionsContainer,
         opt.setAttribute('aria-selected', isSelected);
     });
     
+    // Trigger model-selected event for context window display
+    document.dispatchEvent(new CustomEvent('model-selected', {
+        detail: { modelType: provider, modelName: modelId }
+    }));
+    
     // Show visual feedback that selection is done
     const providerContainer = document.getElementById(`${provider}-column`);
     if (providerContainer) {

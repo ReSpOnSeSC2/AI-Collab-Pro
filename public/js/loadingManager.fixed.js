@@ -17,6 +17,10 @@ class LoadingManager {
     this.completedModelsInPhase = 0; // Modified to track models per phase
     this.abortController = null;
     this.isVisible = false;
+    
+    // For time-based progress tracking
+    this.lastProgressUpdate = null;
+    this.baseProgress = 0;
 
     // Create the loading overlay immediately on instantiation
     this.createLoadingOverlay();
@@ -111,31 +115,128 @@ class LoadingManager {
       this.createLoadingOverlay();
     }
 
-    if (this.phaseTitleElement) {
-        this.phaseTitleElement.textContent = phaseName || 'Processing...';
+    // Check if we're in Validated Consensus mode for special handling
+    const isValidatedConsensus = window._appState?.collaboration?.mode === 'validated_consensus';
+    if (isValidatedConsensus) {
+      console.log(`LoadingManager: Special handling for Validated Consensus phase "${phaseName}"`);
+      
+      // Reset time-based progress tracking for the new phase
+      this.lastProgressUpdate = Date.now();
+      this.baseProgress = 0;
     }
 
+    // Update phase title with visual emphasis for Validated Consensus
+    if (this.phaseTitleElement) {
+      this.phaseTitleElement.textContent = phaseName || 'Processing...';
+      
+      // Add visual emphasis for Validated Consensus mode
+      if (isValidatedConsensus) {
+        // Make phase transition more visible
+        this.phaseTitleElement.style.animation = 'none';
+        setTimeout(() => {
+          this.phaseTitleElement.style.animation = 'phase-highlight 1s ease-in-out';
+        }, 10);
+      }
+    }
+
+    // Set up model counts for the new phase
     this.totalModelsInPhase = modelsInPhase.length;
-    this.completedModelsInPhase = 0;
-    this.modelStatuses = {}; // Reset statuses for the new phase
+    
+    // Enhanced phase transition for Validated Consensus
+    if (isValidatedConsensus) {
+      // Log the phase change
+      console.log(`LoadingManager: [ValidatedConsensus] Phase change: "${phaseName}" with ${modelsInPhase.length} models`);
+      
+      // If transitioning between phases, mark the current phase as complete
+      if (Object.keys(this.modelStatuses).length > 0) {
+        console.log(`LoadingManager: [ValidatedConsensus] Completing previous phase before transition`);
+        this.completedModelsInPhase = this.totalModelsInPhase;
+        
+        // Force a progress update to show 100% for previous phase
+        this.updateProgressBar();
+      }
+      
+      // Always reset completion counter for new phase
+      this.completedModelsInPhase = 0;
+      
+      // Save status of existing models before transition
+      const existingStatuses = {...this.modelStatuses};
+      
+      // Reset statuses for the new phase
+      this.modelStatuses = {};
+      
+      // Initialize all models in this phase as processing
+      modelsInPhase.forEach(model => {
+        this.modelStatuses[model] = {
+          status: 'processing', 
+          name: this.formatModelName(model),
+          previousStatus: existingStatuses[model]?.status || null,
+          phaseStarted: true  // Mark as having started in this phase
+        };
+      });
+      
+      // Always ensure there's visual progress even at the start of a phase
+      // Minimum 5% progress to show activity
+      this.completedModelsInPhase = Math.max(0, Math.floor(modelsInPhase.length * 0.05));
+      
+    } else {
+      // Standard behavior for other collaboration modes
+      this.completedModelsInPhase = 0;
+      this.modelStatuses = {};
+      
+      // Initialize all models in this phase as pending
+      modelsInPhase.forEach(model => {
+        this.modelStatuses[model] = {
+          status: 'pending',
+          name: this.formatModelName(model),
+          previousStatus: null
+        };
+      });
+    }
 
-    modelsInPhase.forEach(model => {
-      this.modelStatuses[model] = {
-        status: 'pending', // Or 'processing' if they start immediately
-        name: this.formatModelName(model)
-      };
-    });
-
+    // Update UI elements
     this.updateProgressBar();
     this.updateModelStatusList();
 
-    // Ensure overlay is visible
+    // Ensure overlay is visible with multiple techniques
     if (this.overlay) {
-        this.overlay.style.display = 'flex';
-        this.overlay.style.opacity = '1';
-        this.overlay.style.visibility = 'visible';
-        this.overlay.classList.remove('hidden');
-        this.isVisible = true;
+      // Use both CSS class and inline styles
+      this.overlay.style.display = 'flex';
+      this.overlay.style.opacity = '1';
+      this.overlay.style.visibility = 'visible';
+      this.overlay.classList.remove('hidden');
+      
+      // Ensure the overlay is actually visible in the DOM
+      if (window.getComputedStyle(this.overlay).display !== 'flex') {
+        console.log("LoadingManager: Forcing overlay visibility with !important style");
+        this.overlay.setAttribute('style', 'display: flex !important; opacity: 1 !important; visibility: visible !important;');
+      }
+      
+      this.isVisible = true;
+    }
+    
+    // Enhanced DOM updates for Validated Consensus mode
+    if (isValidatedConsensus) {
+      // First immediate update
+      this.updateProgressBar();
+      this.updateModelStatusList();
+      
+      // Force multiple UI updates to ensure rendering
+      for (let delay of [50, 150, 300]) {
+        setTimeout(() => {
+          if (this.isVisible) {
+            console.log(`LoadingManager: [ValidatedConsensus] Forced UI update at ${delay}ms`);
+            this.updateProgressBar();
+            this.updateModelStatusList();
+            
+            // Add animation to progress bar to make changes more visible
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar) {
+              progressBar.style.transition = 'width 0.3s ease-in-out';
+            }
+          }
+        }, delay);
+      }
     }
   }
 
@@ -257,19 +358,106 @@ class LoadingManager {
       return;
     }
 
-    console.log(`LoadingManager: Updating ${modelId} status to ${status}`);
+    console.log(`LoadingManager: Updating ${modelId} status to ${status} with message "${message}"`);
+    
+    // Check if we're in Validated Consensus mode for special handling throughout
+    const isValidatedConsensus = window._appState?.collaboration?.mode === 'validated_consensus';
+    if (isValidatedConsensus) {
+      console.log("LoadingManager: Extra handling for Validated Consensus mode");
+    }
 
-    // Special handling for phase_change status
-    if (status === 'phase_change') {
-      console.log(`LoadingManager: Phase change notification from ${modelId}: ${message}`);
+    // Special status mapping for Validated Consensus mode to ensure progression
+    if (isValidatedConsensus) {
+      // Log extra debug info to diagnose progression issues
+      console.log(`LoadingManager: [ValidatedConsensus] Validated Consensus status update for ${modelId}: ${status} - "${message}". Current models in phase: ${this.totalModelsInPhase}, completed: ${this.completedModelsInPhase}`);
+      
+      // Force status interpretation based on message content for better phase tracking
+      if (message) {
+        if (message.toLowerCase().includes('phase')) {
+          console.log(`LoadingManager: [ValidatedConsensus] ⭐ Phase indicator detected in message: "${message}"`);
+          status = 'phase_change';
+        } else if (message.toLowerCase().includes('draft completed') || 
+                 message.toLowerCase().includes('verification completed') || 
+                 message.toLowerCase().includes('revision completed') || 
+                 message.toLowerCase().includes('response finalized')) {
+          console.log(`LoadingManager: [ValidatedConsensus] ⭐ Completion indicator detected in message: "${message}"`);
+          status = 'completed';
+        }
+      }
+    }
+
+    // Force any 'processing' status to get progress tracking in Validated Consensus mode
+    if (isValidatedConsensus && status === 'processing') {
+      console.log(`LoadingManager: [ValidatedConsensus] Processing status for ${modelId}, updating UI`);
+      
+      // Ensure model is registered even without explicit phase change
+      if (!this.modelStatuses[modelId]) {
+        this.modelStatuses[modelId] = {
+          status: status,
+          name: this.formatModelName(modelId),
+          message: message || 'Processing...'
+        };
+      }
+      
+      // Make sure this model contributes to total count
+      const activeModels = Object.keys(this.modelStatuses);
+      this.totalModelsInPhase = Math.max(this.totalModelsInPhase, activeModels.length);
+      
+      // Force update the UI components
+      this.updateProgressBar();
+      this.updateModelStatusList();
+      
+      // Don't return - continue processing for potential phase detection
+    }
+
+    // Enhanced phase change detection - catch more phase transition indicators
+    if (status === 'phase_change' || 
+        (isValidatedConsensus && message && (
+          message.toLowerCase().includes('phase') || 
+          message.toLowerCase().includes('validation') ||
+          message.toLowerCase().includes('draft') ||
+          message.toLowerCase().includes('collecting') ||
+          message.toLowerCase().includes('generating') ||
+          message.toLowerCase().includes('finalizing') ||
+          message.toLowerCase().includes('revising') ||
+          message.toLowerCase().includes('checking') ||
+          message.toLowerCase().includes('consensus')
+        ))) {
+      // Log additional debug information for Validated Consensus mode
+      if (isValidatedConsensus) {
+        console.log(`LoadingManager: [ValidatedConsensus] ⭐⭐ Phase change processing for ${modelId}: "${message}"`);
+        console.log(`LoadingManager: [ValidatedConsensus] Current models in phase: ${this.totalModelsInPhase}, completed: ${this.completedModelsInPhase}`);
+        console.log(`LoadingManager: [ValidatedConsensus] Active models: ${Object.keys(this.modelStatuses).join(', ')}`);
+      }
+      console.log(`LoadingManager: Phase change detected from ${modelId}: ${message}`);
+
+      let phaseMessage = message;
+      
+      // Enhanced format message for validated consensus phases
+      if (message?.toLowerCase().includes('validation')) {
+        phaseMessage = "Phase 2: Validating Claims";
+      } else if (message?.toLowerCase().includes('draft')) {
+        phaseMessage = "Phase 1: Drafting Initial Responses";
+      } else if (message?.toLowerCase().includes('synthesizing')) {
+        phaseMessage = "Phase 3: Synthesizing Results";
+      } else if (message?.toLowerCase().includes('revision')) {
+        phaseMessage = "Phase 3: Revising Based on Feedback";
+      } else if (message?.toLowerCase().includes('finalizing')) {
+        phaseMessage = "Phase 3: Finalizing Response";
+      } else if (message?.toLowerCase().includes('consensus')) {
+        phaseMessage = "Phase 4: Building Consensus";
+      } else if (message?.toLowerCase().includes('phase')) {
+        // Already formatted as a phase message
+      } else if (status === 'phase_change') {
+        phaseMessage = message || "Next Phase";
+      }
 
       // Use the current active models from UI as a proxy for which models are in this phase
       const activeModelsForPhase = [];
 
       // First, gather all models that have entries in modelStatuses
       Object.keys(this.modelStatuses).forEach(model => {
-        if (this.modelStatuses[model].status !== 'completed' &&
-            this.modelStatuses[model].status !== 'failed' &&
+        if (this.modelStatuses[model].status !== 'failed' &&
             this.modelStatuses[model].status !== 'cancelled') {
           activeModelsForPhase.push(model);
         }
@@ -280,9 +468,45 @@ class LoadingManager {
         activeModelsForPhase.push(modelId);
       }
 
+      // For Validated Consensus, use completion to mark progress between phases
+      if (isValidatedConsensus) {
+        // Mark completed models for the current phase
+        Object.keys(this.modelStatuses).forEach(model => {
+          if (!activeModelsForPhase.includes(model)) {
+            this.modelStatuses[model] = {
+              ...this.modelStatuses[model],
+              status: 'completed',
+              previousStatus: 'completed'
+            };
+          }
+        });
+        
+        // Force increment completions for phase change in Validated Consensus
+        this.completedModelsInPhase = this.totalModelsInPhase;
+      } else {
+        // Reset completed models count for this new phase in other modes
+        this.completedModelsInPhase = 0;
+      }
+
       // Update for the new phase
-      this.updateForPhase(message, activeModelsForPhase);
-      return;
+      this.updateForPhase(phaseMessage, activeModelsForPhase);
+      
+      // If this was a normal status update that we detected as a phase change,
+      // don't return, so we can also update the model status
+      if (status !== 'phase_change') {
+        // Update the model's status
+        this.modelStatuses[modelId] = {
+          status: 'processing', // Always set to processing for a new phase
+          name: this.formatModelName(modelId),
+          message: message,
+          previousStatus: this.modelStatuses[modelId]?.status || null
+        };
+      } else {
+        // Force progress update before returning for explicit phase changes
+        this.updateProgressBar();
+        this.updateModelStatusList();
+        return;
+      }
     }
 
     // Initialize model status if it doesn't exist
@@ -290,29 +514,62 @@ class LoadingManager {
       this.modelStatuses[modelId] = {
         status: status,
         name: this.formatModelName(modelId),
-        message: message
+        message: message,
+        previousStatus: null
       };
     } else {
-      // Don't "downgrade" statuses (e.g., don't change from completed to processing)
-      const currentStatus = this.modelStatuses[modelId].status;
-      if (currentStatus === 'completed' || currentStatus === 'failed') {
-        if (status !== 'cancelled') {
-          console.log(`LoadingManager: Ignoring status update for ${modelId} (${currentStatus} → ${status})`);
-          return;
-        }
-      }
-
+      // Store previous status before updating
+      const prevStatus = this.modelStatuses[modelId].status;
+      
+      // Update the model's status
       this.modelStatuses[modelId].status = status;
       if (message) {
         this.modelStatuses[modelId].message = message;
       }
+      
+      // Only update previousStatus if the status actually changed
+      if (prevStatus !== status) {
+        this.modelStatuses[modelId].previousStatus = prevStatus;
+      }
     }
 
-    // If a model completes or fails, update the count
-    if ((status === 'completed' || status === 'failed' || status === 'cancelled') &&
-        !['completed', 'failed', 'cancelled'].includes(this.modelStatuses[modelId]?.previousStatus)) {
-      this.completedModelsInPhase++; // Use phase-specific counter
-      if (this.modelStatuses[modelId]) this.modelStatuses[modelId].previousStatus = status;
+    // Enhanced completion tracking - more aggressive for Validated Consensus mode
+    if ((status === 'completed' || status === 'failed' || status === 'cancelled')) {
+      // Log more debug information
+      console.log(`LoadingManager: Model ${modelId} status updated to ${status}. Previous status: ${this.modelStatuses[modelId]?.previousStatus}`);
+
+      if (isValidatedConsensus) {
+        // For Validated Consensus, be more aggressive about counting completions
+        const previousStatus = this.modelStatuses[modelId]?.previousStatus;
+        
+        // Only increment if this is the first time we're marking it complete in this phase
+        // or if we've never seen this model complete before (for any status)
+        if (!['completed', 'failed', 'cancelled'].includes(previousStatus)) {
+          console.log(`LoadingManager: [ValidatedConsensus] Incrementing counter for ${modelId}`);
+          this.completedModelsInPhase++;
+          
+          // Force visibility of progress changes
+          document.getElementById('progress-bar').style.transition = 'width 0.3s ease-in-out';
+        } else {
+          console.log(`LoadingManager: [ValidatedConsensus] Not incrementing for ${modelId} (prev: ${previousStatus})`);
+        }
+      } else {
+        // Standard behavior for other modes
+        if (!['completed', 'failed', 'cancelled'].includes(this.modelStatuses[modelId]?.previousStatus)) {
+          this.completedModelsInPhase++;
+        }
+      }
+    }
+    
+    // Special handling for processing status in Validated Consensus
+    if (isValidatedConsensus && status === 'processing' && !this.modelStatuses[modelId]?.alreadyCounted) {
+      // Mark when a model starts processing in a new phase
+      this.modelStatuses[modelId].phaseStarted = true;
+      
+      // Force DOM update and ensure all models are represented
+      if (Object.keys(this.modelStatuses).length > this.totalModelsInPhase) {
+        this.totalModelsInPhase = Object.keys(this.modelStatuses).length;
+      }
     }
     
     if (!this.isVisible) {
@@ -320,8 +577,50 @@ class LoadingManager {
       return;
     }
     
+    // Always update UI, especially critical for Validated Consensus
     this.updateProgressBar();
     this.updateModelStatusList();
+    
+    // Force DOM update for Validated Consensus mode with a small delay
+    if (isValidatedConsensus) {
+      // Double-check DOM elements are still available
+      if (!document.getElementById('progress-bar')) {
+        console.warn("LoadingManager: Progress bar element disappeared, recreating...");
+        this.createLoadingOverlay();
+      }
+      
+      // Schedule multiple UI updates with different techniques to ensure visibility
+      const delays = [30, 100, 300, 600];
+      delays.forEach(delay => {
+        setTimeout(() => {
+          if (!this.isVisible) return; // Skip if overlay was hidden
+          
+          console.log(`LoadingManager: [ValidatedConsensus] Forced UI update at ${delay}ms`);
+          // Trigger browser re-render to force progress bar update
+          this.updateProgressBar();
+          this.updateModelStatusList();
+          
+          // Extra forced DOM update for stubborn browser renderers
+          const progressBar = document.getElementById('progress-bar');
+          if (progressBar) {
+            // Use multiple techniques to force reflow/repaint
+            progressBar.style.opacity = '0.99';
+            setTimeout(() => {
+              progressBar.style.opacity = '1';
+              progressBar.style.display = 'none';
+              setTimeout(() => progressBar.style.display = 'block', 5);
+            }, 5);
+          }
+          
+          // Force reflow on model status container too
+          const statusContainer = document.getElementById('model-status-container');
+          if (statusContainer) {
+            statusContainer.style.opacity = '0.99';
+            setTimeout(() => statusContainer.style.opacity = '1', 5);
+          }
+        }, delay);
+      });
+    }
   }
   
   /**
@@ -339,11 +638,112 @@ class LoadingManager {
       return;
     }
 
-    const progress = this.totalModelsInPhase > 0 ? (this.completedModelsInPhase / this.totalModelsInPhase) * 100 : 0;
+    // Special handling for Validated Consensus to ensure progress shows
+    const isValidatedConsensus = window._appState?.collaboration?.mode === 'validated_consensus';
+    
+    // Calculate progress percentage
+    let progress = this.totalModelsInPhase > 0 ? (this.completedModelsInPhase / this.totalModelsInPhase) * 100 : 0;
+    
+    // Enhanced progress tracking for Validated Consensus mode
+    if (isValidatedConsensus) {
+      const activeModelCount = Object.keys(this.modelStatuses).length;
+      // Debug information for Validated Consensus mode
+      console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Initial progress calculation: ${progress}%`);
+      console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Active models: ${activeModelCount}, Total in phase: ${this.totalModelsInPhase}, Completed: ${this.completedModelsInPhase}`);
+      
+      // Count models by status
+      const statusCounts = { processing: 0, completed: 0, failed: 0, pending: 0 };
+      Object.values(this.modelStatuses).forEach(model => {
+        if (statusCounts[model.status] !== undefined) {
+          statusCounts[model.status]++;
+        }
+      });
+      console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Status counts:`, statusCounts);
+      
+      // Ensure we're tracking all active models
+      if (activeModelCount > this.totalModelsInPhase) {
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Updating totalModelsInPhase from ${this.totalModelsInPhase} to ${activeModelCount}`);
+        this.totalModelsInPhase = activeModelCount;
+        // Recalculate progress with updated total
+        progress = this.totalModelsInPhase > 0 ? (this.completedModelsInPhase / this.totalModelsInPhase) * 100 : 0;
+      }
+      
+      // Ensure at least minimum progress based on phase and active models
+      // Show at least 5% progress when models are active but not yet completed
+      const minProgress = 5;
+      if (progress < minProgress && activeModelCount > 0) {
+        progress = Math.max(progress, minProgress);
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Enforcing minimum progress of ${minProgress}%`);
+      }
+      
+      // Add progress boost for models in processing state (shows activity)
+      if (statusCounts.processing > 0 && progress < 75) {
+        const processingBoost = Math.min(statusCounts.processing * 5, 20); // Max 20% boost from processing
+        progress = Math.min(progress + processingBoost, 70); // Cap at 70% until completion
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Adding ${processingBoost}% boost for ${statusCounts.processing} processing models. New progress: ${progress}%`);
+      }
+      
+      // Ensure progress advances between phases and over time
+      const phaseTitle = this.phaseTitleElement?.textContent || '';
+      
+      // Track progress over time - important for when statuses aren't updating
+      if (!this.lastProgressUpdate) {
+        this.lastProgressUpdate = Date.now();
+        this.baseProgress = progress;
+      }
+      
+      // Calculate time-based progress boost (roughly 2% every 3 seconds)
+      const timeElapsed = Date.now() - this.lastProgressUpdate;
+      const timeBasedProgress = Math.min(50, (timeElapsed / 3000) * 2);
+      
+      // Apply phase-specific minimums
+      if (phaseTitle.includes('Phase 1')) {
+        // Starting phase should advance to at least 25% within a few seconds
+        const phase1Min = Math.min(25, 10 + timeBasedProgress);
+        progress = Math.max(progress, phase1Min);
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Phase 1 minimum progress: ${phase1Min.toFixed(1)}%`);
+      } else if (phaseTitle.includes('Phase 2')) {
+        // Phase 2 should start at 30% and advance to 60%
+        const phase2Min = Math.min(60, 30 + timeBasedProgress);
+        progress = Math.max(progress, phase2Min);
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Phase 2 minimum progress: ${phase2Min.toFixed(1)}%`);
+      } else if (phaseTitle.includes('Phase 3')) {
+        // Phase 3 should start at 70% and advance to 95%
+        const phase3Min = Math.min(95, 70 + timeBasedProgress);
+        progress = Math.max(progress, phase3Min);
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Phase 3 minimum progress: ${phase3Min.toFixed(1)}%`);
+      } else {
+        // Default phase advancement
+        const defaultMin = Math.min(45, 5 + timeBasedProgress);
+        progress = Math.max(progress, defaultMin);
+        console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Default minimum progress: ${defaultMin.toFixed(1)}%`);
+      }
+      
+      // Save baseline progress for next update
+      if (timeElapsed > 1000) {
+        this.lastProgressUpdate = Date.now();
+        this.baseProgress = progress;
+      }
+    }
+    
+    // Ensure animation is smooth for Validated Consensus
+    if (isValidatedConsensus) {
+      this.progressBar.style.transition = 'width 0.3s ease-in-out';
+    }
+    
+    // Update the DOM elements
     this.progressBar.style.width = `${progress}%`;
     this.progressText.textContent = `${Math.round(progress)}% Complete`;
 
-    console.log(`LoadingManager.updateProgressBar: Progress set to ${progress}%`);
+    // Add extra information for ValidatedConsensus mode
+    if (isValidatedConsensus) {
+      const phase = this.phaseTitleElement?.textContent || "Current phase";
+      this.progressText.textContent = `${Math.round(progress)}% (${this.completedModelsInPhase}/${this.totalModelsInPhase} models)`;
+      
+      console.log(`LoadingManager.updateProgressBar: [ValidatedConsensus] Progress set to ${progress}% for ${phase}`);
+    } else {
+      console.log(`LoadingManager.updateProgressBar: Progress set to ${progress}%`);
+    }
 
     // For 100% progress, just log it but don't auto-hide
     // The main.js will handle hiding based on 'cost_info' or 'collaboration_cancelled'
@@ -367,23 +767,94 @@ class LoadingManager {
       return;
     }
     
+    // Check if we're in Validated Consensus mode for special handling
+    const isValidatedConsensus = window._appState?.collaboration?.mode === 'validated_consensus';
+    
     // Clear current status list
     this.modelStatusContainer.innerHTML = '';
     
-    // Add status items
+    // Deduplicate model entries - fix for ChatGPT double entries
+    const deduplicatedEntries = {};
     Object.entries(this.modelStatuses).forEach(([modelId, data]) => {
-      console.log(`LoadingManager.updateModelStatusList: Adding status for ${modelId}: ${data.status}`);
+      // Use the base modelId (without specific model version) as the key
+      const baseModelId = modelId.split('-')[0]; // Handle both 'chatgpt' and 'chatgpt-4'
+      
+      // If we already have this model, only replace if the new status is more interesting
+      if (deduplicatedEntries[baseModelId]) {
+        const currentStatus = deduplicatedEntries[baseModelId].status;
+        // Prioritize 'completed' > 'failed' > 'processing' > others
+        const statusPriority = { 'completed': 4, 'failed': 3, 'processing': 2, 'pending': 1 };
+        if ((statusPriority[data.status] || 0) > (statusPriority[currentStatus] || 0)) {
+          deduplicatedEntries[baseModelId] = {...data, originalId: modelId};
+        }
+      } else {
+        deduplicatedEntries[baseModelId] = {...data, originalId: modelId};
+      }
+    });
+    
+    // Add status items (using deduplicated entries)
+    Object.entries(deduplicatedEntries).forEach(([baseModelId, data]) => {
+      const modelId = data.originalId || baseModelId;
+      console.log(`LoadingManager.updateModelStatusList: Adding status for ${baseModelId}: ${data.status}`);
       
       const statusItem = document.createElement('div');
       statusItem.className = `model-status-item ${data.status}`;
       
-      statusItem.innerHTML = `
-        <span class="model-name">${data.name}</span>
-        <span class="status ${data.status}">${data.status}</span>
-      `;
+      // Enhanced status display for Validated Consensus
+      if (isValidatedConsensus) {
+        // Add message to status display if available - but don't duplicate model name in message
+        let statusMessage = '';
+        if (data.message) {
+          // Skip redundant messages for cleaner UI
+          if (data.message !== 'Working on initial draft...' && 
+              data.message !== 'Starting response drafting' &&
+              !data.message.includes("Phase")) {
+            statusMessage = `<span class="status-message">${data.message}</span>`;
+          }
+        }
+        
+        // Format status text nicely for Validated Consensus
+        let statusText = data.status;
+        if (data.status === 'processing') {
+          statusText = 'Working...';
+        } else if (data.status === 'completed') {
+          statusText = '✓ Done';
+        } else if (data.status === 'failed') {
+          statusText = '⚠️ Failed';
+        }
+          
+        statusItem.innerHTML = `
+          <span class="model-name">${data.name}</span>
+          <span class="status ${data.status}">${statusText}</span>
+          ${statusMessage}
+        `;
+        
+        // Make newly changed statuses more noticeable
+        if (data.status !== data.previousStatus && data.previousStatus) {
+          statusItem.style.animation = 'status-highlight 1s ease-in-out';
+          // Add animation duration for browser compatibility
+          statusItem.style.animationDuration = '1s';
+          // Add additional properties to ensure animation renders
+          statusItem.style.position = 'relative';
+        }
+      } else {
+        // Standard display for other modes
+        statusItem.innerHTML = `
+          <span class="model-name">${data.name}</span>
+          <span class="status ${data.status}">${data.status}</span>
+        `;
+      }
       
       this.modelStatusContainer.appendChild(statusItem);
     });
+    
+    // For Validated Consensus, ensure changes are visible
+    if (isValidatedConsensus) {
+      this.modelStatusContainer.style.opacity = '0.99';
+      setTimeout(() => {
+        this.modelStatusContainer.style.opacity = '1';
+      }, 5);
+    }
   }
   
   /**

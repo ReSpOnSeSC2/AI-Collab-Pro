@@ -255,7 +255,7 @@ function createContextToggleSwitch() {
   toggleLabel.appendChild(toggleSpan);
   container.appendChild(toggleLabel);
 
-  // Add event listener for toggle changes - use click instead of change for better compatibility
+  // Add event listener for toggle changes - use both click and change events for better compatibility
   toggleLabel.addEventListener('click', function(event) {
     // Prevent the default behavior to handle manually
     event.preventDefault();
@@ -268,6 +268,12 @@ function createContextToggleSwitch() {
 
     // Stop propagation to prevent other listeners
     event.stopPropagation();
+  });
+  
+  // Also add a direct change listener to the input for when it's toggled via keyboard
+  toggleInput.addEventListener('change', function(event) {
+    console.log("Context toggle changed via direct input event");
+    handleContextToggle(event);
   });
 
   // Find a place to insert it
@@ -293,6 +299,8 @@ function createContextToggleSwitch() {
  * @param {Object} data - The context status data
  */
 export function handleContextStatus(data) {
+  console.log('Context Status Update:', data);
+  
   // Update local state with server data
   contextInfo = {
     ...contextInfo,
@@ -305,6 +313,8 @@ export function handleContextStatus(data) {
     contextMode: data.contextMode || contextInfo.contextMode
   };
 
+  console.log('Updated Context Info:', JSON.stringify(contextInfo));
+
   // Update UI
   updateContextUI();
 
@@ -316,11 +326,14 @@ export function handleContextStatus(data) {
   // Update context mode selector if available
   if (contextModeSelector && contextInfo.contextMode) {
     contextModeSelector.value = contextInfo.contextMode;
+    console.log('Updated context mode selector to:', contextInfo.contextMode);
   }
 
   // Update toggle switch if available
   if (contextToggleSwitch) {
-    contextToggleSwitch.checked = contextInfo.contextMode !== CONTEXT_MODES.NONE;
+    const shouldBeChecked = contextInfo.contextMode !== CONTEXT_MODES.NONE;
+    contextToggleSwitch.checked = shouldBeChecked;
+    console.log('Updated context toggle switch to:', shouldBeChecked ? 'ON' : 'OFF');
   }
 }
 
@@ -421,12 +434,21 @@ export function handleMaxContextSizeUpdated(data) {
  * @param {Object} data - The authentication response data
  */
 export function processAuthResponse(data) {
+  console.log('Processing auth response for context:', data);
+  
   if (data.sessionId) {
     contextInfo.sessionId = data.sessionId;
+    console.log('Set session ID:', data.sessionId);
 
     // If we have context info in the response, process it
     if (data.contextInfo) {
+      console.log('Processing context info from auth:', data.contextInfo);
       handleContextStatus(data.contextInfo);
+      
+      // Also show status message to user
+      if (data.contextInfo.contextMode && data.contextInfo.contextMode !== 'none') {
+        showTemporaryMessage(`Context enabled (mode: ${data.contextInfo.contextMode})`);
+      }
     }
   }
 }
@@ -516,19 +538,34 @@ function handleContextToggle(event) {
     contextModeSelector.value = newMode;
   }
 
+  // Log for debugging
+  console.log('Context Manager: Toggle context to:', newMode, 'Previous mode:', contextInfo.contextMode);
+
   // Send mode update to server
   if (window.connectionManager && typeof window.connectionManager.sendMessageToServer === 'function') {
+    // Update internal state before sending to ensure UI stays consistent
+    contextInfo.contextMode = newMode;
+    
     window.connectionManager.sendMessageToServer({
       type: 'set_context_mode',
       mode: newMode
     });
+    
+    // Show temporary visual feedback
+    showTemporaryMessage(`Context ${newMode === CONTEXT_MODES.NONE ? 'disabled' : 'enabled - mode: ' + newMode}`);
   } else {
     // Fallback to direct WebSocket
     if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+      // Update internal state before sending to ensure UI stays consistent
+      contextInfo.contextMode = newMode;
+      
       window.ws.send(JSON.stringify({
         type: 'set_context_mode',
         mode: newMode
       }));
+      
+      // Show temporary visual feedback
+      showTemporaryMessage(`Context ${newMode === CONTEXT_MODES.NONE ? 'disabled' : 'enabled - mode: ' + newMode}`);
     } else {
       console.error('Context Manager: Cannot toggle context - no connection available');
       showTemporaryMessage('Cannot toggle context: no connection to server');
