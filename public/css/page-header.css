@@ -3,8 +3,14 @@
 
 /* Global Header Height Fix */
 .global-header {
-    min-height: 60px;
+    min-height: 90px;
     background: var(--nexus-card-bg, #1f2937);
+}
+
+/* Adjust vertical positioning of header content */
+.global-header .global-nav,
+.global-header .user-info {
+    margin-bottom: 20px; /* Raises the content up by 20px */
 }
 
 /* Light theme override for global header */
@@ -35,7 +41,7 @@
 
 /* Body padding to account for fixed header */
 body {
-    padding-top: 60px !important; /* This pushes ALL content down */
+    padding-top: 90px !important; /* This pushes ALL content down */
 }
 
 /* Page Header Container */

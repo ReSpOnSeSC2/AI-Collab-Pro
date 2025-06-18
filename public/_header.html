@@ -1,7 +1,7 @@
 <header class="row header-row global-header py-2 align-items-center fixed-top">
     <div class="col-auto">
         <a href="hub.html" class="text-decoration-none d-flex align-items-center">
-             <img src="/images/ai-collab.png" alt="AI-Collab Logo" height="60">
+             <img src="/images/ai-collab.png" alt="AI-Collab Logo" height="90">
         </a>
     </div>
     <div class="col text-center d-flex align-items-center justify-content-center">
@@ -53,10 +53,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('global-logout-button');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            if (window.AICollabAuth) {
+            // Check if AICollabAuth is available
+            if (window.AICollabAuth && window.AICollabAuth.logout) {
+                console.log('Logging out using AICollabAuth...');
                 window.AICollabAuth.logout();
             } else {
-                // Fallback if AICollabAuth is not available
+                console.log('AICollabAuth not available, using direct navigation...');
+                // Clear auth data manually and redirect
+                localStorage.removeItem('ai_collab_token');
+                localStorage.removeItem('ai_collab_authenticated');
+                localStorage.removeItem('ai_collab_user');
+                localStorage.removeItem('ai_collab_email');
+                localStorage.removeItem('ai_collab_name');
                 window.location.href = '/login.html';
             }
         });
