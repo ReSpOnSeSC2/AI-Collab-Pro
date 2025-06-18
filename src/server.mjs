@@ -22,6 +22,7 @@ import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import passport from 'passport';
 import mongoose from 'mongoose';
+import cors from 'cors';
 
 import { initializePassport } from './config/passport.mjs';
 import initializeWebSocketHandler from './wsHandler.mjs';
@@ -71,23 +72,34 @@ const server = http.createServer(app);
 app.set('trust proxy', true);
 
 // --- CORS Configuration ---
+// Get allowed origins from environment variable
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
+  'http://localhost:3001',
+  'http://localhost:3000'
+];
+
+console.log('CORS Configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  ALLOWED_ORIGINS: allowedOrigins
+});
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
-    // Get allowed origins from environment variable
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-      'http://localhost:3001',
-      'http://localhost:3000'
-    ];
     
     // Check if the origin is allowed
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      // In production, be more lenient with CORS for debugging
+      if (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')) {
+        console.log('Allowing Vercel origin in production:', origin);
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true, // Allow cookies and credentials
@@ -99,24 +111,22 @@ const corsOptions = {
 
 // --- Middleware ---
 // Apply CORS before other middleware
-if (process.env.NODE_ENV === 'production') {
-  // Dynamic import for production
-  import('cors').then(({ default: cors }) => {
-    app.use(cors(corsOptions));
-  });
-} else {
-  // For development, allow all origins
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
+app.use(cors(corsOptions));
+
+// Additional CORS headers as fallback
+app.use((req, res, next) => {
+  // Set additional CORS headers if not already set
+  if (!res.getHeader('Access-Control-Allow-Origin')) {
+    const origin = req.headers.origin;
+    if (origin && (allowedOrigins.includes(origin) || (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')))) {
+      res.header('Access-Control-Allow-Origin', origin);
     }
-    next();
-  });
-}
+  }
+  if (!res.getHeader('Access-Control-Allow-Credentials')) {
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+});
 
 app.use(express.json()); // Parse JSON request bodies
 app.use(cookieParser()); // Parse cookies for authentication
@@ -204,6 +214,23 @@ if (NEXT_APP_URL) {
 }
 
 // --- API Routes ---
+// Handle OPTIONS requests for all API routes
+app.options('/api/*', (req, res) => {
+  res.sendStatus(200);
+});
+
+// Simple health check endpoint for testing
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    cors: {
+      origin: req.headers.origin,
+      allowed: allowedOrigins
+    }
+  });
+});
+
 app.use('/api', apiRouter); // Mount all API routes under /api
 
 // --- WebSocket Server Setup ---
