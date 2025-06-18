@@ -11,11 +11,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://ai-collab-backend.onrender.com/api/:path*"
+      "destination": "https://ai-collab-pro.onrender.com/api/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://ai-collab-backend.onrender.com/ws"
+      "destination": "https://ai-collab-pro.onrender.com/ws"
     }
   ],
   "headers": [
