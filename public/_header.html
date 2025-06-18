@@ -39,9 +39,8 @@
 </header>
 
 <script>
-// Initialize header user info and logout functionality
-// Use a timeout to ensure the button is in the DOM
-setTimeout(() => {
+// Initialize header functionality
+(function() {
     // Handle auth:login event to update user info
     document.addEventListener('auth:login', (event) => {
         const user = event.detail;
@@ -53,41 +52,30 @@ setTimeout(() => {
         }
     });
     
-    // Setup logout button with event delegation
-    const logoutBtn = document.getElementById('global-logout-button');
-    console.log('Logout button element:', logoutBtn);
-    
-    if (logoutBtn) {
-        // Remove any existing listeners
-        logoutBtn.replaceWith(logoutBtn.cloneNode(true));
+    // Use event delegation on the document body for logout button
+    document.addEventListener('click', function(e) {
+        // Check if the clicked element is the logout button or its child
+        const logoutBtn = e.target.closest('#global-logout-button');
         
-        // Get the fresh button reference
-        const freshLogoutBtn = document.getElementById('global-logout-button');
-        
-        freshLogoutBtn.addEventListener('click', (e) => {
+        if (logoutBtn) {
             e.preventDefault();
-            console.log('Logout button clicked!');
+            e.stopPropagation();
             
-            // Clear auth data manually
+            console.log('Logout button clicked via delegation!');
+            
+            // Clear all auth data
             localStorage.removeItem('ai_collab_token');
             localStorage.removeItem('ai_collab_authenticated');
             localStorage.removeItem('ai_collab_user');
             localStorage.removeItem('ai_collab_email');
             localStorage.removeItem('ai_collab_name');
             
-            // Check if AICollabAuth is available
-            if (window.AICollabAuth && typeof window.AICollabAuth.logout === 'function') {
-                console.log('Using AICollabAuth.logout()');
-                window.AICollabAuth.logout();
-            } else {
-                console.log('Direct redirect to login');
-                window.location.href = '/login.html';
-            }
-        });
-        
-        console.log('Logout button listener attached');
-    } else {
-        console.error('Logout button not found!');
-    }
-}, 100);
+            // Always redirect to login
+            console.log('Redirecting to login page...');
+            window.location.href = '/login.html';
+        }
+    });
+    
+    console.log('Header logout handler initialized with event delegation');
+})();
 </script>
