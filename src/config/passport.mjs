@@ -78,7 +78,11 @@ export async function initializePassport() {
     // Google OAuth Strategy
     // Determine the callback URL based on environment
     const isProduction = process.env.NODE_ENV === 'production';
-    const baseUrl = process.env.BACKEND_URL || (isProduction 
+    
+    // Force production URL if we detect we're on Render
+    const isRender = process.env.RENDER === 'true' || process.env.RENDER_SERVICE_NAME;
+    
+    const baseUrl = process.env.BACKEND_URL || (isProduction || isRender
       ? 'https://ai-collab-pro.onrender.com' 
       : (process.env.NEXTAUTH_URL || 'http://localhost:3001'));
     
@@ -86,7 +90,10 @@ export async function initializePassport() {
     
     console.log('Passport Google OAuth Configuration:', {
       NODE_ENV: process.env.NODE_ENV,
+      BACKEND_URL: process.env.BACKEND_URL,
+      RENDER: process.env.RENDER,
       isProduction,
+      isRender,
       baseUrl,
       callbackURL
     });
@@ -96,8 +103,9 @@ export async function initializePassport() {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL,
       scope: ['profile', 'email'],
-      proxy: true // Trust proxy headers for correct callback URL
-    }, async (accessToken, refreshToken, profile, done) => {
+      proxy: true, // Trust proxy headers for correct callback URL
+      passReqToCallback: true // Pass request to callback for dynamic URL handling
+    }, async (req, accessToken, refreshToken, profile, done) => {
       try {
         // Check if user already exists
         let user = await usersCollection.findOne({ googleId: profile.id });

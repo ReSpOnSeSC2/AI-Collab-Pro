@@ -155,10 +155,48 @@ export const optionalAuth = (req, res, next) => {
  * Google OAuth Routes
  */
 // Initiates Google OAuth flow
-router.get('/google', passport.authenticate('google', { 
-  scope: ['profile', 'email'],
-  prompt: 'select_account'
-}));
+router.get('/google', (req, res, next) => {
+  // Determine the actual callback URL based on the request
+  let callbackURL;
+  
+  // Check if we're on Render (production)
+  const isRender = process.env.RENDER === 'true' || process.env.RENDER_SERVICE_NAME || req.get('x-forwarded-host') === 'ai-collab-pro.onrender.com';
+  
+  if (process.env.BACKEND_URL) {
+    callbackURL = `${process.env.BACKEND_URL}/api/auth/google/callback`;
+  } else if (process.env.NODE_ENV === 'production' || isRender) {
+    // Always use production URL in production or on Render
+    callbackURL = 'https://ai-collab-pro.onrender.com/api/auth/google/callback';
+  } else {
+    // Use request headers to build callback URL for local development
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('x-forwarded-host') || req.get('host');
+    callbackURL = `${protocol}://${host}/api/auth/google/callback`;
+  }
+  
+  // Final safety check - never use localhost in production
+  if ((process.env.NODE_ENV === 'production' || isRender) && callbackURL.includes('localhost')) {
+    console.warn('WARNING: Localhost detected in production OAuth callback, forcing production URL');
+    callbackURL = 'https://ai-collab-pro.onrender.com/api/auth/google/callback';
+  }
+  
+  console.log('Google OAuth initiated:', {
+    NODE_ENV: process.env.NODE_ENV,
+    BACKEND_URL: process.env.BACKEND_URL,
+    calculatedCallbackURL: callbackURL,
+    headers: {
+      'x-forwarded-proto': req.get('x-forwarded-proto'),
+      'x-forwarded-host': req.get('x-forwarded-host'),
+      host: req.get('host')
+    }
+  });
+  
+  passport.authenticate('google', { 
+    scope: ['profile', 'email'],
+    prompt: 'select_account',
+    callbackURL: callbackURL // Override the callback URL
+  })(req, res, next);
+});
 
 // Google OAuth callback
 router.get('/google/callback', (req, res, next) => {

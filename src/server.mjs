@@ -31,6 +31,16 @@ import { initializeUploads } from './api/upload.mjs'; // Import initialization f
 // --- Configuration & Setup ---
 dotenv.config();
 
+// Log critical environment variables at startup
+console.log('Environment Configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  BACKEND_URL: process.env.BACKEND_URL,
+  FRONTEND_URL: process.env.FRONTEND_URL,
+  PORT: process.env.PORT,
+  MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Not set',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set'
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicPath = path.join(__dirname, '../public');
