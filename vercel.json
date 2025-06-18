@@ -54,11 +54,11 @@
       ]
     },
     {
-      "source": "/(.*\\.(js|css|ico|png|jpg|jpeg|svg|gif|woff|woff2|ttf|eot))",
+      "source": "/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "public, max-age=3600"
         }
       ]
     }
@@ -69,10 +69,5 @@
       "destination": "/index.html",
       "permanent": false
     }
-  ],
-  "functions": {
-    "public/api/*.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
