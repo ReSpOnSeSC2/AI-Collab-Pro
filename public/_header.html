@@ -39,27 +39,6 @@
 </header>
 
 <script>
-// Global logout function
-function handleLogout() {
-    console.log('Logout function called!');
-    
-    // Clear all auth data
-    localStorage.removeItem('ai_collab_token');
-    localStorage.removeItem('ai_collab_authenticated');
-    localStorage.removeItem('ai_collab_user');
-    localStorage.removeItem('ai_collab_email');
-    localStorage.removeItem('ai_collab_name');
-    
-    // Clear session storage too
-    sessionStorage.clear();
-    
-    // Redirect to login
-    console.log('Redirecting to login page...');
-    window.location.href = '/login.html';
-    
-    return false; // Prevent any default action
-}
-
 // Initialize header functionality
 (function() {
     // Handle auth:login event to update user info
@@ -73,6 +52,6 @@ function handleLogout() {
         }
     });
     
-    console.log('Header initialized with logout handler');
+    console.log('Header initialized - handleLogout function is available from layoutManager.js');
 })();
 </script>

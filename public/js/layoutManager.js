@@ -4,6 +4,37 @@
  * Version: 8.0.0
  */
 
+// Define the global logout function BEFORE the header loads
+window.handleLogout = function() {
+    try {
+        console.log('=== LOGOUT FUNCTION CALLED ===');
+        console.log('Current URL:', window.location.href);
+        console.log('Clearing localStorage...');
+        
+        // Clear all auth data
+        const keysToRemove = ['ai_collab_token', 'ai_collab_authenticated', 'ai_collab_user', 'ai_collab_email', 'ai_collab_name'];
+        keysToRemove.forEach(key => {
+            console.log(`Removing ${key}:`, localStorage.getItem(key) ? 'exists' : 'not found');
+            localStorage.removeItem(key);
+        });
+        
+        // Clear session storage too
+        sessionStorage.clear();
+        console.log('SessionStorage cleared');
+        
+        // Force redirect to login
+        console.log('Redirecting to login page...');
+        window.location.replace('/login.html');
+        
+    } catch (error) {
+        console.error('Error in logout function:', error);
+        // Fallback - force redirect even if there's an error
+        window.location.replace('/login.html');
+    }
+    
+    return false; // Prevent any default action
+};
+
 /**
  * Fetches and injects an HTML partial into a target element.
  * @param {string} partialUrl - The URL of the HTML partial file.
