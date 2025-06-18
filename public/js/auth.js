@@ -60,11 +60,22 @@ async function initializeAuth() {
         return;
     }
     
-    // Session-based authentication is preferred over localStorage
-    // But we'll keep localStorage as a fallback for compatibility
-    if (localStorage.getItem('ai_collab_authenticated') === 'true') {
-        console.log('Found stored authentication state in localStorage, but will verify with server');
-        // We'll continue with the server check, but won't redirect immediately
+    // Check if we have a token in localStorage (for cross-domain auth)
+    const storedToken = localStorage.getItem('ai_collab_token');
+    const storedUser = localStorage.getItem('ai_collab_user');
+    
+    if (storedToken && storedUser) {
+        try {
+            currentUser = JSON.parse(storedUser);
+            console.log('Found stored authentication token and user data');
+            
+            // Still verify with server, but we have local data
+        } catch (e) {
+            console.error('Error parsing stored user data:', e);
+            // Clear invalid data
+            localStorage.removeItem('ai_collab_token');
+            localStorage.removeItem('ai_collab_user');
+        }
     }
     
     // Never redirect from /auth/ paths to prevent loops
@@ -84,12 +95,22 @@ async function initializeAuth() {
     
     try {
         console.log('Checking authentication session...');
+        
+        // Get token from localStorage for cross-domain auth
+        const token = localStorage.getItem('ai_collab_token');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        // Add token to headers if available
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch(AUTH_ENDPOINTS.SESSION, {
             method: 'GET',
             credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers
         });
         
         const data = await response.json();
@@ -112,7 +133,9 @@ async function initializeAuth() {
             console.log('No active session found on server');
             
             // Clear any lingering authentication data
+            localStorage.removeItem('ai_collab_token');
             localStorage.removeItem('ai_collab_authenticated');
+            localStorage.removeItem('ai_collab_user');
             localStorage.removeItem('ai_collab_email');
             localStorage.removeItem('ai_collab_name');
             
@@ -283,6 +306,13 @@ async function handleLogin(event) {
                 console.log('Login successful:', data.user);
                 currentUser = data.user;
                 
+                // Store token and user data for cross-domain auth
+                if (data.token) {
+                    localStorage.setItem('ai_collab_token', data.token);
+                    localStorage.setItem('ai_collab_authenticated', 'true');
+                    localStorage.setItem('ai_collab_user', JSON.stringify(data.user));
+                }
+                
                 // Dispatch auth:login event before redirecting
                 document.dispatchEvent(new CustomEvent('auth:login', { 
                     detail: data.user 
@@ -398,6 +428,13 @@ async function handleSignup(event) {
                 console.log('Signup successful:', data.user);
                 currentUser = data.user;
                 
+                // Store token and user data for cross-domain auth
+                if (data.token) {
+                    localStorage.setItem('ai_collab_token', data.token);
+                    localStorage.setItem('ai_collab_authenticated', 'true');
+                    localStorage.setItem('ai_collab_user', JSON.stringify(data.user));
+                }
+                
                 // Dispatch auth:login event before redirecting
                 document.dispatchEvent(new CustomEvent('auth:login', { 
                     detail: data.user 
@@ -487,17 +524,27 @@ function handleUrlParams() {
     if (token && user) {
         try {
             const userData = JSON.parse(decodeURIComponent(user));
-            console.log('Auth successful, user:', userData);
+            console.log('Auth successful, storing token and user data');
             currentUser = userData;
             
-            // Dispatch auth:login event before redirecting
+            // Store token and user data in localStorage for cross-domain auth
+            localStorage.setItem('ai_collab_token', token);
+            localStorage.setItem('ai_collab_authenticated', 'true');
+            localStorage.setItem('ai_collab_user', JSON.stringify(userData));
+            if (userData.email) localStorage.setItem('ai_collab_email', userData.email);
+            if (userData.name) localStorage.setItem('ai_collab_name', userData.name);
+            
+            // Clean URL to remove token
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            
+            // Dispatch auth:login event
             document.dispatchEvent(new CustomEvent('auth:login', { 
                 detail: userData 
             }));
             
-            // Always redirect to hub.html
-            redirectTo('/hub.html');
-            return; // Exit early since we're redirecting
+            // Stay on current page (hub.html) - don't redirect
+            return;
         } catch (e) {
             console.error('Error parsing user data:', e);
         }
@@ -527,7 +574,9 @@ function handleUrlParams() {
 async function logout() {
     try {
         // Clear all authentication state from localStorage
+        localStorage.removeItem('ai_collab_token');
         localStorage.removeItem('ai_collab_authenticated');
+        localStorage.removeItem('ai_collab_user');
         localStorage.removeItem('ai_collab_email');
         localStorage.removeItem('ai_collab_name');
         
@@ -627,11 +676,28 @@ function handleGoogleOneTapResponse(response) {
     });
 }
 
+/**
+ * Get authentication headers for API requests
+ */
+function getAuthHeaders() {
+    const token = localStorage.getItem('ai_collab_token');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+}
+
 // Export auth methods for global use
 window.AICollabAuth = {
     logout,
     getCurrentUser: () => currentUser,
-    isAuthenticated: () => !!currentUser
+    isAuthenticated: () => !!currentUser,
+    getAuthHeaders // Export for use in other modules
 };
 
 // Make the Google One Tap handler available globally

@@ -212,20 +212,34 @@ router.get('/google/callback', (req, res, next) => {
     // Create JWT token for additional client-side auth
     const token = createToken(req.user);
     
-    // Set cookie for browser clients
+    // Set cookie for browser clients (for local development)
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       sameSite: 'lax',
-      path: '/'
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost' // Let browser handle domain in production
     });
     
-    // Redirect to the main app on frontend
+    // Create user data object for frontend
+    const userData = {
+      id: req.user._id.toString(),
+      name: req.user.name,
+      email: req.user.email,
+      subscriptionTier: req.user.subscriptionTier || 'free'
+    };
+    
+    // Redirect to the main app on frontend with token and user data
     const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
       ? 'https://ai-collab-pro.vercel.app' 
       : 'http://localhost:3001');
-    res.redirect(`${frontendUrl}/hub.html`);
+    
+    // Pass token and user data in URL for cross-domain authentication
+    const redirectUrl = `${frontendUrl}/hub.html?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+    
+    console.log('OAuth successful, redirecting to:', redirectUrl.substring(0, 50) + '...');
+    res.redirect(redirectUrl);
   }
 );
 
