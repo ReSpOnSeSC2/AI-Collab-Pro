@@ -170,13 +170,22 @@
         }
         
         .encryption-demo button {
-            background: var(--primary-color);
+            background: #6366f1;
             color: white;
-            border: none;
+            border: 1px solid #4f46e5;
             padding: 0.5rem 1rem;
             border-radius: 0.25rem;
             cursor: pointer;
             margin-right: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .encryption-demo button:hover {
+            background: #4f46e5;
+            border-color: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         .encryption-result {
