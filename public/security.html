@@ -199,12 +199,19 @@
             color: var(--text-secondary);
             margin-top: 0.5rem;
         }
+        .encryption-result {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            color: #000; /* Make text black */
+        }
     </style>
 </head>
 <body>
     <div id="app-container">
         <!-- Header -->
-        <header id="header-placeholder"></header>
+        <header id="global-header-placeholder"></header>
 
         <!-- Main Content -->
         <main class="security-page">
@@ -403,21 +410,16 @@ const encrypted = await crypto.encrypt(apiKey, AES_256_GCM);
         </main>
 
         <!-- Footer -->
-        <footer id="footer-placeholder"></footer>
+        <footer id="global-footer-placeholder"></footer>
     </div>
 
+    <!-- Include layout manager for header/footer injection -->
+    <script src="/js/layoutManager.js"></script>
+    
     <script>
-        // Load header and footer
-        fetch('/header.html').then(r => r.text()).then(html => {
-            document.getElementById('header-placeholder').innerHTML = html;
-        });
-        
-        fetch('/footer.html').then(r => r.text()).then(html => {
-            document.getElementById('footer-placeholder').innerHTML = html;
-        });
-
         // Encryption demo
         let demoEncrypted = '';
+        let originalText = '';
         
         function encryptDemo() {
             const input = document.getElementById('demo-input').value;
@@ -426,17 +428,19 @@ const encrypted = await crypto.encrypt(apiKey, AES_256_GCM);
                 return;
             }
             
+            // Store original for proper decryption
+            originalText = input;
+            
             // Simple demo encryption (not real encryption)
-            demoEncrypted = btoa(input).replace(/=/g, '').split('').map(c => 
-                String.fromCharCode(c.charCodeAt(0) + 3)
-            ).join('');
+            // Just reverse the string and convert to base64 for demo
+            demoEncrypted = btoa(input.split('').reverse().join(''));
             
             const result = document.getElementById('encryption-result');
             result.style.display = 'block';
             result.innerHTML = `
                 <strong>Original:</strong> ${input}<br>
                 <strong>Encrypted:</strong> ${demoEncrypted}<br>
-                <small>Note: This is a simplified demo. Actual encryption is much more complex.</small>
+                <small>Note: This is a simplified demo. Actual encryption uses AES-256-GCM.</small>
             `;
         }
         
@@ -446,13 +450,15 @@ const encrypted = await crypto.encrypt(apiKey, AES_256_GCM);
                 return;
             }
             
-            // Simple demo decryption
-            const decrypted = atob(demoEncrypted.split('').map(c => 
-                String.fromCharCode(c.charCodeAt(0) - 3)
-            ).join('') + '==');
-            
-            const result = document.getElementById('encryption-result');
-            result.innerHTML += `<br><strong>Decrypted:</strong> ${decrypted}`;
+            try {
+                // Simple demo decryption
+                const decrypted = atob(demoEncrypted).split('').reverse().join('');
+                
+                const result = document.getElementById('encryption-result');
+                result.innerHTML += `<br><strong>Decrypted:</strong> ${decrypted}`;
+            } catch (e) {
+                alert('Decryption failed. Please try encrypting again.');
+            }
         }
         
         // FAQ toggle
