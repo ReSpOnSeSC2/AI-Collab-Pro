@@ -1157,7 +1157,7 @@ pre {
     display: flex;
     flex-direction: column;
     min-height: calc(100vh - 50px); /* Use min-height instead of height */
-    margin-top: 50px; /* Push content below fixed header */
+    margin-top: 0; /* No margin needed, body padding handles spacing */
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     overflow: visible; /* Allow content to be visible */
