@@ -39,7 +39,14 @@ let currentUser = null;
 let authInitialized = false;
 
 // Initialize Auth
+let authModuleInitialized = false;
 document.addEventListener('DOMContentLoaded', () => {
+    if (authModuleInitialized) {
+        console.log('Auth module already initialized, skipping...');
+        return;
+    }
+    authModuleInitialized = true;
+    
     console.log('Auth module initializing...');
     initializeAuth();
     setupFormHandlers();
@@ -52,6 +59,44 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function initializeAuth() {
     if (authInitialized) return;
+    
+    // FIRST: Check URL parameters for OAuth redirect tokens
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUser = urlParams.get('user');
+    
+    if (urlToken && urlUser) {
+        try {
+            const userData = JSON.parse(decodeURIComponent(urlUser));
+            console.log('Found auth token in URL, storing and processing...');
+            
+            // Store token and user data immediately
+            localStorage.setItem('ai_collab_token', urlToken);
+            localStorage.setItem('ai_collab_authenticated', 'true');
+            localStorage.setItem('ai_collab_user', JSON.stringify(userData));
+            if (userData.email) localStorage.setItem('ai_collab_email', userData.email);
+            if (userData.name) localStorage.setItem('ai_collab_name', userData.name);
+            
+            currentUser = userData;
+            
+            // Clean URL to remove sensitive data
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            
+            // Dispatch auth:login event
+            document.dispatchEvent(new CustomEvent('auth:login', { 
+                detail: userData 
+            }));
+            
+            // Mark as initialized and authenticated
+            authInitialized = true;
+            console.log('OAuth authentication completed successfully');
+            return; // Exit early - we're authenticated
+        } catch (e) {
+            console.error('Error processing OAuth token from URL:', e);
+            // Continue with normal auth flow
+        }
+    }
     
     // Check for the auth page flag to avoid redirect loops
     if (window.IS_AUTH_PAGE) {
@@ -132,12 +177,22 @@ async function initializeAuth() {
         } else {
             console.log('No active session found on server');
             
-            // Clear any lingering authentication data
+            // Double-check if we have a token that wasn't sent properly
+            const tokenCheck = localStorage.getItem('ai_collab_token');
+            if (tokenCheck && currentUser) {
+                console.log('Have local token but server check failed - keeping local auth state');
+                // Don't clear auth data or redirect - we have valid local auth
+                authInitialized = true;
+                return;
+            }
+            
+            // Clear any lingering authentication data only if we really have no auth
             localStorage.removeItem('ai_collab_token');
             localStorage.removeItem('ai_collab_authenticated');
             localStorage.removeItem('ai_collab_user');
             localStorage.removeItem('ai_collab_email');
             localStorage.removeItem('ai_collab_name');
+            currentUser = null;
             
             // Only redirect to login if on a protected page and not already on an auth page
             if (isProtectedPage() && !isAuthPage()) {
@@ -189,6 +244,15 @@ function isProtectedPage() {
     // Special case for auth paths
     if (path.includes('/auth/')) {
         return false;
+    }
+    
+    // If we have a valid token in localStorage, consider the user authenticated
+    // This prevents redirect loops in cross-domain scenarios
+    const hasToken = localStorage.getItem('ai_collab_token');
+    const hasUser = localStorage.getItem('ai_collab_user');
+    if (hasToken && hasUser) {
+        console.log('Have valid local auth token, allowing access to protected page');
+        return false; // Don't treat as protected if we have local auth
     }
     
     return true;
@@ -520,11 +584,17 @@ function handleUrlParams() {
     const token = urlParams.get('token');
     const user = urlParams.get('user');
     
-    // Handle successful Google auth redirect
-    if (token && user) {
+    // Skip token processing if already handled in initializeAuth
+    if (token && user && authInitialized) {
+        console.log('Token already processed in initializeAuth, skipping duplicate processing');
+        return;
+    }
+    
+    // Handle successful Google auth redirect (backup in case initializeAuth didn't catch it)
+    if (token && user && !authInitialized) {
         try {
             const userData = JSON.parse(decodeURIComponent(user));
-            console.log('Auth successful, storing token and user data');
+            console.log('Auth successful, storing token and user data (backup handler)');
             currentUser = userData;
             
             // Store token and user data in localStorage for cross-domain auth
@@ -587,7 +657,8 @@ async function logout() {
         try {
             const response = await fetch(AUTH_ENDPOINTS.LOGOUT, {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: getAuthHeaders()
             });
             console.log('Server logout response:', response.status);
         } catch (serverError) {
