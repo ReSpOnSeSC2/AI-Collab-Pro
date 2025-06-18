@@ -52,8 +52,10 @@ class MetricsDashboard {
         
         try {
             // Fetch dashboard data
+            const headers = window.AICollabAuth?.getAuthHeaders() || { 'Content-Type': 'application/json' };
             const dashboardResponse = await fetch(`/api/metrics/dashboard?timeRange=${this.currentTimeRange}`, {
-                credentials: 'include'
+                credentials: 'include',
+                headers: headers
             });
             
             if (!dashboardResponse.ok) {
@@ -86,32 +88,40 @@ class MetricsDashboard {
     }
 
     async fetchLeaderboard() {
+        const headers = window.AICollabAuth?.getAuthHeaders() || { 'Content-Type': 'application/json' };
         const response = await fetch('/api/metrics/leaderboard?period=weekly&limit=10', {
-            credentials: 'include'
+            credentials: 'include',
+            headers: headers
         });
         const data = await response.json();
         return data.data;
     }
 
     async fetchOptimizationSuggestions() {
+        const headers = window.AICollabAuth?.getAuthHeaders() || { 'Content-Type': 'application/json' };
         const response = await fetch('/api/metrics/cost-optimization', {
-            credentials: 'include'
+            credentials: 'include',
+            headers: headers
         });
         const data = await response.json();
         return data.data;
     }
 
     async fetchTeamChemistry() {
+        const headers = window.AICollabAuth?.getAuthHeaders() || { 'Content-Type': 'application/json' };
         const response = await fetch(`/api/metrics/team-chemistry?timeRange=${this.currentTimeRange}`, {
-            credentials: 'include'
+            credentials: 'include',
+            headers: headers
         });
         const data = await response.json();
         return data.data;
     }
 
     async fetchQualityTrends() {
+        const headers = window.AICollabAuth?.getAuthHeaders() || { 'Content-Type': 'application/json' };
         const response = await fetch(`/api/metrics/quality-trends?timeRange=${this.currentTimeRange}&groupBy=day`, {
-            credentials: 'include'
+            credentials: 'include',
+            headers: headers
         });
         const data = await response.json();
         return data.data;
