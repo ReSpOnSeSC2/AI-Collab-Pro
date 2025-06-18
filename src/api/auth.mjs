@@ -23,9 +23,13 @@ const USERS_COLLECTION = 'users';
 // Google OAuth Configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_CALLBACK_URL = process.env.NEXTAUTH_URL 
-    ? `${process.env.NEXTAUTH_URL}/api/auth/google/callback` 
-    : 'http://localhost:3001/api/auth/google/callback';
+
+// Determine the callback URL based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+const baseUrl = isProduction 
+    ? 'https://ai-collab-pro.onrender.com' 
+    : (process.env.NEXTAUTH_URL || 'http://localhost:3001');
+const GOOGLE_CALLBACK_URL = `${baseUrl}/api/auth/google/callback`;
 
 // JWT Configuration
 const JWT_SECRET = 'ai_collab_auth_secret_key_for_jwt_tokens_and_cookies';
