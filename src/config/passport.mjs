@@ -82,10 +82,19 @@ export async function initializePassport() {
       ? 'https://ai-collab-pro.onrender.com' 
       : (process.env.NEXTAUTH_URL || 'http://localhost:3001');
     
+    const callbackURL = `${baseUrl}/api/auth/google/callback`;
+    
+    console.log('Passport Google OAuth Configuration:', {
+      NODE_ENV: process.env.NODE_ENV,
+      isProduction,
+      baseUrl,
+      callbackURL
+    });
+    
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${baseUrl}/api/auth/google/callback`,
+      callbackURL,
       scope: ['profile', 'email']
     }, async (accessToken, refreshToken, profile, done) => {
       try {

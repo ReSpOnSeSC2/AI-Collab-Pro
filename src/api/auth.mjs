@@ -31,6 +31,13 @@ const baseUrl = isProduction
     : (process.env.NEXTAUTH_URL || 'http://localhost:3001');
 const GOOGLE_CALLBACK_URL = `${baseUrl}/api/auth/google/callback`;
 
+console.log('Google OAuth Configuration:', {
+    NODE_ENV: process.env.NODE_ENV,
+    isProduction,
+    baseUrl,
+    GOOGLE_CALLBACK_URL
+});
+
 // JWT Configuration
 const JWT_SECRET = 'ai_collab_auth_secret_key_for_jwt_tokens_and_cookies';
 const JWT_EXPIRY = '30d'; // Extend expiry to 30 days

@@ -27,9 +27,9 @@ services:
         generateValue: true
       # Frontend URL for CORS
       - key: FRONTEND_URL
-        value: https://your-app.vercel.app # Update with your Vercel URL
+        value: https://ai-collab-pro.vercel.app
       - key: ALLOWED_ORIGINS
-        value: https://your-app.vercel.app,https://your-custom-domain.com
+        value: https://ai-collab-pro.vercel.app
       # Redis for rate limiting (optional)
       - key: REDIS_URL
         fromDatabase:
