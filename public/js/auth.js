@@ -8,12 +8,22 @@
 // Detect if we're in production and use the appropriate backend URL
 const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 const BACKEND_URL = isProduction ? 'https://ai-collab-pro.onrender.com' : '';
+
+// Debug logging
+console.log('Auth configuration:', {
+    hostname: window.location.hostname,
+    isProduction,
+    BACKEND_URL
+});
+
 const API_BASE_URL = `${BACKEND_URL}/api`;
 
 const AUTH_ENDPOINTS = {
     LOGIN: `${API_BASE_URL}/auth/login`,
     SIGNUP: `${API_BASE_URL}/auth/signup`,
-    GOOGLE: `${API_BASE_URL}/auth/google`, // Direct to Passport.js Google auth
+    GOOGLE: isProduction 
+        ? 'https://ai-collab-pro.onrender.com/api/auth/google' // Always use direct backend URL for OAuth
+        : '/api/auth/google', // Local development
     SESSION: `${API_BASE_URL}/auth/session`,
     LOGOUT: `${API_BASE_URL}/auth/logout`
 };
@@ -455,6 +465,9 @@ function handleGoogleAuth(mode) {
     const googleAuthUrl = AUTH_ENDPOINTS.GOOGLE;
     
     console.log('Redirecting for Google auth using Passport.js:', googleAuthUrl);
+    console.log('Current location:', window.location.hostname);
+    console.log('Is production:', isProduction);
+    console.log('Auth endpoints:', AUTH_ENDPOINTS);
     
     // Use direct redirect
     window.location.href = googleAuthUrl;
