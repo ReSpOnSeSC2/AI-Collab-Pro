@@ -26,9 +26,9 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 // Determine the callback URL based on environment
 const isProduction = process.env.NODE_ENV === 'production';
-const baseUrl = isProduction 
+const baseUrl = process.env.BACKEND_URL || (isProduction 
     ? 'https://ai-collab-pro.onrender.com' 
-    : (process.env.NEXTAUTH_URL || 'http://localhost:3001');
+    : (process.env.NEXTAUTH_URL || 'http://localhost:3001'));
 const GOOGLE_CALLBACK_URL = `${baseUrl}/api/auth/google/callback`;
 
 console.log('Google OAuth Configuration:', {
@@ -383,12 +383,22 @@ router.get('/session', optionalAuth, (req, res) => {
 router.get('/google', (req, res) => {
     const { mode = 'login' } = req.query;
     
+    // In production behind proxy, use the actual callback URL
+    let actualCallbackUrl = GOOGLE_CALLBACK_URL;
+    if (process.env.NODE_ENV === 'production' && req.get('x-forwarded-host')) {
+        const protocol = req.get('x-forwarded-proto') || 'https';
+        const host = req.get('x-forwarded-host') || req.get('host');
+        actualCallbackUrl = `${protocol}://${host}/api/auth/google/callback`;
+        console.log('Using forwarded callback URL:', actualCallbackUrl);
+    }
+    
     // Construct Google OAuth URL with correct scopes
     const authUrl = googleClient.generateAuthUrl({
         access_type: 'offline',
         scope: ['profile', 'email'],
         state: JSON.stringify({ mode }),
-        prompt: 'consent'
+        prompt: 'consent',
+        redirect_uri: actualCallbackUrl
     });
     
     res.redirect(authUrl);
@@ -402,7 +412,8 @@ router.get('/google/callback', async (req, res) => {
         const { code, state } = req.query;
         
         if (!code) {
-            return res.redirect('/login.html?auth_error=Google%20authentication%20failed');
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+            return res.redirect(`${frontendUrl}/login.html?auth_error=Google%20authentication%20failed`);
         }
         
         // Parse state parameter
@@ -424,7 +435,8 @@ router.get('/google/callback', async (req, res) => {
         if (!db || !usersCollection) {
             const connected = await connectToDatabase();
             if (!connected) {
-                return res.redirect('/login.html?auth_error=Database%20connection%20error');
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+                return res.redirect(`${frontendUrl}/login.html?auth_error=Database%20connection%20error`);
             }
         }
         

@@ -2,7 +2,7 @@ services:
   - type: web
     name: ai-collab-backend
     runtime: node
-    repo: https://github.com/YOUR_GITHUB_USERNAME/ai-collab # Update this with your repo
+    repo: https://github.com/ReSpOnSeSC2/AI-Collab-Pro
     branch: main
     rootDir: .
     buildCommand: npm install
@@ -28,6 +28,8 @@ services:
       # Frontend URL for CORS
       - key: FRONTEND_URL
         value: https://ai-collab-pro.vercel.app
+      - key: BACKEND_URL
+        value: https://ai-collab-pro.onrender.com
       - key: ALLOWED_ORIGINS
         value: https://ai-collab-pro.vercel.app
       # Redis for rate limiting (optional)

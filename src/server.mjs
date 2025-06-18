@@ -57,6 +57,9 @@ mongoose.connect(MONGO_URI)
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy headers (required for services like Render)
+app.set('trust proxy', true);
+
 // --- CORS Configuration ---
 const corsOptions = {
   origin: function (origin, callback) {

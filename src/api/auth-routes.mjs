@@ -163,10 +163,9 @@ router.get('/google', passport.authenticate('google', {
 // Google OAuth callback
 router.get('/google/callback', (req, res, next) => {
   // Determine frontend URL for redirects
-  const isProduction = process.env.NODE_ENV === 'production';
-  const frontendUrl = isProduction 
+  const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://ai-collab-pro.vercel.app' 
-    : (process.env.FRONTEND_URL || 'http://localhost:3001');
+    : 'http://localhost:3001');
   
   passport.authenticate('google', { 
     failureRedirect: `${frontendUrl}/login.html?error=Google%20authentication%20failed` 
@@ -185,10 +184,9 @@ router.get('/google/callback', (req, res, next) => {
     });
     
     // Redirect to the main app on frontend
-    const isProduction = process.env.NODE_ENV === 'production';
-    const frontendUrl = isProduction 
+    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
       ? 'https://ai-collab-pro.vercel.app' 
-      : (process.env.FRONTEND_URL || 'http://localhost:3001');
+      : 'http://localhost:3001');
     res.redirect(`${frontendUrl}/hub.html`);
   }
 );

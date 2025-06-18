@@ -78,9 +78,9 @@ export async function initializePassport() {
     // Google OAuth Strategy
     // Determine the callback URL based on environment
     const isProduction = process.env.NODE_ENV === 'production';
-    const baseUrl = isProduction 
+    const baseUrl = process.env.BACKEND_URL || (isProduction 
       ? 'https://ai-collab-pro.onrender.com' 
-      : (process.env.NEXTAUTH_URL || 'http://localhost:3001');
+      : (process.env.NEXTAUTH_URL || 'http://localhost:3001'));
     
     const callbackURL = `${baseUrl}/api/auth/google/callback`;
     
@@ -95,7 +95,8 @@ export async function initializePassport() {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL,
-      scope: ['profile', 'email']
+      scope: ['profile', 'email'],
+      proxy: true // Trust proxy headers for correct callback URL
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         // Check if user already exists
