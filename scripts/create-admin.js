@@ -3,9 +3,9 @@
  * Creates an admin user in the database or updates an existing user with admin privileges
  */
 
-const { MongoClient, ObjectId } = require('mongodb');
-const bcrypt = require('bcrypt');
-const dotenv = require('dotenv');
+import { MongoClient, ObjectId } from 'mongodb';
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();

@@ -10,6 +10,15 @@ import { executeSequentialCritiqueChain } from './sequential-critique-chain.mjs'
 import { applySequentialStyle, SEQUENTIAL_STYLES } from './sequential-style-options.mjs';
 import { getOptimalAgentOrder } from './collaboration-options.mjs';
 import { estimateCost as originalEstimateCost, trackCost as originalTrackCost } from '../billing/costControl.mjs';
+// Import core collaboration functions directly to avoid circular imports
+import { 
+  executeCodeArchitect,
+  executeAdversarialDebate, 
+  executeExpertPanel,
+  executeScenarioAnalysis,
+  executeCreativeBrainstormSwarm,
+  executeHybridGuardedBraintrust
+} from './collaboration.mjs';
 
 // Import security and cost utilities from the main collaboration module
 // Or get them passed as parameters in the options object
@@ -319,8 +328,172 @@ export async function enhancedRunCollab(options) {
         );
         break;
         
+      case 'code_architect':
+        console.log(`🏗️ Executing code architect mode with ${availableAgents.length} agents`);
+        try {
+          result = await executeCodeArchitect(
+            sanitizedPrompt,
+            availableAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker,
+            options
+          );
+        } catch (codeArchitectError) {
+          if (ignoreFailingModels) {
+            console.log(`🧯 Code architect error but ignoreFailingModels=true, generating fallback`);
+            result = {
+              answer: `I encountered an issue with code architect collaboration: ${codeArchitectError.message}. Partial results available.`,
+              rationale: "Code architect collaboration failed, but continuing with fallback due to ignoreFailingModels setting.",
+              spentUSD: costTracker.getTotalSpent()
+            };
+          } else {
+            throw codeArchitectError;
+          }
+        }
+        break;
+        
+      case 'adversarial_debate':
+        console.log(`⚖️ Executing adversarial debate mode with ${availableAgents.length} agents`);
+        try {
+          result = await executeAdversarialDebate(
+            sanitizedPrompt,
+            availableAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker
+          );
+        } catch (debateError) {
+          if (ignoreFailingModels) {
+            result = {
+              answer: `Adversarial debate encountered issues: ${debateError.message}`,
+              rationale: "Debate collaboration failed but continuing with fallback.",
+              spentUSD: costTracker.getTotalSpent()
+            };
+          } else {
+            throw debateError;
+          }
+        }
+        break;
+        
+      case 'expert_panel':
+        console.log(`👥 Executing expert panel mode with ${availableAgents.length} agents`);
+        try {
+          result = await executeExpertPanel(
+            sanitizedPrompt,
+            availableAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker
+          );
+        } catch (panelError) {
+          if (ignoreFailingModels) {
+            result = {
+              answer: `Expert panel encountered issues: ${panelError.message}`,
+              rationale: "Panel collaboration failed but continuing with fallback.",
+              spentUSD: costTracker.getTotalSpent()
+            };
+          } else {
+            throw panelError;
+          }
+        }
+        break;
+        
+      case 'scenario_analysis':
+        console.log(`📊 Executing scenario analysis mode with ${availableAgents.length} agents`);
+        try {
+          result = await executeScenarioAnalysis(
+            sanitizedPrompt,
+            availableAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker,
+            {
+              models,
+              clients,
+              publishEvent,
+              estimateTokenCount,
+              constructPrompt,
+              onModelStatusChange: options.onModelStatusChange
+            }
+          );
+        } catch (scenarioError) {
+          if (ignoreFailingModels) {
+            result = {
+              answer: `Scenario analysis encountered issues: ${scenarioError.message}`,
+              rationale: "Scenario analysis failed but continuing with fallback.",
+              spentUSD: costTracker.getTotalSpent()
+            };
+          } else {
+            throw scenarioError;
+          }
+        }
+        break;
+        
+      case 'creative_brainstorm_swarm':
+        console.log(`💡 Executing creative brainstorm swarm mode with ${availableAgents.length} agents`);
+        try {
+          result = await executeCreativeBrainstormSwarm(
+            sanitizedPrompt,
+            availableAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker,
+            {
+              models,
+              clients,
+              publishEvent,
+              estimateTokenCount,
+              constructPrompt,
+              onModelStatusChange: options.onModelStatusChange
+            }
+          );
+        } catch (brainstormError) {
+          if (ignoreFailingModels) {
+            result = {
+              answer: `Creative brainstorm encountered issues: ${brainstormError.message}`,
+              rationale: "Brainstorm collaboration failed but continuing with fallback.",
+              spentUSD: costTracker.getTotalSpent()
+            };
+          } else {
+            throw brainstormError;
+          }
+        }
+        break;
+        
+      case 'hybrid_guarded_braintrust':
+        console.log(`🛡️ Executing hybrid guarded braintrust mode with ${availableAgents.length} agents`);
+        try {
+          result = await executeHybridGuardedBraintrust(
+            sanitizedPrompt,
+            availableAgents,
+            redisChannel,
+            timeoutController.signal,
+            costTracker,
+            {
+              models,
+              clients,
+              publishEvent,
+              estimateTokenCount,
+              constructPrompt,
+              onModelStatusChange: options.onModelStatusChange
+            }
+          );
+        } catch (braintrustError) {
+          if (ignoreFailingModels) {
+            result = {
+              answer: `Hybrid braintrust encountered issues: ${braintrustError.message}`,
+              rationale: "Braintrust collaboration failed but continuing with fallback.",
+              spentUSD: costTracker.getTotalSpent()
+            };
+          } else {
+            throw braintrustError;
+          }
+        }
+        break;
+        
       default:
-        throw new Error(`Unknown collaboration mode: ${mode}`);
+        throw new Error(`Unknown collaboration mode: ${mode}. Supported modes: round_table, sequential_critique_chain, validated_consensus, code_architect, adversarial_debate, expert_panel, scenario_analysis, creative_brainstorm_swarm, hybrid_guarded_braintrust`);
     }
     
     // Format the final result

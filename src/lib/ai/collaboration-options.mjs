@@ -12,6 +12,7 @@ export const SEQUENTIAL_STYLES = {
 // Collaboration modes
 export const COLLABORATION_MODES = {
   ROUND_TABLE: 'roundTable',
+  SMALL_TEAM: 'smallTeam',
   SEQUENTIAL_CRITIQUE: 'sequentialCritique',
   VALIDATED_CONSENSUS: 'validatedConsensus',
   CREATIVE_BRAINSTORM: 'creativeBrainstorm',

@@ -1,7 +1,33 @@
 {
   "provider": "claude",
-  "defaultModel": "claude-3-7-sonnet-20250219",
+  "defaultModel": "claude-4-sonnet-20250514",
   "models": [
+    { 
+      "id": "claude-4-opus-20250514", 
+      "name": "Claude 4 Opus", 
+      "price": "$15/M in, $75/M out", 
+      "contextLength": "200K tokens", 
+      "description": "World's best coding model, sustained performance on complex tasks, AI agent design", 
+      "features": ["Multimodal", "Vision", "Tool Use", "Extended Thinking", "Agent Design"],
+      "platforms": {
+        "anthropic": "claude-4-opus-20250514 (claude-4-opus-latest)",
+        "bedrock": "anthropic.claude-4-opus-20250514-v1:0",
+        "vertex": "claude-4-opus@20250514"
+      }
+    },
+    { 
+      "id": "claude-4-sonnet-20250514", 
+      "name": "Claude 4 Sonnet", 
+      "price": "$3/M in, $15/M out", 
+      "contextLength": "200K tokens", 
+      "description": "State-of-the-art coding, step-by-step thinking, extended reasoning", 
+      "features": ["Multimodal", "Vision", "Tool Use", "Extended Thinking"],
+      "platforms": {
+        "anthropic": "claude-4-sonnet-20250514 (claude-4-sonnet-latest)",
+        "bedrock": "anthropic.claude-4-sonnet-20250514-v1:0",
+        "vertex": "claude-4-sonnet@20250514"
+      }
+    },
     { 
       "id": "claude-3-7-sonnet-20250219", 
       "name": "Claude 3.7 Sonnet", 

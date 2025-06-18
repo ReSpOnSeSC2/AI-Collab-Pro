@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - AI Hub</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css?v=8">
+    <link rel="stylesheet" href="/css/page-header.css?v=1">
+    <link rel="stylesheet" href="/css/settings.css">
+    <link rel="stylesheet" href="/css/api-keys.css">
+    <link rel="stylesheet" href="/css/metrics-dashboard.css">
+    <!-- Load the standalone theme manager script that works on all pages -->
+    <script src="/js/applySavedTheme.js"></script>
+</head>
+<body>
+    <!-- Global header placeholder -->
+    <div id="global-header-placeholder"></div>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <h1 class="page-title">
+                <i class="bi bi-person-gear"></i>
+                Settings
+            </h1>
+        </div>
+    </div>
+    
+    <div class="container-fluid main-container">
+        <div class="settings-container">
+            
+            <div class="settings-content">
+                <!-- Navigation Tabs -->
+                <div class="settings-tabs mb-4">
+                    <button class="tab-btn active" data-tab="usage">Usage & Billing</button>
+                    <button class="tab-btn" data-tab="api-keys">API Keys</button>
+                    <button class="tab-btn" data-tab="metrics">Analytics</button>
+                    <button class="tab-btn" data-tab="preferences">Preferences</button>
+                    <button class="tab-btn" data-tab="account">Account</button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Usage & Billing Tab -->
+                    <div id="usage-tab" class="tab-pane active">
+                        <h2 class="section-title">Usage & Billing</h2>
+                        
+                        <!-- Budget Settings -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Budget Settings</h3>
+                            <div class="budget-settings-form">
+                                <div class="form-group mb-3">
+                                    <label for="daily-budget-limit" class="form-label">Daily Budget Limit ($)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               id="daily-budget-limit" 
+                                               class="form-control budget-input" 
+                                               step="0.01" 
+                                               min="0" 
+                                               placeholder="0.00">
+                                        <button class="btn btn-primary" id="save-budget-btn">Save</button>
+                                    </div>
+                                    <small class="form-text text-muted">Set to 0 to disable budget limits</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Current Usage -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Current Usage</h3>
+                            <div class="usage-stats">
+                                <div class="stat-card">
+                                    <div class="stat-label">Today's Usage</div>
+                                    <div class="stat-value" id="daily-usage">$0.0000</div>
+                                    <div class="stat-progress">
+                                        <div class="progress">
+                                            <div class="progress-bar" id="daily-progress" role="progressbar" 
+                                                 style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <div class="stat-info" id="budget-info">No budget limit set</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card">
+                                    <div class="stat-label">Current Session</div>
+                                    <div class="stat-value" id="session-usage">$0.0000</div>
+                                    <div class="stat-info" id="session-info">Started <span id="session-duration">0 min</span> ago</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Usage Breakdown -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Usage Breakdown</h3>
+                            <div class="breakdown-tabs">
+                                <button class="breakdown-tab active" data-breakdown="session">Current Session</button>
+                                <button class="breakdown-tab" data-breakdown="daily">Today</button>
+                            </div>
+                            
+                            <div class="breakdown-content">
+                                <div id="session-breakdown" class="breakdown-pane active">
+                                    <div class="breakdown-list" id="session-breakdown-list">
+                                        <div class="no-data">No usage data for current session</div>
+                                    </div>
+                                </div>
+                                
+                                <div id="daily-breakdown" class="breakdown-pane">
+                                    <div class="breakdown-list" id="daily-breakdown-list">
+                                        <div class="no-data">No usage data for today</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preferences Tab -->
+                    <div id="preferences-tab" class="tab-pane">
+                        <h2 class="section-title">Preferences</h2>
+                        <div class="settings-section">
+                            <p class="text-muted">Preferences settings coming soon...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Account Tab -->
+                    <div id="account-tab" class="tab-pane">
+                        <h2 class="section-title">Account</h2>
+                        <div class="settings-section">
+                            <p class="text-muted">Account settings coming soon...</p>
+                        </div>
+                    </div>
+
+                    <!-- API Keys Tab -->
+                    <div id="api-keys-tab" class="tab-pane">
+                        <h2 class="section-title">API Keys</h2>
+                        
+                        <!-- Provider Status -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Provider Status</h3>
+                            <div id="provider-status" class="provider-status-grid">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+                        
+                        <!-- Add/Edit API Key Form -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Add or Update API Key</h3>
+                            <form id="api-key-form" class="api-key-form">
+                                <div class="form-group mb-3">
+                                    <label for="provider-select" class="form-label">Provider</label>
+                                    <select id="provider-select" class="form-select" name="provider" required>
+                                        <option value="">Select a provider</option>
+                                        <option value="openai">OpenAI (ChatGPT)</option>
+                                        <option value="anthropic">Anthropic (Claude)</option>
+                                        <option value="google">Google (Gemini)</option>
+                                        <option value="deepseek">DeepSeek</option>
+                                        <option value="grok">Grok</option>
+                                        <option value="llama">Llama</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group mb-3">
+                                    <label for="api-key-input" class="form-label">API Key</label>
+                                    <div class="api-key-input-wrapper input-group">
+                                        <input 
+                                            type="password" 
+                                            id="api-key-input" 
+                                            class="form-control"
+                                            name="apiKey" 
+                                            placeholder="Enter your API key"
+                                            required
+                                        />
+                                        <button type="button" class="btn btn-outline-secondary toggle-visibility" onclick="toggleApiKeyVisibility()">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted">Your API key will be encrypted before storage</small>
+                                </div>
+                                
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Save API Key</button>
+                                    <button type="button" class="btn btn-secondary" onclick="validateApiKey()">Validate Only</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Saved API Keys -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Saved API Keys</h3>
+                            <div id="saved-keys-list" class="saved-keys-list">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+
+                        <!-- Usage Statistics -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">API Usage Statistics</h3>
+                            <div class="usage-stats row" id="usage-stats">
+                                <div class="col-md-4">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Total Requests</div>
+                                        <div class="stat-value" id="total-requests">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Total Cost</div>
+                                        <div class="stat-value" id="total-cost">$0.00</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Last Request</div>
+                                        <div class="stat-value" id="last-request">Never</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Tab -->
+                    <div id="metrics-tab" class="tab-pane">
+                        <h2 class="section-title">Analytics Dashboard</h2>
+                        
+                        <!-- Summary Cards -->
+                        <div class="settings-section">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Total Collaborations</div>
+                                        <div class="stat-value" id="total-collaborations">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Avg Quality Score</div>
+                                        <div class="stat-value" id="avg-quality-score">0%</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Total Cost</div>
+                                        <div class="stat-value" id="total-cost">$0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Avg Duration</div>
+                                        <div class="stat-value" id="avg-duration">0s</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Time Range Selector -->
+                        <div class="settings-section">
+                            <div class="time-range-selector mb-4">
+                                <label for="metrics-time-range" class="form-label">Time Range:</label>
+                                <select id="metrics-time-range" class="form-select" style="width: auto; display: inline-block;">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30" selected>Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                    <option value="365">Last year</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Quality Score Chart -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Collaboration Quality Score</h3>
+                            <div class="chart-container">
+                                <canvas id="quality-trends-chart"></canvas>
+                            </div>
+                            <div class="metric-insight mt-3">
+                                <i class="bi bi-lightbulb text-warning"></i>
+                                <span id="quality-insight">Loading insights...</span>
+                            </div>
+                        </div>
+
+                        <!-- Model Performance Leaderboard -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Model Performance Leaderboard</h3>
+                            <div id="model-leaderboard">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+
+                        <!-- Cost vs Quality Analysis -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Cost vs Quality Analysis</h3>
+                            <div class="chart-container">
+                                <canvas id="cost-quality-chart"></canvas>
+                            </div>
+                            <div class="cost-optimization-suggestion mt-3">
+                                <i class="bi bi-piggy-bank text-success"></i>
+                                <span id="cost-suggestion">Analyzing cost optimization opportunities...</span>
+                            </div>
+                        </div>
+
+                        <!-- Team Chemistry Analysis -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Team Chemistry Analysis</h3>
+                            <div class="chart-container">
+                                <canvas id="teamChemistryChart"></canvas>
+                            </div>
+                            <div class="best-teams mt-3">
+                                <h4>Best Performing Teams:</h4>
+                                <div id="best-teams-list">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Collaboration Type Analysis -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Collaboration Type Performance</h3>
+                            <div class="collaboration-types-grid">
+                                <div class="collab-type-card">
+                                    <h4>Parallel</h4>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Count:</span>
+                                        <span id="parallel-count">0</span>
+                                    </div>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Avg Quality:</span>
+                                        <span id="parallel-quality">0%</span>
+                                    </div>
+                                </div>
+                                <div class="collab-type-card">
+                                    <h4>Sequential</h4>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Count:</span>
+                                        <span id="sequential-count">0</span>
+                                    </div>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Avg Quality:</span>
+                                        <span id="sequential-quality">0%</span>
+                                    </div>
+                                </div>
+                                <div class="collab-type-card">
+                                    <h4>Voting</h4>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Count:</span>
+                                        <span id="voting-count">0</span>
+                                    </div>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Avg Quality:</span>
+                                        <span id="voting-quality">0%</span>
+                                    </div>
+                                </div>
+                                <div class="collab-type-card">
+                                    <h4>Critique</h4>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Count:</span>
+                                        <span id="critique-count">0</span>
+                                    </div>
+                                    <div class="collab-stats">
+                                        <span class="stat-label">Avg Quality:</span>
+                                        <span id="critique-quality">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cost Optimization Suggestions -->
+                        <div class="settings-section">
+                            <h3 class="section-subtitle">Optimization Suggestions</h3>
+                            <div id="optimization-suggestions">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Global footer placeholder -->
+    <div id="global-footer-placeholder"></div>
+    
+    <!-- Load Layout Manager FIRST (non-module for immediate execution) -->
+    <script src="/js/layoutManager.js"></script>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/connectionManager.js"></script>
+    <!-- Chart.js for metrics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/settings.js"></script>
+    <script src="/js/api-keys.js"></script>
+    <script src="/js/metrics-dashboard.js"></script>
+</body>
+</html>

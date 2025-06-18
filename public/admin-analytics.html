@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revenue & Growth Analytics - Admin Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/admin-shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <button class="admin-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
+            <i class="fas fa-users"></i> Users
+          </a>
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
+          </a>
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item">
+            <i class="fas fa-poll"></i> Voting
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item active">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item">
+            <i class="fas fa-user-clock"></i> User Activity
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item">
+            <i class="fas fa-comment-dots"></i> AI Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <a href="/hub.html" class="admin-nav-item">
+            <i class="fas fa-arrow-left"></i> Back to App
+          </a>
+          <a href="#" id="admin-logout" class="admin-nav-item">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="admin-header-content">
+          <h1 class="admin-page-title">Revenue & Growth Analytics</h1>
+          <div class="admin-header-actions">
+            <div class="admin-date-range-picker">
+              <i class="fas fa-calendar"></i>
+              <span id="date-range-text">Last 30 Days</span>
+              <select id="date-range-select" class="admin-form-control">
+                <option value="7">Last 7 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="365">Last Year</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+            <button class="admin-btn admin-btn-primary" id="refresh-data">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <div id="alert-container"></div>
+
+        <!-- Key Metrics -->
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card success">
+            <div class="admin-stat-label">Monthly Recurring Revenue</div>
+            <div class="admin-stat-value" id="stat-mrr">$0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-mrr-change">+0%</span> from last month
+            </div>
+          </div>
+
+          <div class="admin-stat-card primary">
+            <div class="admin-stat-label">Annual Recurring Revenue</div>
+            <div class="admin-stat-value" id="stat-arr">$0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-arr-change">+0%</span> YoY
+            </div>
+          </div>
+
+          <div class="admin-stat-card warning">
+            <div class="admin-stat-label">Average Revenue Per User</div>
+            <div class="admin-stat-value" id="stat-arpu">$0</div>
+            <div class="admin-stat-change neutral">
+              <i class="fas fa-minus"></i>
+              <span id="stat-arpu-change">0%</span> from last month
+            </div>
+          </div>
+
+          <div class="admin-stat-card info">
+            <div class="admin-stat-label">Customer Lifetime Value</div>
+            <div class="admin-stat-value" id="stat-ltv">$0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-ltv-change">+0%</span> from last quarter
+            </div>
+          </div>
+        </div>
+
+        <!-- Revenue Trends -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Revenue Trends</h2>
+            <div class="admin-btn-group">
+              <button class="admin-btn admin-btn-sm active" data-period="daily">Daily</button>
+              <button class="admin-btn admin-btn-sm" data-period="weekly">Weekly</button>
+              <button class="admin-btn admin-btn-sm" data-period="monthly">Monthly</button>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-chart-container">
+              <canvas id="revenueChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subscription Breakdown -->
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Subscription Tiers</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="tierChart"></canvas>
+              </div>
+              <div class="admin-stats-list mt-3">
+                <div class="admin-stat-item">
+                  <span class="admin-stat-label">Free Users</span>
+                  <span class="admin-stat-value" id="free-users">0</span>
+                </div>
+                <div class="admin-stat-item">
+                  <span class="admin-stat-label">Pro Users</span>
+                  <span class="admin-stat-value" id="pro-users">0</span>
+                </div>
+                <div class="admin-stat-item">
+                  <span class="admin-stat-label">Enterprise Users</span>
+                  <span class="admin-stat-value" id="enterprise-users">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Churn & Retention</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="churnChart"></canvas>
+              </div>
+              <div class="admin-stats-list mt-3">
+                <div class="admin-stat-item">
+                  <span class="admin-stat-label">Monthly Churn Rate</span>
+                  <span class="admin-stat-value text-danger" id="churn-rate">0%</span>
+                </div>
+                <div class="admin-stat-item">
+                  <span class="admin-stat-label">Retention Rate</span>
+                  <span class="admin-stat-value text-success" id="retention-rate">0%</span>
+                </div>
+                <div class="admin-stat-item">
+                  <span class="admin-stat-label">Net Revenue Retention</span>
+                  <span class="admin-stat-value text-primary" id="nrr">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Growth Metrics -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Growth Metrics</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div class="admin-metric-card">
+                <div class="admin-metric-icon">
+                  <i class="fas fa-users"></i>
+                </div>
+                <div class="admin-metric-content">
+                  <div class="admin-metric-label">New Customers</div>
+                  <div class="admin-metric-value" id="new-customers">0</div>
+                  <div class="admin-metric-change positive">+0% vs last period</div>
+                </div>
+              </div>
+              
+              <div class="admin-metric-card">
+                <div class="admin-metric-icon">
+                  <i class="fas fa-arrow-up"></i>
+                </div>
+                <div class="admin-metric-content">
+                  <div class="admin-metric-label">Upgrades</div>
+                  <div class="admin-metric-value" id="upgrades">0</div>
+                  <div class="admin-metric-change positive">+0% vs last period</div>
+                </div>
+              </div>
+              
+              <div class="admin-metric-card">
+                <div class="admin-metric-icon">
+                  <i class="fas fa-arrow-down"></i>
+                </div>
+                <div class="admin-metric-content">
+                  <div class="admin-metric-label">Downgrades</div>
+                  <div class="admin-metric-value" id="downgrades">0</div>
+                  <div class="admin-metric-change negative">+0% vs last period</div>
+                </div>
+              </div>
+              
+              <div class="admin-metric-card">
+                <div class="admin-metric-icon">
+                  <i class="fas fa-door-open"></i>
+                </div>
+                <div class="admin-metric-content">
+                  <div class="admin-metric-label">Cancellations</div>
+                  <div class="admin-metric-value" id="cancellations">0</div>
+                  <div class="admin-metric-change negative">+0% vs last period</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cohort Analysis -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Cohort Analysis</h2>
+            <button class="admin-btn admin-btn-sm admin-btn-outline" onclick="analyticsManager.exportCohortData()">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-table-responsive">
+              <table class="admin-table" id="cohort-table">
+                <thead>
+                  <tr>
+                    <th>Cohort</th>
+                    <th>Month 0</th>
+                    <th>Month 1</th>
+                    <th>Month 2</th>
+                    <th>Month 3</th>
+                    <th>Month 4</th>
+                    <th>Month 5</th>
+                    <th>Month 6</th>
+                    <th>Month 7</th>
+                    <th>Month 8</th>
+                    <th>Month 9</th>
+                    <th>Month 10</th>
+                    <th>Month 11</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Cohort data will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Revenue by Plan -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Revenue by Plan</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Subscribers</th>
+                    <th>MRR</th>
+                    <th>Avg. Revenue</th>
+                    <th>Growth</th>
+                    <th>Churn</th>
+                  </tr>
+                </thead>
+                <tbody id="plan-revenue-table">
+                  <!-- Plan revenue data will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/admin-shared.js"></script>
+  <script>
+    class AnalyticsManager extends AdminDashboard {
+      constructor() {
+        super();
+        this.charts = {};
+        this.dateRange = 30;
+      }
+
+      async loadAnalyticsData() {
+        try {
+          this.showLoading();
+          
+          // Load all analytics data
+          const [revenue, growth, cohort, plans] = await Promise.all([
+            this.apiRequest('/analytics/revenue'),
+            this.apiRequest('/analytics/growth'),
+            this.apiRequest('/analytics/cohort'),
+            this.apiRequest('/analytics/plans')
+          ]);
+          
+          console.log('Analytics Data:', { revenue, growth, cohort, plans });
+          
+          this.updateMetrics(revenue.metrics);
+          this.updateRevenueChart(revenue.trends);
+          this.updateTierChart(revenue.tiers);
+          this.updateChurnChart(revenue.churn);
+          this.updateGrowthMetrics(growth);
+          this.updateCohortTable(cohort.cohorts || []);
+          this.updatePlanRevenue(plans.plans || []);
+          
+          this.hideLoading();
+        } catch (error) {
+          console.error('Error loading analytics:', error);
+          this.showAlert('Failed to load analytics data', 'danger');
+          this.hideLoading();
+        }
+      }
+
+      updateMetrics(metrics) {
+        // Update MRR
+        document.getElementById('stat-mrr').textContent = this.formatCurrency(metrics.mrr || 0);
+        document.getElementById('stat-mrr-change').textContent = `${metrics.mrrChange > 0 ? '+' : ''}${metrics.mrrChange || 0}%`;
+        
+        // Update ARR
+        document.getElementById('stat-arr').textContent = this.formatCurrency(metrics.arr || 0);
+        document.getElementById('stat-arr-change').textContent = `${metrics.arrChange > 0 ? '+' : ''}${metrics.arrChange || 0}%`;
+        
+        // Update ARPU
+        document.getElementById('stat-arpu').textContent = this.formatCurrency(metrics.arpu || 0);
+        document.getElementById('stat-arpu-change').textContent = `${metrics.arpuChange > 0 ? '+' : ''}${metrics.arpuChange || 0}%`;
+        
+        // Update LTV
+        document.getElementById('stat-ltv').textContent = this.formatCurrency(metrics.ltv || 0);
+        document.getElementById('stat-ltv-change').textContent = `${metrics.ltvChange > 0 ? '+' : ''}${metrics.ltvChange || 0}%`;
+      }
+
+      updateRevenueChart(trends) {
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        
+        if (this.charts.revenue) {
+          this.charts.revenue.destroy();
+        }
+        
+        this.charts.revenue = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: trends.labels || [],
+            datasets: [
+              {
+                label: 'Revenue',
+                data: trends.revenue || [],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'New Revenue',
+                data: trends.newRevenue || [],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'Churned Revenue',
+                data: trends.churnedRevenue || [],
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4
+              }
+            ]
+          },
+          options: this.getChartOptions('line')
+        });
+      }
+
+      updateTierChart(tiers) {
+        const ctx = document.getElementById('tierChart').getContext('2d');
+        
+        if (this.charts.tier) {
+          this.charts.tier.destroy();
+        }
+        
+        // Update tier counts
+        document.getElementById('free-users').textContent = this.formatNumber(tiers.free || 0);
+        document.getElementById('pro-users').textContent = this.formatNumber(tiers.pro || 0);
+        document.getElementById('enterprise-users').textContent = this.formatNumber(tiers.enterprise || 0);
+        
+        this.charts.tier = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Free', 'Pro', 'Enterprise'],
+            datasets: [{
+              data: [tiers.free || 0, tiers.pro || 0, tiers.enterprise || 0],
+              backgroundColor: ['#6b7280', '#2563eb', '#7c3aed']
+            }]
+          },
+          options: this.getChartOptions('doughnut')
+        });
+      }
+
+      updateChurnChart(churn) {
+        const ctx = document.getElementById('churnChart').getContext('2d');
+        
+        if (this.charts.churn) {
+          this.charts.churn.destroy();
+        }
+        
+        // Update churn metrics
+        document.getElementById('churn-rate').textContent = `${churn.monthlyChurn || 0}%`;
+        document.getElementById('retention-rate').textContent = `${churn.retention || 0}%`;
+        document.getElementById('nrr').textContent = `${churn.netRevenueRetention || 0}%`;
+        
+        this.charts.churn = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: churn.labels || [],
+            datasets: [{
+              label: 'Churn Rate',
+              data: churn.rates || [],
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.4
+            }]
+          },
+          options: this.getChartOptions('line')
+        });
+      }
+
+      updateGrowthMetrics(growth) {
+        document.getElementById('new-customers').textContent = this.formatNumber(growth.newCustomers || 0);
+        document.getElementById('upgrades').textContent = this.formatNumber(growth.upgrades || 0);
+        document.getElementById('downgrades').textContent = this.formatNumber(growth.downgrades || 0);
+        document.getElementById('cancellations').textContent = this.formatNumber(growth.cancellations || 0);
+      }
+
+      updateCohortTable(cohortData) {
+        const tbody = document.querySelector('#cohort-table tbody');
+        tbody.innerHTML = '';
+        
+        cohortData.forEach(cohort => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><strong>${cohort.month}</strong></td>
+            ${cohort.retention.map((value, index) => {
+              if (value === null) return '<td>-</td>';
+              const color = this.getRetentionColor(value);
+              return `<td style="background-color: ${color}; color: white;">${value}%</td>`;
+            }).join('')}
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      updatePlanRevenue(plans) {
+        const tbody = document.getElementById('plan-revenue-table');
+        tbody.innerHTML = '';
+        
+        plans.forEach(plan => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><strong>${plan.name}</strong></td>
+            <td>${this.formatNumber(plan.subscribers)}</td>
+            <td>${this.formatCurrency(plan.mrr)}</td>
+            <td>${this.formatCurrency(plan.avgRevenue)}</td>
+            <td class="${plan.growth > 0 ? 'text-success' : 'text-danger'}">
+              ${plan.growth > 0 ? '+' : ''}${plan.growth}%
+            </td>
+            <td class="text-danger">${plan.churn}%</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      getRetentionColor(value) {
+        if (value >= 80) return '#10b981';
+        if (value >= 60) return '#3b82f6';
+        if (value >= 40) return '#f59e0b';
+        if (value >= 20) return '#ef4444';
+        return '#6b7280';
+      }
+
+      exportCohortData() {
+        // Implementation for exporting cohort data
+        this.showAlert('Exporting cohort data...', 'info');
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      window.analyticsManager = new AnalyticsManager();
+      
+      // Date range selector
+      document.getElementById('date-range-select').addEventListener('change', (e) => {
+        window.analyticsManager.dateRange = parseInt(e.target.value);
+        window.analyticsManager.loadAnalyticsData();
+      });
+      
+      // Refresh button
+      document.getElementById('refresh-data').addEventListener('click', () => {
+        window.analyticsManager.loadAnalyticsData();
+      });
+      
+      // Period toggle buttons
+      document.querySelectorAll('[data-period]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          // Reload chart with new period
+          window.analyticsManager.loadAnalyticsData();
+        });
+      });
+    });
+  </script>
+</body>
+</html>

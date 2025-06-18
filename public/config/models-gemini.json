@@ -1,9 +1,10 @@
 {
   "provider": "gemini",
-  "defaultModel": "gemini-2.5-pro-preview-05-06",
+  "defaultModel": "gemini-pro-preview-06-05",
   "models": [
+    { "id": "gemini-pro-preview-06-05", "name": "Gemini Pro Preview 06-05", "price": "$8/M in, $24/M out", "contextLength": "1M tokens", "description": "Latest Gemini Pro preview with enhanced capabilities", "features": ["Multimodal", "Preview", "Advanced"] },
     { "id": "gemini-2.5-pro-preview-05-06", "name": "Gemini 2.5 Pro Preview", "price": "$8/M in, $24/M out", "contextLength": "1M tokens", "description": "Enhanced thinking and reasoning, multimodal understanding, advanced coding", "features": ["Multimodal", "Video", "Audio", "Preview"] },
-    { "id": "gemini-2.5-flash-preview-04-17", "name": "Gemini 2.5 Flash Preview 04-17", "price": "$0.4/M in, $1.2/M out", "contextLength": "1M tokens", "description": "Adaptive thinking, cost efficiency", "features": ["Multimodal", "Video", "Audio", "Preview"] },
+    { "id": "gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash Preview 05-20", "price": "$0.4/M in, $1.2/M out", "contextLength": "1M tokens", "description": "Adaptive thinking, cost efficiency", "features": ["Multimodal", "Video", "Audio", "Preview"] },
     { "id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "price": "$0.7/M in, $2.1/M out", "contextLength": "1M tokens", "description": "Next generation features, speed, thinking, and realtime streaming", "features": ["Multimodal", "Streaming", "Fast"] },
     { "id": "gemini-2.0-flash-preview-image-generation", "name": "Gemini 2.0 Flash Preview Image Generation", "price": "$0.7/M in, $2.1/M out", "contextLength": "1M tokens", "description": "Conversational image generation and editing", "features": ["Multimodal", "Image Generation", "Editing"] },
     { "id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash-Lite", "price": "$0.5/M in, $1.5/M out", "contextLength": "1M tokens", "description": "Cost efficiency and low latency", "features": ["Multimodal", "Low Latency", "Affordable"] },

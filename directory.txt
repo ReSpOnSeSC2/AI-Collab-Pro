@@ -1,102 +1,180 @@
-ai-collaboration-hub-refactored/
-├── public/
-│   ├── css/
-│   │   ├── main.css
-│   │   ├── loading-progress.css
-│   │   ├── context-manager.css
-│   ├── js/
-│   │   ├── auth.js           # Authentication handling
-│   │   ├── uiManager.js
-│   │   ├── connectionManager.js
-│   │   ├── contextManager.js  # Context persistence management
-│   │   ├── modelLoader.js
-│   │   ├── authHandler.js
-│   │   ├── mcpClient.js
-│   │   ├── main.js
-│   │   ├── layoutManager.js
-│   │   ├── codePreviewManager.js
-│   │   ├── loadingManager.fixed.js     # Fixed loading screen handling
-│   │   ├── collaborationControls.js    # UI controls for collaboration modes
-│   │   ├── collaborationLimits.js     # Timeout warnings and limits monitoring
-│   │   ├── contextToggle.js           # Simple context memory toggle
-│   │   ├── applySavedTheme.js          # Standalone theme handling
-│   │   └── debugUtils.js
-│   ├── config/
-│   │   ├── models-claude.json
-│   │   ├── models-gemini.json
-│   │   ├── models-chatgpt.json
-│   │   ├── models-grok.json
-│   │   ├── models-deepseek.json
-│   │   └── models-llama.json
-│   ├── _header.html
-│   ├── _footer.html
-│   ├── index.html
-│   ├── landing.html
-│   ├── login.html
-│   ├── signup.html
-│   ├── model-comparison.html
-│   └── admin-models.html
-├── docs/
-│   ├── API_Reference.md      # API endpoints documentation
-│   ├── Architecture.md       # System architecture documentation
-│   ├── CLI.md                # Omnicode CLI documentation
-│   ├── Collaboration_Modes.md # Detailed description of collaboration modes
-│   ├── context-management.md # Context persistence feature documentation
-│   ├── Demo.md               # 30-minute demonstration script
-│   ├── Development_Guide.md  # Guide for developers working on the codebase
-│   ├── SECURITY.md           # Security architecture and practices
-│   └── User_Guide.md         # End-user documentation
-├── src/
-│   ├── api/
-│   │   ├── auth-routes.mjs    # New Passport.js authentication routes
-│   │   ├── collaboration.mjs  # Will be updated for mode/style setting
-│   │   ├── config.mjs
-│   │   ├── context.mjs        # Context management API routes
-│   │   ├── index.mjs
-│   │   ├── mcp.mjs
-│   │   ├── responses.mjs
-│   │   ├── status.mjs
-│   │   └── upload.mjs
-│   ├── models/
-│   │   └── Conversation.mjs   # MongoDB schema for conversation context
-│   ├── services/
-│   │   └── conversationService.mjs # Service for managing conversation contexts
-│   ├── config/
-│   │   └── passport.mjs     # New Passport.js configuration
-│   ├── lib/
-│   │   ├── ai/
-│   │   │   ├── claude.mjs
-│   │   │   ├── gemini.mjs
-│   │   │   ├── openaiClient.mjs
-│   │   │   ├── collaboration.mjs  # MAJOR REFACTOR: Core orchestration logic with client validation
-│   │   │   ├── collaboration.original.mjs  # Original collaboration implementation (backup)
-│   │   │   ├── collaboration-improvements.mjs  # Enhanced collaboration with timeouts and concurrency control
-│   │   │   ├── agent-response.mjs              # Enhanced API response handling with method compatibility
-│   │   │   ├── parallel-collaboration.mjs      # Parallel execution implementation with client validation
-│   │   │   ├── enhanced-collab-integration.mjs # Integration module with improved client handling
-│   │   │   ├── sequential-critique-chain.mjs # Sequential critique chain implementation
-│   │   │   ├── sequential-style-options.mjs # Style options for sequential critique chain
-│   │   │   ├── collaboration-options.mjs # Configuration options for collaboration modes
-│   │   │   └── index.mjs
-│   │   ├── billing/
-│   │   │   └── costControl.mjs    # Cost estimation and tracking
-│   │   ├── cliHandler.mjs
-│   │   ├── messaging/
-│   │   │   └── redis.mjs          # Real-time event streaming
-│   │   ├── mcp/
-│   │   │   └── index.mjs
-│   │   ├── contextManager.mjs    # Context persistence management with MongoDB
-│   │   └── security/
-│   │       └── promptGuard.mjs    # Prompt injection protection
-│   ├── wsHandler.mjs          # Will be updated to call new collaboration orchestrator
-│   └── server.mjs
-├── uploads/                   # For file uploads
-├── responses/                 # For saved markdown responses
-├── tools/
-│   └── test-context.mjs      # Test script for context management functionality
-├── .env
-├── package.json
-├── install-collab-improvements.mjs  # Installation script for collab improvements
-├── README.improvements.md          # Documentation for the improvements
-├── CONTEXT_MANAGEMENT_IMPLEMENTATION.md # Implementation details for context management
-└── PRD.md                     # This file
+./CHANGELOG-synthesis-fix.md
+./CONTEXT_MANAGEMENT_IMPLEMENTATION.md
+./DEPLOYMENT.md - NEW: Comprehensive deployment guide
+./QUICKSTART.md - NEW: Quick start guide for users
+./New Text Document.txt
+./README.improvements.md
+./directory.txt
+./render.yaml - NEW: Render deployment configuration
+./vercel.json - NEW: Vercel deployment configuration
+./docs/API_Reference.md
+./docs/Architecture.md
+./docs/CLI.md
+./docs/Collaboration_Modes.md
+./docs/Demo.md
+./docs/Development_Guide.md
+./docs/SECURITY.md
+./docs/User_Guide.md
+./docs/Voting_System.md
+./docs/context-management.md
+./docs/prd.md
+./docs/prompts.txt
+./docs/METRICS_AND_API_KEYS.md
+./install-collab-improvements.mjs
+./package-lock.json
+./package.json - UPDATED: Added cors dependency
+./prompts.txt
+./.env.example - UPDATED: Production-ready template
+./public/New Text Document.txt
+./public/api-keys.html - UPDATED: Added preview and test mode
+./public/metrics-dashboard.html
+./public/security.html - NEW: Security and trust page
+./public/_footer.html
+./public/_footer_enhanced.html
+./public/_header.html
+./public/admin-activity.html
+./public/admin-analytics.html
+./public/admin-conversations.html
+./public/admin-dashboard.html
+./public/admin-feedback.html
+./public/admin-models.html
+./public/admin-settings.html
+./public/admin-users.html
+./public/admin-voting.html
+./public/config/model-loader.js
+./public/config/models-chatgpt.json
+./public/config/models-claude.json
+./public/config/models-deepseek.json
+./public/config/models-gemini.json
+./public/config/models-grok.json
+./public/config/models-llama.json
+./public/css/New Text Document.txt
+./public/css/admin-shared.css
+./public/css/context-manager.css
+./public/css/emergency-fix.css
+./public/css/feedback-system.css
+./public/css/files-folders.css
+./public/css/loading-progress.css
+./public/css/main.css
+./public/css/sequential-style.css
+./public/css/voting.css
+./public/css/cost-tracker.css
+./public/css/page-header.css
+./public/css/settings.css
+./public/css/footer.css
+./public/css/api-keys.css
+./public/css/metrics-dashboard.css
+./public/debug.html
+./public/hub.html
+./public/index.html
+./public/index.js
+./public/js/New Text Document.txt
+./public/js/admin-conversations.js
+./public/js/admin-shared.js
+./public/js/admin-users.js
+./public/js/applySavedTheme.js
+./public/js/auth.js
+./public/js/authHandler.js
+./public/js/codePreviewManager.js
+./public/js/collaborationControls.js
+./public/js/collaborationLimits.js
+./public/js/connectionManager.js
+./public/js/contextManager.js
+./public/js/costTracker.js
+./public/js/contextWindow.js
+./public/js/debug-fix.js
+./public/js/debugUtils.js
+./public/js/feedback-system.js
+./public/js/fileSystemAccessHelper.js
+./public/js/filesFoldersManager.js
+./public/js/fixed/auth.js
+./public/js/init.js
+./public/js/initCostTracker.js
+./public/js/layoutManager.js
+./public/js/loadingManager.fixed.js
+./public/js/loadingManager.js
+./public/js/main.js
+./public/js/mcpClient.js
+./public/js/modelLoader.js
+./public/js/sequentialStyleSelector.js
+./public/js/service-worker-fixer.js
+./public/js/settings.js
+./public/js/truncationUtils.js
+./public/js/uiManager.js
+./public/js/votingManager.js
+./public/js/api-keys.js
+./public/js/metrics-dashboard.js
+./public/login.html
+./public/model-comparison.html
+./public/settings.html
+./public/signup.html
+./scripts/create-admin.js
+./scripts/create-admin.mjs
+./scripts/google-admin.mjs
+./scripts/remove-test-users.js
+./scripts/seed-test-data.js
+./scripts/update-user-tier.js
+./setup-test.js
+./src/New Text Document.txt
+./src/api/New Text Document.txt
+./src/api/admin.mjs
+./src/api/auth-routes.mjs
+./src/api/auth.mjs
+./src/api/collaboration.mjs
+./src/api/config.mjs
+./src/api/context.mjs
+./src/api/feedback.mjs
+./src/api/index.mjs
+./src/api/mcp.mjs
+./src/api/responses.mjs
+./src/api/status.mjs
+./src/api/upload.mjs
+./src/api/votes.mjs
+./src/api/metrics.mjs
+./src/api/api-keys.mjs
+./src/config/passport.mjs
+./src/directory.txt
+./src/lib/ai/New Text Document.txt
+./src/lib/ai/agent-response.mjs
+./src/lib/ai/claude.mjs
+./src/lib/ai/collab-exports.mjs
+./src/lib/ai/collaboration-improvements.mjs
+./src/lib/ai/collaboration-options.mjs
+./src/lib/ai/collaboration.mjs
+./src/lib/ai/collaboration.original.mjs
+./src/lib/ai/enhanced-collab-integration.mjs
+./src/lib/ai/enhanced-error-handling.mjs
+./src/lib/ai/gemini.mjs
+./src/lib/ai/improved-error-handling.mjs
+./src/lib/ai/index.mjs
+./src/lib/ai/openaiClient.mjs
+./src/lib/ai/parallel-collaboration.mjs
+./src/lib/ai/sequential-critique-chain.mjs
+./src/lib/ai/sequential-style-options.mjs
+./src/lib/ai/small-team-collaboration.mjs
+./src/lib/ai/truncation-utils.mjs
+./src/lib/ai/costControl.mjs
+./src/lib/ai/clientFactory.mjs
+./src/lib/ai/collaboration-with-metrics.mjs
+./src/lib/billing/costControl.mjs
+./src/lib/cliHandler.mjs
+./src/lib/contextManager.mjs
+./src/lib/mcp/New Text Document.txt
+./src/lib/mcp/index.mjs
+./src/lib/messaging/redis.mjs
+./src/lib/security/promptGuard.mjs
+./src/models/Conversation.mjs
+./src/models/Vote.mjs
+./src/models/Metrics.mjs
+./src/models/User.mjs
+./src/server.mjs
+./src/services/conversationService.mjs
+./src/services/voteService.mjs
+./src/services/metricsService.mjs
+./src/services/apiKeyService.mjs
+./src/wsHandler.mjs
+./test-websocket-server.js
+./tools/test-context.mjs
+./validate-websocket-implementation.js
+./validate-websocket-implementation.mjs
+./websocket-heartbeat-test.html

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Management - AI-Collab</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/api-keys.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header -->
+        <header id="header-placeholder"></header>
+        
+        <!-- Message Container -->
+        <div id="message-container" class="message-container"></div>
+
+        <!-- Main Content -->
+        <main class="api-keys-page">
+            <div class="page-header">
+                <h1>API Key Management</h1>
+                <p>Manage your own API keys for each AI provider. Your keys are encrypted and stored securely.</p>
+            </div>
+
+            <!-- API Key Status Overview -->
+            <div class="status-overview">
+                <h2>Provider Status</h2>
+                <div class="provider-grid" id="provider-status">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Add/Edit API Key Form -->
+            <div class="api-key-form-section">
+                <h2>Add or Update API Key</h2>
+                <form id="api-key-form" class="api-key-form">
+                    <div class="form-group">
+                        <label for="provider-select">Provider</label>
+                        <select id="provider-select" name="provider" required>
+                            <option value="">Select a provider</option>
+                            <option value="openai">OpenAI (ChatGPT)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="google">Google (Gemini)</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="grok">Grok</option>
+                            <option value="llama">Llama</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="api-key-input">API Key</label>
+                        <div class="api-key-input-wrapper">
+                            <input 
+                                type="password" 
+                                id="api-key-input" 
+                                name="apiKey" 
+                                placeholder="Enter your API key"
+                                required
+                            />
+                            <button type="button" class="toggle-visibility" onclick="toggleApiKeyVisibility()">
+                                👁️
+                            </button>
+                        </div>
+                        <small class="form-hint">Your API key will be encrypted before storage</small>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save API Key</button>
+                        <button type="button" class="btn btn-secondary" onclick="validateApiKey()">Validate Only</button>
+                        <button type="button" class="btn btn-info" onclick="testApiKey()">Test Without Saving</button>
+                    </div>
+                    
+                    <!-- Security Preview -->
+                    <div id="security-preview" class="security-preview" style="display: none;">
+                        <h4>🔐 Security Preview</h4>
+                        <p>Here's how your API key will be stored:</p>
+                        <div class="preview-content">
+                            <div class="preview-item">
+                                <strong>Original Key:</strong> <span id="preview-original"></span>
+                            </div>
+                            <div class="preview-item">
+                                <strong>Encrypted:</strong> <span id="preview-encrypted"></span>
+                            </div>
+                            <div class="preview-item">
+                                <strong>Stored ID:</strong> <span id="preview-id"></span>
+                            </div>
+                        </div>
+                        <small class="text-muted">Your actual key is encrypted with AES-256-GCM before storage</small>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Saved API Keys -->
+            <div class="saved-keys-section">
+                <h2>Saved API Keys</h2>
+                <div id="saved-keys-list" class="saved-keys-list">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Usage Statistics -->
+            <div class="usage-stats-section">
+                <h2>Usage Statistics</h2>
+                <div class="usage-stats" id="usage-stats">
+                    <div class="stat-card">
+                        <h3>Total Requests</h3>
+                        <div class="stat-value" id="total-requests">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Cost</h3>
+                        <div class="stat-value" id="total-cost">$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Last Request</h3>
+                        <div class="stat-value" id="last-request">Never</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="instructions-section">
+                <h2>How to Get API Keys</h2>
+                <div class="provider-instructions">
+                    <div class="instruction-card">
+                        <h3>OpenAI (ChatGPT)</h3>
+                        <ol>
+                            <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a></li>
+                            <li>Sign in or create an account</li>
+                            <li>Click "Create new secret key"</li>
+                            <li>Copy the key and paste it above</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="instruction-card">
+                        <h3>Anthropic (Claude)</h3>
+                        <ol>
+                            <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic Console</a></li>
+                            <li>Sign in or create an account</li>
+                            <li>Click "Create Key"</li>
+                            <li>Copy the key and paste it above</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="instruction-card">
+                        <h3>Google (Gemini)</h3>
+                        <ol>
+                            <li>Go to <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+                            <li>Sign in with your Google account</li>
+                            <li>Click "Get API key"</li>
+                            <li>Copy the key and paste it above</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="instruction-card">
+                        <h3>DeepSeek</h3>
+                        <ol>
+                            <li>Go to <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek Platform</a></li>
+                            <li>Sign in or create an account</li>
+                            <li>Create a new API key</li>
+                            <li>Copy the key and paste it above</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer id="footer-placeholder"></footer>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="message-container" class="message-container"></div>
+
+    <!-- Scripts -->
+    <script src="/js/applySavedTheme.js"></script>
+    <script src="/js/authHandler.js"></script>
+    <script src="/js/api-keys.js"></script>
+    <script>
+        // Load header and footer
+        fetch('/_header.html')
+            .then(response => response.text())
+            .then(data => document.getElementById('header-placeholder').innerHTML = data);
+        
+        fetch('/_footer.html')
+            .then(response => response.text())
+            .then(data => document.getElementById('footer-placeholder').innerHTML = data);
+    </script>
+</body>
+</html>

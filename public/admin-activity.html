@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Activity Tracking - Admin Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/admin-shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <button class="admin-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
+            <i class="fas fa-users"></i> Users
+          </a>
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
+          </a>
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item">
+            <i class="fas fa-poll"></i> Voting
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item active">
+            <i class="fas fa-user-clock"></i> User Activity
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item">
+            <i class="fas fa-comment-dots"></i> AI Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <a href="/hub.html" class="admin-nav-item">
+            <i class="fas fa-arrow-left"></i> Back to App
+          </a>
+          <a href="#" id="admin-logout" class="admin-nav-item">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="admin-header-content">
+          <h1 class="admin-page-title">User Activity Tracking</h1>
+          <div class="admin-header-actions">
+            <input type="search" class="admin-form-control" placeholder="Search users..." id="user-search" style="width: 300px;">
+            <select class="admin-form-control" id="activity-filter">
+              <option value="all">All Activities</option>
+              <option value="login">Logins</option>
+              <option value="chat">Chats</option>
+              <option value="vote">Votes</option>
+              <option value="subscription">Subscriptions</option>
+            </select>
+            <button class="admin-btn admin-btn-primary" id="refresh-activity">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <div id="alert-container"></div>
+
+        <!-- Activity Overview -->
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card primary">
+            <div class="admin-stat-label">Active Users Today</div>
+            <div class="admin-stat-value" id="stat-active-today">0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-active-change">+0%</span> vs yesterday
+            </div>
+          </div>
+
+          <div class="admin-stat-card success">
+            <div class="admin-stat-label">Total Sessions</div>
+            <div class="admin-stat-value" id="stat-sessions">0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-sessions-change">+0%</span> this week
+            </div>
+          </div>
+
+          <div class="admin-stat-card warning">
+            <div class="admin-stat-label">Avg. Session Duration</div>
+            <div class="admin-stat-value" id="stat-duration">0m</div>
+            <div class="admin-stat-change neutral">
+              <i class="fas fa-minus"></i>
+              <span id="stat-duration-change">0%</span> vs avg
+            </div>
+          </div>
+
+          <div class="admin-stat-card info">
+            <div class="admin-stat-label">Pages Per Session</div>
+            <div class="admin-stat-value" id="stat-pages">0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-pages-change">+0%</span> vs avg
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Activity Map -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Real-time User Activity</h2>
+            <div class="admin-live-indicator">
+              <span class="admin-live-dot"></span>
+              <span id="active-users-count">0</span> users online
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-activity-map" id="activity-map">
+              <!-- Real-time activity visualization -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Activity Timeline</h2>
+            <div class="admin-btn-group">
+              <button class="admin-btn admin-btn-sm active" data-view="hourly">Hourly</button>
+              <button class="admin-btn admin-btn-sm" data-view="daily">Daily</button>
+              <button class="admin-btn admin-btn-sm" data-view="weekly">Weekly</button>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-chart-container">
+              <canvas id="activityChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Behavior Analysis -->
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Feature Usage</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="featureChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">User Journey</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="journeyChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Users -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Most Active Users</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Sessions</th>
+                    <th>Messages</th>
+                    <th>Votes</th>
+                    <th>Last Active</th>
+                    <th>Engagement Score</th>
+                  </tr>
+                </thead>
+                <tbody id="top-users-table">
+                  <!-- Top users will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Recent Activity Log</h2>
+            <button class="admin-btn admin-btn-sm admin-btn-outline" onclick="activityManager.exportActivityLog()">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-activity-stream">
+              <div id="activity-stream-container">
+                <!-- Activity items will be populated here -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Segments -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">User Segments</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+              <div class="admin-segment-card">
+                <h3 class="admin-segment-title">Power Users</h3>
+                <div class="admin-segment-value">0</div>
+                <div class="admin-segment-desc">Daily active, high engagement</div>
+                <div class="admin-progress">
+                  <div class="admin-progress-bar" style="width: 0%" id="power-users-bar"></div>
+                </div>
+              </div>
+              
+              <div class="admin-segment-card">
+                <h3 class="admin-segment-title">Regular Users</h3>
+                <div class="admin-segment-value">0</div>
+                <div class="admin-segment-desc">Weekly active, moderate engagement</div>
+                <div class="admin-progress">
+                  <div class="admin-progress-bar" style="width: 0%" id="regular-users-bar"></div>
+                </div>
+              </div>
+              
+              <div class="admin-segment-card">
+                <h3 class="admin-segment-title">Occasional Users</h3>
+                <div class="admin-segment-value">0</div>
+                <div class="admin-segment-desc">Monthly active, low engagement</div>
+                <div class="admin-progress">
+                  <div class="admin-progress-bar" style="width: 0%" id="occasional-users-bar"></div>
+                </div>
+              </div>
+              
+              <div class="admin-segment-card">
+                <h3 class="admin-segment-title">At Risk</h3>
+                <div class="admin-segment-value">0</div>
+                <div class="admin-segment-desc">Inactive for 30+ days</div>
+                <div class="admin-progress">
+                  <div class="admin-progress-bar" style="width: 0%" id="at-risk-bar"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/admin-shared.js"></script>
+  <script>
+    class ActivityManager extends AdminDashboard {
+      constructor() {
+        super();
+        this.charts = {};
+        this.activityFilter = 'all';
+        this.activityStream = [];
+        this.updateInterval = null;
+      }
+
+      async loadActivityData() {
+        try {
+          this.showLoading();
+          
+          // Load all activity data
+          const [overview, timeline, features, journey, topUsers, segments] = await Promise.all([
+            this.apiRequest('/activity/overview'),
+            this.apiRequest('/activity/timeline'),
+            this.apiRequest('/activity/features'),
+            this.apiRequest('/activity/journey'),
+            this.apiRequest('/activity/top-users'),
+            this.apiRequest('/activity/segments')
+          ]);
+          
+          this.updateOverview(overview.metrics || overview);
+          this.updateActivityChart(timeline.timeline || timeline);
+          this.updateFeatureChart(features.features || features);
+          this.updateJourneyChart(journey.journey || journey);
+          this.updateTopUsers(topUsers.users || topUsers);
+          this.updateSegments(segments.segments || segments);
+          
+          // Load initial activity stream
+          await this.updateActivityStream();
+          
+          // Start real-time updates
+          this.startRealtimeUpdates();
+          
+          this.hideLoading();
+        } catch (error) {
+          console.error('Error loading activity data:', error);
+          this.showAlert('Failed to load activity data', 'danger');
+          this.hideLoading();
+        }
+      }
+
+      updateOverview(data) {
+        document.getElementById('stat-active-today').textContent = this.formatNumber(data.dau || 0);
+        document.getElementById('stat-active-change').textContent = `${data.dauChange > 0 ? '+' : ''}${data.dauChange || 0}%`;
+        
+        document.getElementById('stat-sessions').textContent = this.formatNumber(data.sessions || 0);
+        document.getElementById('stat-sessions-change').textContent = `${data.sessionsChange > 0 ? '+' : ''}${data.sessionsChange || 0}%`;
+        
+        document.getElementById('stat-duration').textContent = data.avgSessionDuration || '0m';
+        document.getElementById('stat-duration-change').textContent = '0%';
+        
+        document.getElementById('stat-pages').textContent = (data.avgMessagesPerSession || 0).toFixed(1);
+        document.getElementById('stat-pages-change').textContent = '0%';
+        
+        document.getElementById('active-users-count').textContent = data.dau || 0;
+      }
+
+      updateActivityChart(timeline) {
+        const ctx = document.getElementById('activityChart').getContext('2d');
+        
+        if (this.charts.activity) {
+          this.charts.activity.destroy();
+        }
+        
+        this.charts.activity = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timeline.labels || [],
+            datasets: [
+              {
+                label: 'Sessions',
+                data: timeline.sessions || [],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'Messages',
+                data: timeline.messages || [],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4
+              }
+            ]
+          },
+          options: this.getChartOptions('line')
+        });
+      }
+
+      updateFeatureChart(features) {
+        const ctx = document.getElementById('featureChart').getContext('2d');
+        
+        if (this.charts.feature) {
+          this.charts.feature.destroy();
+        }
+        
+        this.charts.feature = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: features.map(f => f.name),
+            datasets: [{
+              label: 'Sessions',
+              data: features.map(f => f.sessions || 0),
+              backgroundColor: '#2563eb'
+            }]
+          },
+          options: {
+            ...this.getChartOptions('bar'),
+            indexAxis: 'y'
+          }
+        });
+      }
+
+      updateJourneyChart(journey) {
+        const ctx = document.getElementById('journeyChart').getContext('2d');
+        
+        if (this.charts.journey) {
+          this.charts.journey.destroy();
+        }
+        
+        this.charts.journey = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: journey.map(j => j.step),
+            datasets: [{
+              data: journey.map(j => j.users),
+              backgroundColor: [
+                '#2563eb',
+                '#7c3aed',
+                '#10b981',
+                '#f59e0b',
+                '#ef4444'
+              ]
+            }]
+          },
+          options: this.getChartOptions('doughnut')
+        });
+      }
+
+      updateTopUsers(users) {
+        const tbody = document.getElementById('top-users-table');
+        tbody.innerHTML = '';
+        
+        users.forEach(user => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>
+              <div class="admin-user-info">
+                <img src="${user.avatar || '/img/default-avatar.png'}" alt="${user.name}" class="admin-avatar">
+                <div>
+                  <div class="admin-user-name">${user.name}</div>
+                  <div class="admin-user-email">${user.email}</div>
+                </div>
+              </div>
+            </td>
+            <td>${this.formatNumber(user.sessions)}</td>
+            <td>${this.formatNumber(user.messages)}</td>
+            <td>${this.formatNumber(user.votes)}</td>
+            <td>${this.formatRelativeTime(user.lastActive)}</td>
+            <td>
+              <div class="admin-engagement-score">
+                <div class="admin-score-value">${user.engagementScore}</div>
+                <div class="admin-score-bar">
+                  <div class="admin-score-fill" style="width: ${user.engagementScore}%"></div>
+                </div>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      updateSegments(segments) {
+        console.log('Updating segments with data:', segments);
+        
+        // Ensure we have valid segment data
+        if (!segments || !Array.isArray(segments)) {
+          console.warn('Invalid segments data received');
+          return;
+        }
+        
+        const total = segments.reduce((sum, seg) => sum + seg.count, 0);
+        
+        segments.forEach(segment => {
+          const percentage = total > 0 ? (segment.count / total * 100).toFixed(1) : 0;
+          
+          switch(segment.type) {
+            case 'power':
+              document.querySelector('.admin-segment-card:nth-child(1) .admin-segment-value').textContent = this.formatNumber(segment.count);
+              document.getElementById('power-users-bar').style.width = `${percentage}%`;
+              break;
+            case 'regular':
+              document.querySelector('.admin-segment-card:nth-child(2) .admin-segment-value').textContent = this.formatNumber(segment.count);
+              document.getElementById('regular-users-bar').style.width = `${percentage}%`;
+              break;
+            case 'occasional':
+              document.querySelector('.admin-segment-card:nth-child(3) .admin-segment-value').textContent = this.formatNumber(segment.count);
+              document.getElementById('occasional-users-bar').style.width = `${percentage}%`;
+              break;
+            case 'atRisk':
+              document.querySelector('.admin-segment-card:nth-child(4) .admin-segment-value').textContent = this.formatNumber(segment.count);
+              document.getElementById('at-risk-bar').style.width = `${percentage}%`;
+              break;
+          }
+        });
+      }
+
+      startRealtimeUpdates() {
+        // Connect to WebSocket for real-time activity
+        this.connectWebSocket();
+        
+        // Update activity stream
+        this.updateInterval = setInterval(() => {
+          this.updateActivityStream();
+        }, 5000);
+      }
+
+      async updateActivityStream() {
+        try {
+          // Fetch real activity data from the API
+          const response = await this.apiRequest('/activity/recent');
+          const activities = response || [];
+          
+          const container = document.getElementById('activity-stream-container');
+          
+          // Clear existing content for fresh data
+          if (container.children.length === 0) {
+            container.innerHTML = '';
+          }
+          
+          // Display real activities
+          if (activities.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center py-4">No recent activity</div>';
+            return;
+          }
+          
+          activities.forEach(activity => {
+            // Check if this activity is already displayed
+            const existingItem = container.querySelector(`[data-activity-id="${activity.timestamp}"]`);
+            if (existingItem) return;
+            
+            // Map action types to icons and colors
+            const actionConfig = {
+              'Started chat': { icon: 'fa-comments', color: 'primary' },
+              'Voted on response': { icon: 'fa-poll', color: 'success' },
+              'User registered': { icon: 'fa-user-plus', color: 'info' },
+              'Uploaded file': { icon: 'fa-upload', color: 'warning' },
+              'Changed settings': { icon: 'fa-cog', color: 'secondary' }
+            };
+            
+            const config = actionConfig[activity.action] || { icon: 'fa-circle', color: 'info' };
+            
+            const item = document.createElement('div');
+            item.className = 'admin-activity-item fade-in';
+            item.setAttribute('data-activity-id', activity.timestamp);
+            item.innerHTML = `
+              <div class="admin-activity-icon ${config.color}">
+                <i class="fas ${config.icon}"></i>
+              </div>
+              <div class="admin-activity-content">
+                <div class="admin-activity-text">
+                  <strong>${activity.user || 'Anonymous'}</strong> ${activity.action}
+                  ${activity.details ? `<span class="text-muted"> - ${activity.details}</span>` : ''}
+                </div>
+                <div class="admin-activity-time">${this.formatRelativeTime(activity.timestamp)}</div>
+              </div>
+            `;
+            
+            container.insertBefore(item, container.firstChild);
+            
+            // Keep only the latest 20 items
+            if (container.children.length > 20) {
+              container.removeChild(container.lastChild);
+            }
+          });
+        } catch (error) {
+          console.error('Error updating activity stream:', error);
+          const container = document.getElementById('activity-stream-container');
+          if (container.children.length === 0) {
+            container.innerHTML = '<div class="text-danger text-center py-4">Failed to load activity</div>';
+          }
+        }
+      }
+
+      formatDuration(seconds) {
+        if (seconds < 60) return `${seconds}s`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+        return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+      }
+
+      exportActivityLog() {
+        this.showAlert('Exporting activity log...', 'info');
+        // Implementation for exporting activity log
+      }
+
+      handleRealtimeUpdate(data) {
+        if (data.type === 'activity') {
+          // Update active users count
+          document.getElementById('active-users-count').textContent = data.activeUsers || 0;
+          
+          // Add to activity stream
+          const container = document.getElementById('activity-stream-container');
+          const item = document.createElement('div');
+          item.className = 'admin-activity-item fade-in';
+          item.innerHTML = `
+            <div class="admin-activity-icon ${data.color}">
+              <i class="fas ${data.icon}"></i>
+            </div>
+            <div class="admin-activity-content">
+              <div class="admin-activity-text">
+                <strong>${data.user}</strong> ${data.action}
+              </div>
+              <div class="admin-activity-time">just now</div>
+            </div>
+          `;
+          
+          container.insertBefore(item, container.firstChild);
+        }
+      }
+
+      destroy() {
+        super.destroy();
+        if (this.updateInterval) {
+          clearInterval(this.updateInterval);
+        }
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      window.activityManager = new ActivityManager();
+      
+      // Activity filter
+      document.getElementById('activity-filter').addEventListener('change', (e) => {
+        window.activityManager.activityFilter = e.target.value;
+        window.activityManager.loadActivityData();
+      });
+      
+      // User search
+      document.getElementById('user-search').addEventListener('input', (e) => {
+        // Implement user search functionality
+      });
+      
+      // Refresh button
+      document.getElementById('refresh-activity').addEventListener('click', () => {
+        window.activityManager.loadActivityData();
+      });
+      
+      // View toggle buttons
+      document.querySelectorAll('[data-view]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          // Reload chart with new view
+          window.activityManager.loadActivityData();
+        });
+      });
+    });
+  </script>
+</body>
+</html>

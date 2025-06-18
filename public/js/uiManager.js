@@ -643,6 +643,34 @@ export function handleAiResponse(data, currentMessageElements) {
             window._appState.latestResponses[target] = currentMessageElements[target].fullContent;
         }
 
+        // Trigger feedback system for collaborative responses
+        if (window.feedbackSystem && currentMessageElements[target].isSummary) {
+            const conversationId = window._appState?.conversationId || 'unknown';
+            const activeModels = getActiveAndVisibleColumns().map(col => col.id);
+            window.feedbackSystem.showCollaborationFeedback(conversationId, activeModels, currentMessageElements[target].fullContent);
+        }
+        
+        // Trigger model comparison for individual model responses when multiple models are active
+        if (window.feedbackSystem && !currentMessageElements[target].isSummary) {
+            const activeModels = getActiveAndVisibleColumns().map(col => col.id);
+            if (activeModels.length > 1 && window._appState?.latestResponses) {
+                // Collect all responses once all models have responded
+                const responses = activeModels
+                    .filter(model => window._appState.latestResponses[model])
+                    .map(model => ({
+                        model: model,
+                        content: window._appState.latestResponses[model]
+                    }));
+                
+                if (responses.length === activeModels.length) {
+                    const conversationId = window._appState?.conversationId || 'unknown';
+                    window.feedbackSystem.showModelComparisonFeedback(conversationId, responses);
+                    // Clear responses after showing feedback
+                    window._appState.latestResponses = {};
+                }
+            }
+        }
+
         // Clear reference (set to null rather than delete to avoid undefined check issues)
         currentMessageElements[target] = null;
     }

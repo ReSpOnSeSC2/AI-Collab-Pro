@@ -62,7 +62,7 @@ function getFetchUrl(endpoint) {
  * @param {Function} onMessage - Callback for incoming messages.
  * @param {Function} onStateChange - Callback for connection state changes (true for connected, false for disconnected).
  */
-export function connectWebSocket(onMessage, onStateChange) {
+window.connectWebSocket = function(onMessage, onStateChange) {
     onMessageHandler = onMessage;
     onStateChangeHandler = onStateChange;
 
@@ -192,7 +192,7 @@ function scheduleReconnect() {
  * @param {object} payload - The JSON payload to send.
  * @returns {boolean} True if the message was sent successfully, false otherwise.
  */
-export function sendMessageToServer(payload) {
+window.sendMessageToServer = function(payload) {
     // Skip messaging completely for non-critical message types to avoid console spam
     if (payload.type === 'ping' || payload.type === 'pong' || payload.type === 'debug_ping' || payload.type === 'debug_pong') {
         if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -382,7 +382,7 @@ function stopHeartbeat() {
  * Gets the current WebSocket instance.
  * @returns {WebSocket | null} The WebSocket instance or null.
  */
-export function getWebSocket() {
+window.getWebSocket = function() {
     return ws;
 }
 
@@ -393,7 +393,7 @@ export function getWebSocket() {
  * Checks the backend API status.
  * @returns {Promise<object>} A promise resolving with the API status data.
  */
-export async function checkApiStatus() {
+async function checkApiStatus() {
     const url = getFetchUrl('/api/check-api-status');
     console.log("ConnectionManager: Checking API status at", url);
     try {
@@ -413,12 +413,15 @@ export async function checkApiStatus() {
     }
 }
 
+// Also expose to window for backward compatibility
+window.checkApiStatus = checkApiStatus;
+
 /**
  * Uploads files to the server.
  * @param {FormData} formData - The FormData object containing files.
  * @returns {Promise<Array<object>>} A promise resolving with the data of uploaded files.
  */
-export async function uploadFiles(formData) {
+window.uploadFiles = async function(formData) {
     const url = getFetchUrl('/api/upload');
     console.log("ConnectionManager: Uploading files to", url);
     try {
@@ -438,3 +441,18 @@ export async function uploadFiles(formData) {
         throw error; // Re-throw for the caller (main.js) to handle UI updates
     }
 }
+
+// Create references to window functions for export
+const connectWebSocket = window.connectWebSocket;
+const sendMessageToServer = window.sendMessageToServer;
+const uploadFiles = window.uploadFiles;
+const getWebSocket = window.getWebSocket;
+
+// Export functions for ES6 module usage
+export {
+    connectWebSocket,
+    sendMessageToServer,
+    checkApiStatus,
+    uploadFiles,
+    getWebSocket
+};

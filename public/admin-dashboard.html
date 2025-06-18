@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - AI-Collab</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/admin-shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <button class="admin-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item active">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
+            <i class="fas fa-users"></i> Users
+          </a>
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
+          </a>
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item">
+            <i class="fas fa-poll"></i> Voting
+          </a>
+          <a href="/admin-apikeys.html" class="admin-nav-item">
+            <i class="fas fa-key"></i> Provider Analytics
+          </a>
+          <a href="/admin-user-metrics.html" class="admin-nav-item">
+            <i class="fas fa-chart-area"></i> User Metrics
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item">
+            <i class="fas fa-user-clock"></i> User Activity
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item">
+            <i class="fas fa-comment-dots"></i> AI Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <a href="/hub.html" class="admin-nav-item">
+            <i class="fas fa-arrow-left"></i> Back to App
+          </a>
+          <a href="#" id="admin-logout" class="admin-nav-item">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="admin-header-content">
+          <h1 class="admin-page-title">Dashboard</h1>
+          <div class="admin-header-actions">
+            <input type="search" class="admin-form-control" placeholder="Search..." id="admin-search" style="width: 300px;">
+            <button class="admin-btn admin-btn-primary">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <div id="alert-container"></div>
+
+        <!-- Stats Grid -->
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card primary">
+            <div class="admin-stat-label">Total Users</div>
+            <div class="admin-stat-value" id="stat-users">0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-users-change">+0%</span> from last month
+            </div>
+          </div>
+
+          <div class="admin-stat-card success">
+            <div class="admin-stat-label">Active Conversations</div>
+            <div class="admin-stat-value" id="stat-conversations">0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-conversations-change">+0%</span> from last week
+            </div>
+          </div>
+
+          <div class="admin-stat-card warning">
+            <div class="admin-stat-label">API Calls Today</div>
+            <div class="admin-stat-value" id="stat-api-calls">0</div>
+            <div class="admin-stat-change negative">
+              <i class="fas fa-arrow-down"></i>
+              <span id="stat-api-calls-change">-0%</span> from yesterday
+            </div>
+          </div>
+
+          <div class="admin-stat-card info">
+            <div class="admin-stat-label">Revenue (MRR)</div>
+            <div class="admin-stat-value" id="stat-revenue">$0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-revenue-change">+0%</span> from last month
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <!-- Usage Chart -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Usage Trends</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="usageChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Model Distribution -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Model Usage Distribution</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="modelChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Recent Activity</h2>
+            <button class="admin-btn admin-btn-sm admin-btn-outline" onclick="adminDashboard.exportData(recentActivity, 'recent-activity')">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+          <div class="admin-card-body">
+            <div id="activity-table-container">
+              <div class="admin-loading">
+                <div class="admin-spinner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">System Health</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div class="admin-stat-card">
+                <div class="admin-stat-label">Server Uptime</div>
+                <div class="admin-stat-value" id="stat-uptime">0h</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-label">Memory Usage</div>
+                <div class="admin-stat-value" id="stat-memory">0%</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-label">CPU Usage</div>
+                <div class="admin-stat-value" id="stat-cpu">0%</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-label">Response Time</div>
+                <div class="admin-stat-value" id="stat-response">0ms</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/admin-shared.js"></script>
+  <script>
+    let recentActivity = [];
+
+    class DashboardManager extends AdminDashboard {
+      async loadDashboardData() {
+        try {
+          // Load stats
+          await this.loadStats();
+          
+          // Load charts
+          await this.loadCharts();
+          
+          // Load recent activity
+          await this.loadRecentActivity();
+          
+          // Load system health
+          await this.loadSystemHealth();
+          
+          // Connect WebSocket for real-time updates
+          this.connectWebSocket();
+        } catch (error) {
+          console.error('Error loading dashboard:', error);
+          this.showAlert('Failed to load dashboard data', 'danger');
+        }
+      }
+
+      async loadStats() {
+        try {
+          const stats = await this.apiRequest('/stats');
+          
+          // Check if we got valid data
+          if (!stats || stats.error) {
+            console.error('Stats API error:', stats);
+            this.showAlert('Failed to load statistics.', 'warning');
+          }
+          
+          // Update stat cards
+          document.getElementById('stat-users').textContent = this.formatNumber(stats.totalUsers || 0);
+          document.getElementById('stat-users-change').textContent = `+${stats.userGrowth || 0}%`;
+          
+          document.getElementById('stat-conversations').textContent = this.formatNumber(stats.activeConversations || 0);
+          document.getElementById('stat-conversations-change').textContent = `+${stats.conversationGrowth || 0}%`;
+          
+          document.getElementById('stat-api-calls').textContent = this.formatNumber(stats.apiCallsToday || 0);
+          document.getElementById('stat-api-calls-change').textContent = `${stats.apiCallsChange || 0}%`;
+          
+          document.getElementById('stat-revenue').textContent = this.formatCurrency(stats.monthlyRevenue || 0);
+          document.getElementById('stat-revenue-change').textContent = `+${stats.revenueGrowth || 0}%`;
+          
+          // Change indicator colors based on values
+          this.updateChangeIndicators(stats);
+        } catch (error) {
+          console.error('Error loading stats:', error);
+          this.showAlert('Error loading dashboard statistics', 'danger');
+        }
+      }
+      
+      updateChangeIndicators(stats) {
+        // Update user growth indicator
+        const userChangeEl = document.querySelector('#stat-users-change').parentElement;
+        if (stats.userGrowth > 0) {
+          userChangeEl.classList.add('positive');
+          userChangeEl.classList.remove('negative');
+        } else if (stats.userGrowth < 0) {
+          userChangeEl.classList.add('negative');
+          userChangeEl.classList.remove('positive');
+        }
+        
+        // Similar for other indicators
+        const convChangeEl = document.querySelector('#stat-conversations-change').parentElement;
+        if (stats.conversationGrowth > 0) {
+          convChangeEl.classList.add('positive');
+          convChangeEl.classList.remove('negative');
+        } else if (stats.conversationGrowth < 0) {
+          convChangeEl.classList.add('negative');
+          convChangeEl.classList.remove('positive');
+        }
+      }
+
+      async loadCharts() {
+        try {
+          const chartData = await this.apiRequest('/charts');
+          
+          // Usage trend chart
+          const usageCtx = document.getElementById('usageChart').getContext('2d');
+          new Chart(usageCtx, {
+            type: 'line',
+            data: {
+              labels: chartData.usage.labels || [],
+              datasets: [{
+                label: 'API Calls',
+                data: chartData.usage.data || [],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.4
+              }]
+            },
+            options: this.getChartOptions('line')
+          });
+
+          // Model distribution chart
+          const modelCtx = document.getElementById('modelChart').getContext('2d');
+          new Chart(modelCtx, {
+            type: 'doughnut',
+            data: {
+              labels: chartData.models.labels || [],
+              datasets: [{
+                data: chartData.models.data || [],
+                backgroundColor: [
+                  '#2563eb',
+                  '#7c3aed',
+                  '#10b981',
+                  '#f59e0b',
+                  '#ef4444',
+                  '#8b5cf6'
+                ]
+              }]
+            },
+            options: this.getChartOptions('doughnut')
+          });
+        } catch (error) {
+          console.error('Error loading charts:', error);
+        }
+      }
+
+      async loadRecentActivity() {
+        try {
+          const activity = await this.apiRequest('/activity/recent');
+          recentActivity = activity;
+          
+          const columns = [
+            { key: 'timestamp', label: 'Time', render: (val) => this.formatDate(val) },
+            { key: 'user', label: 'User' },
+            { key: 'action', label: 'Action' },
+            { key: 'details', label: 'Details' },
+            { 
+              key: 'status', 
+              label: 'Status',
+              render: (val) => `<span class="admin-badge admin-badge-${val}">${val}</span>`
+            }
+          ];
+
+          this.createDataTable('activity-table-container', columns, activity, {
+            pagination: true,
+            pageSize: 10
+          });
+        } catch (error) {
+          console.error('Error loading activity:', error);
+        }
+      }
+
+      async loadSystemHealth() {
+        try {
+          const health = await this.apiRequest('/system-health');
+          
+          document.getElementById('stat-uptime').textContent = health.uptime || '0h';
+          document.getElementById('stat-memory').textContent = `${health.memoryUsage || 0}%`;
+          document.getElementById('stat-cpu').textContent = `${health.cpuUsage || 0}%`;
+          document.getElementById('stat-response').textContent = `${health.avgResponseTime || 0}ms`;
+        } catch (error) {
+          console.error('Error loading system health:', error);
+        }
+      }
+
+      handleRealtimeUpdate(data) {
+        // Update stats in real-time
+        if (data.type === 'stats') {
+          this.loadStats();
+        } else if (data.type === 'activity') {
+          this.loadRecentActivity();
+        }
+      }
+    }
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      window.adminDashboard = new DashboardManager();
+      
+      // Refresh button
+      document.querySelector('.admin-btn-primary').addEventListener('click', () => {
+        window.adminDashboard.loadDashboardData();
+      });
+    });
+  </script>
+</body>
+</html>

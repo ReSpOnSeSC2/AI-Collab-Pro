@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Keys Management - AI-Collab Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/admin-shared.css">
+  <link rel="stylesheet" href="/css/api-keys.css">
+  <style>
+    .api-keys-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .overview-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .overview-card h3 {
+      margin: 0 0 10px 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .overview-card .value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    .overview-card .change {
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    
+    .positive { color: var(--success-color); }
+    .negative { color: var(--danger-color); }
+    
+    .users-table {
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .table-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .search-box {
+      position: relative;
+      width: 300px;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 8px 35px 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .search-box i {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-secondary);
+    }
+    
+    .provider-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-right: 4px;
+    }
+    
+    .provider-openai { background: #74aa9c; color: white; }
+    .provider-anthropic { background: #d97757; color: white; }
+    .provider-google { background: #4285f4; color: white; }
+    .provider-deepseek { background: #6366f1; color: white; }
+    .provider-grok { background: #1da1f2; color: white; }
+    .provider-llama { background: #8b5cf6; color: white; }
+  </style>
+</head>
+<body>
+  <button class="admin-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
+            <i class="fas fa-users"></i> Users
+          </a>
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
+          </a>
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item">
+            <i class="fas fa-poll"></i> Voting
+          </a>
+          <a href="/admin-apikeys.html" class="admin-nav-item active">
+            <i class="fas fa-key"></i> API Keys
+          </a>
+          <a href="/admin-user-metrics.html" class="admin-nav-item">
+            <i class="fas fa-chart-area"></i> User Metrics
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item">
+            <i class="fas fa-history"></i> Activity Log
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item">
+            <i class="fas fa-star"></i> Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <a href="/" class="admin-nav-item">
+            <i class="fas fa-home"></i> Back to App
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <div class="admin-main-header">
+        <h2>AI Provider Usage Analytics</h2>
+        <div class="admin-main-actions">
+          <button class="btn btn-primary" onclick="exportProviderReport()">
+            <i class="fas fa-download"></i> Export Report
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-main-content">
+        <!-- Overview Cards -->
+        <div class="api-keys-overview">
+          <div class="overview-card">
+            <h3>Users with Providers</h3>
+            <div class="value" id="total-users-with-keys">0</div>
+            <div class="change positive">+12% from last month</div>
+          </div>
+          
+          <div class="overview-card">
+            <h3>Active Providers</h3>
+            <div class="value" id="total-active-keys">0</div>
+            <div class="change positive">+8% from last month</div>
+          </div>
+          
+          <div class="overview-card">
+            <h3>Total API Requests</h3>
+            <div class="value" id="total-api-requests">0</div>
+            <div class="change positive">+25% from last week</div>
+          </div>
+          
+          <div class="overview-card">
+            <h3>Total API Cost</h3>
+            <div class="value" id="total-api-cost">$0</div>
+            <div class="change negative">+15% from last week</div>
+          </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="users-table">
+          <div class="table-header">
+            <h3>User Provider Status</h3>
+            <div class="search-box">
+              <input type="text" id="user-search" placeholder="Search users...">
+              <i class="fas fa-search"></i>
+            </div>
+          </div>
+          
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Configured Providers</th>
+                <th>Total Requests</th>
+                <th>Total Cost</th>
+                <th>Last Activity</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-api-keys-table">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Provider Distribution Chart -->
+        <div class="chart-section mt-4">
+          <h3>API Provider Distribution</h3>
+          <div class="chart-container">
+            <canvas id="providerDistributionChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/admin-shared.js"></script>
+  <script src="/js/admin-apikeys.js"></script>
+</body>
+</html>

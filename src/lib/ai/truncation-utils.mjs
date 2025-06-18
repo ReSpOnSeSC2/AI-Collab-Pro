@@ -33,8 +33,15 @@ export function truncatePhaseContent(content, type, maxLength = 50000) {
  * @returns {Array} - Truncated responses
  */
 export function truncateResponseArray(responses, maxTotalLength = 80000) {
-  // Make a deep copy of the responses to avoid modifying the original
-  const responsesCopy = JSON.parse(JSON.stringify(responses));
+  // Make a safe copy of the responses without using JSON serialization
+  // JSON.stringify loses functions, which breaks Google AI response objects
+  const responsesCopy = responses.map(resp => {
+    if (resp && typeof resp === 'object') {
+      // Create a shallow copy while preserving methods and functions
+      return { ...resp };
+    }
+    return resp;
+  });
 
   const totalLength = responsesCopy.reduce((sum, resp) => sum + (resp.content?.length || 0), 0);
   if (totalLength <= maxTotalLength) return responsesCopy;

@@ -29,7 +29,10 @@ const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const isClaudeAvailable = checkApiKey('ANTHROPIC_API_KEY', anthropicApiKey);
 if (isClaudeAvailable) {
     try {
-        anthropicClient = new Anthropic({ apiKey: anthropicApiKey });
+        anthropicClient = new Anthropic({ 
+            apiKey: anthropicApiKey,
+            timeout: 600000 // 10 minutes for complex prompts
+        });
         // Optional: Add a quick ping/test call here if desired
     } catch (error) {
         console.error("❌ AI Client: Failed to initialize Anthropic:", error.message);
@@ -55,7 +58,10 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 const isOpenaiAvailable = checkApiKey('OPENAI_API_KEY', openaiApiKey);
 if (isOpenaiAvailable) {
     try {
-        openaiClient = new OpenAI({ apiKey: openaiApiKey });
+        openaiClient = new OpenAI({ 
+            apiKey: openaiApiKey,
+            timeout: 600000 // 10 minutes for complex prompts
+        });
     } catch (error) {
         console.error("❌ AI Client: Failed to initialize OpenAI:", error.message);
     }
@@ -68,7 +74,8 @@ if (isGrokAvailable) {
     try {
         grokClient = new OpenAI({
             apiKey: grokApiKey,
-            baseURL: 'https://api.x.ai/v1'
+            baseURL: 'https://api.x.ai/v1',
+            timeout: 600000 // 10 minutes for complex prompts
         });
     } catch (error) {
         console.error("❌ AI Client: Failed to initialize Grok client:", error.message);
@@ -82,7 +89,8 @@ if (isDeepseekAvailable) {
     try {
         deepseekClient = new OpenAI({
             apiKey: deepseekApiKey,
-            baseURL: 'https://api.deepseek.com/v1'
+            baseURL: 'https://api.deepseek.com/v1',
+            timeout: 600000 // 10 minutes for complex prompts
         });
     } catch (error) {
         console.error("❌ AI Client: Failed to initialize DeepSeek client:", error.message);
@@ -99,6 +107,7 @@ if (isLlamaAvailable || process.env.LLAMA_BASE_URL) { // Allow connection even w
         llamaClient = new OpenAI({
             apiKey: llamaApiKey || "dummy-key", // OpenAI client might require a key even if API doesn't
             baseURL: llamaBaseUrl,
+            timeout: 600000 // 10 minutes for complex prompts
         });
         console.log(`✅ AI Client: Llama client initialized for URL: ${llamaBaseUrl}`);
     } catch (error) {
@@ -112,7 +121,7 @@ if (isLlamaAvailable || process.env.LLAMA_BASE_URL) { // Allow connection even w
 if (anthropicClient) {
     anthropicClient.getResponse = async function(promptData, options) {
         try {
-            const modelId = options?.modelId || 'claude-3-7-sonnet-20250219';
+            const modelId = options?.modelId || 'claude-4-sonnet-20250514';
             console.log(`🔄 Claude getResponse using model: ${modelId}`);
 
             // Always include user message
@@ -150,7 +159,7 @@ if (anthropicClient) {
 if (geminiClient) {
     geminiClient.getResponse = async function(promptData, options) {
         try {
-            const modelId = options?.modelId || 'gemini-2.5-pro-exp-03-25';
+            const modelId = options?.modelId || 'gemini-2.5-pro-preview-05-06';
             console.log(`🔄 Gemini getResponse using model: ${modelId}`);
 
             // Create the model with appropriate configuration
@@ -174,64 +183,87 @@ if (geminiClient) {
             const result = await model.generateContent(fullPrompt);
 
             // Correctly extract text from the response with improved extraction
-            let text;
+            let text = '';
             try {
-                // Safe extraction with detailed logging
-                console.log(`🔍 Gemini response structure keys:`, Object.keys(result).join(', '));
-
-                if (result.text && typeof result.text === 'function') {
-                    // Direct text() function on the result
-                    text = result.text();
-                    console.log(`📥 Got text from result.text() function`);
-                } else if (result.response) {
-                    console.log(`🔍 Gemini response.response keys:`, Object.keys(result.response).join(', '));
-
-                    if (typeof result.response.text === 'function') {
-                        // Text function on response object
-                        text = result.response.text();
-                        console.log(`📥 Got text from result.response.text() function`);
-                    } else if (result.response.text) {
-                        // Direct text property
-                        text = result.response.text;
-                        console.log(`📥 Got text from result.response.text property`);
-                    } else if (result.response.candidates && result.response.candidates.length > 0) {
-                        // Extract from candidates
-                        const candidate = result.response.candidates[0];
-                        console.log(`🔍 Candidate keys:`, Object.keys(candidate).join(', '));
-
-                        if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-                            text = candidate.content.parts.map(part => part.text || '').join('');
-                            console.log(`📥 Got text from candidate.content.parts`);
-                        } else {
-                            console.warn(`⚠️ Unexpected candidate structure in Gemini response`);
-                            text = JSON.stringify(candidate);
-                        }
-                    } else if (result.response.parts && result.response.parts.length > 0) {
-                        // Direct parts array
-                        text = result.response.parts.map(part => part.text || '').join('');
-                        console.log(`📥 Got text from result.response.parts`);
+                // Direct extraction approach - bypass the problematic text() method
+                if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
+                    const candidate = result.response.candidates[0];
+                    
+                    if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'BLOCKED') {
+                        console.warn(`⚠️ Gemini response blocked due to safety filters`);
+                        text = "I apologize, but I cannot provide a response to this request due to content policy restrictions. Please try rephrasing your question.";
+                    } else if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+                        // Extract text from parts - this is the most reliable method
+                        text = candidate.content.parts.map(part => part.text || '').join('');
+                        console.log(`📥 Successfully extracted text from candidate.content.parts (${text.length} chars)`);
                     } else {
-                        // Fallback for unknown structure
-                        console.warn(`⚠️ Unknown Gemini response structure`);
-                        text = JSON.stringify(result.response);
+                        console.warn(`⚠️ No content parts in candidate`);
+                        text = "I apologize, but I encountered an issue processing the response. Please try again.";
+                    }
+                } else if (result && result.candidates && result.candidates.length > 0) {
+                    // Alternative structure without response wrapper
+                    const candidate = result.candidates[0];
+                    
+                    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+                        text = candidate.content.parts.map(part => part.text || '').join('');
+                        console.log(`📥 Successfully extracted text from result.candidates (${text.length} chars)`);
                     }
                 } else {
-                    // Last resort - stringify the whole result
-                    console.warn(`⚠️ No response property in Gemini result`);
-                    text = JSON.stringify(result);
+                    // Last resort - try the text() method but catch any issues
+                    console.log(`🔄 Trying text() method as last resort...`);
+                    try {
+                        if (result && typeof result.text === 'function') {
+                            const textResult = result.text();
+                            // Verify it's actual text, not a function
+                            if (typeof textResult === 'string' && !textResult.includes('() => {')) {
+                                text = textResult;
+                                console.log(`📥 Got valid text from result.text() method`);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`⚠️ text() method failed:`, e.message);
+                    }
+                    
+                    if (!text) {
+                        console.warn(`⚠️ Could not extract text from Gemini response`);
+                        text = "I apologize, but I encountered an issue processing the response. Please try again.";
+                    }
                 }
 
-                console.log(`📥 Received Gemini response (${text.length} chars)`);
+                // Validate the extracted text
+                if (!text || typeof text !== 'string') {
+                    console.warn(`⚠️ Invalid text extracted from Gemini response`);
+                    text = "I apologize, but I encountered an issue processing the response. Please try again.";
+                }
+
+                console.log(`📥 Final Gemini response length: ${text.length} chars`);
 
                 // Fix for function reference returned as text
-                if (text.includes('() => {') && text.includes('return getText(response)')) {
-                    console.warn(`⚠️ Detected function reference in Gemini response. Providing fallback.`);
-                    text = "I apologize, but I encountered an issue generating a proper response. Please try again or rephrase your question.";
+                if (text && typeof text === 'string' && text.includes('() => {')) {
+                    console.warn(`⚠️ Detected function reference in Gemini response.`);
+                    console.warn(`📄 Function text preview:`, text.substring(0, 200) + '...');
+                    
+                    // This is a critical error - the SDK is returning its internal code
+                    // Let's try a completely different approach
+                    console.log(`🔄 Attempting alternative extraction method...`);
+                    
+                    // Check if we can access the response data directly
+                    if (result.response && result.response.candidates && result.response.candidates.length > 0) {
+                        const candidate = result.response.candidates[0];
+                        if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+                            text = candidate.content.parts.map(part => part.text || '').join('');
+                            console.log(`✅ Successfully extracted text from candidates`);
+                        } else {
+                            text = "I apologize, but I encountered an issue with the AI response format. Please try again.";
+                        }
+                    } else {
+                        text = "I apologize, but I encountered an issue generating a proper response. Please try again.";
+                    }
                 }
             } catch (textError) {
                 console.error("Error extracting text from Gemini response:", textError);
-                // Fallback to convert the entire response to a string
-                text = JSON.stringify(result);
+                // Don't use JSON.stringify as it can serialize function definitions
+                text = "I apologize, but I encountered an issue processing the response. Please try again.";
                 console.log(`📥 Using fallback Gemini response handling (${text.length} chars)`);
             }
 

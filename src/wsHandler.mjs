@@ -12,6 +12,9 @@ import { streamGeminiResponse } from './lib/ai/gemini.mjs';
 import { streamOpenAICompatResponse } from './lib/ai/openaiClient.mjs';
 import { handleCliCommand } from './lib/cliHandler.mjs'; // Import CLI handler
 import * as mcp from './lib/mcp/index.mjs'; // Import MCP library as namespace
+import { subscribeToChannel } from './lib/messaging/redis.mjs'; // Import Redis subscription
+import { addResponseToContext } from './lib/contextManager.mjs'; // Import context management
+import { trackUsage, getSessionCost, getUserDailyCost, setWebSocketHandler } from './lib/ai/costControl.mjs'; // Import cost tracking
 
 // --- Global State (Managed Here or Imported) ---
 // In-memory store for latest responses for build/summary features
@@ -24,7 +27,6 @@ const mcpUserSessions = new Map(); // userId -> MCP sessionId (from MCP registra
 import {
   getOrCreateContext,
   addMessageToContext,
-  addResponseToContext,
   getFormattedContextHistory,
   updateTargetModels,
   trimContextIfNeeded,
@@ -36,6 +38,18 @@ import {
 // --- WebSocket Server Initialization ---
 export default function initializeWebSocketHandler(wss) {
     console.log('WebSocket Handler: Initializing...');
+    
+    // Set up WebSocket handler for cost control real-time updates
+    setWebSocketHandler({
+        broadcast: (userId, message) => {
+            // Find all WebSocket connections for this user
+            wss.clients.forEach((ws) => {
+                if (ws.userId === userId && ws.readyState === WebSocket.OPEN) {
+                    sendWsMessage(ws, message);
+                }
+            });
+        }
+    });
 
     wss.on('connection', (ws, req) => {
         // Extract potential user info if passed via headers/query during connection
@@ -96,6 +110,16 @@ export default function initializeWebSocketHandler(wss) {
                     case 'ping':
                         // Handle regular ping messages from the client
                         sendWsMessage(ws, { type: 'pong', timestamp: Date.now() });
+                        break;
+                    // --- Cost Control Message Routing ---
+                    case 'get_session_cost':
+                        await handleGetSessionCost(ws, data);
+                        break;
+                    case 'get_daily_cost':
+                        await handleGetDailyCost(ws, data);
+                        break;
+                    case 'set_budget_limit':
+                        await handleSetBudgetLimit(ws, data);
                         break;
                     // --- MCP Message Routing ---
                     case 'mcp_register_context':
@@ -283,7 +307,6 @@ async function handleChatMessage(ws, data) {
     if (ws.sessionId) {
       try {
         historyContext = await getFormattedContextHistory(ws.userId, ws.sessionId);
-        console.log(`wsHandler: Retrieved context history. Empty: ${!historyContext}, Length: ${historyContext.length}`);
 
         // Update target models in the context
         if (modelsToQuery.length > 0) {
@@ -303,7 +326,7 @@ async function handleChatMessage(ws, data) {
         sendWsMessage(ws, { type: 'response', target: aiTarget, content: chunkText, start: !latestResponses[aiTarget] }); // Indicate start on first chunk
         latestResponses[aiTarget] += chunkText; // Accumulate for summary/build
     };
-    const onComplete = async (aiTarget) => {
+    const onComplete = async (aiTarget, modelUsed) => {
         sendWsMessage(ws, { type: 'response', target: aiTarget, end: true });
         console.log(`Streaming complete for ${aiTarget}`);
 
@@ -324,6 +347,39 @@ async function handleChatMessage(ws, data) {
                         contextSize: result.contextSize,
                         maxSize: result.maxContextSize
                     });
+                }
+                
+                // Track token usage and cost
+                if (ws.userId && modelUsed) {
+                    // Estimate token counts (rough approximation)
+                    const inputTokens = Math.ceil((fullPrompt || '').length / 4);
+                    const outputTokens = Math.ceil(contextResponse.length / 4);
+                    
+                    const costResult = await trackUsage(ws.sessionId, aiTarget, modelUsed, {
+                        inputTokens: inputTokens,
+                        outputTokens: outputTokens,
+                        userId: ws.userId
+                    });
+                    
+                    if (costResult.success) {
+                        // Send cost update to user
+                        sendWsMessage(ws, {
+                            type: 'cost_update',
+                            sessionCost: costResult.totalSessionCost,
+                            requestCost: costResult.cost,
+                            budgetExceeded: costResult.budgetExceeded,
+                            budgetInfo: costResult.budgetInfo
+                        });
+                        
+                        // If budget exceeded, send warning
+                        if (costResult.budgetExceeded) {
+                            sendWsMessage(ws, {
+                                type: 'budget_exceeded',
+                                message: 'Daily budget limit exceeded. Further requests may be blocked.',
+                                budgetInfo: costResult.budgetInfo
+                            });
+                        }
+                    }
                 }
             } catch (error) {
                 console.error(`Error storing response in context: ${error.message}`);
@@ -420,7 +476,7 @@ async function handleChatMessage(ws, data) {
         if (streamFn) {
             await streamFn(modelId, fullPrompt,
                 (chunk) => onChunk(singleTarget, chunk),
-                () => onComplete(singleTarget),
+                () => onComplete(singleTarget, modelId),
                 (err) => onError(singleTarget, err)
             );
         } else {
@@ -432,44 +488,109 @@ async function handleChatMessage(ws, data) {
             console.log(`📋 Using models for collaboration:`, JSON.stringify(models));
             // Send status update message for loading UI
             modelsToQuery.forEach(model => {
-                // Special handling for validated_consensus mode with phase information
-                if (getCollaborationConfig().mode === 'validated_consensus') {
-                    console.log(`WsHandler: Special handling for Validated Consensus mode - model ${model}`);
+                sendWsMessage(ws, { 
+                    type: 'model_status', 
+                    model: model, 
+                    status: 'processing',
+                    message: 'Starting collaboration'
+                });
+            });
+            
+            // Generate session ID for this collaboration
+            const collaborationSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const redisChannel = `collab:${collaborationSessionId}`;
+            
+            // Subscribe to Redis events for this collaboration session
+            console.log(`📡 Subscribing to Redis channel: ${redisChannel}`);
+            const unsubscribe = subscribeToChannel(redisChannel, (event) => {
+                console.log(`📡 Received Redis event on ${redisChannel}:`, event.type);
+                
+                // Forward agent_thought events as model_status updates
+                if (event.type === 'agent_thought') {
+                    // Safely handle event.text which might not be a string
+                    let thoughtText = '';
+                    if (event.text && typeof event.text === 'string') {
+                        thoughtText = event.text.substring(0, 50);
+                    } else if (event.text && typeof event.text === 'object') {
+                        thoughtText = JSON.stringify(event.text).substring(0, 50);
+                    }
                     
-                    // Use phase_change for Validated Consensus to trigger proper progress tracking
-                    // First send phase_change to reset phase
-                    sendWsMessage(ws, { 
-                        type: 'model_status', 
-                        model: model, 
-                        status: 'phase_change',
-                        message: 'Phase 1: Drafting Initial Responses'
-                    });
-                    
-                    // Add a debug message to log the phase change was sent
-                    console.log(`WsHandler: Sent phase_change for ${model} - Phase 1: Drafting Initial Responses`);
-                    
-                    // Send multiple processing status updates with sequential delays to ensure they're processed
-                    const delays = [100, 300, 600];
-                    delays.forEach(delay => {
-                        setTimeout(() => {
-                            sendWsMessage(ws, { 
-                                type: 'model_status', 
-                                model: model, 
-                                status: 'processing',
-                                message: 'Working on initial draft...',
-                                timestamp: new Date().toISOString()
-                            });
-                            console.log(`WsHandler: Sent processing status for ${model} at ${delay}ms delay`);
-                        }, delay);
-                    });
-                } else {
-                    // Default for other collaboration modes
-                    sendWsMessage(ws, { 
-                        type: 'model_status', 
-                        model: model, 
+                    sendWsMessage(ws, {
+                        type: 'model_status',
+                        model: event.agent || 'unknown',
                         status: 'processing',
-                        message: 'Starting collaboration'
+                        message: thoughtText ? `Processing: ${thoughtText}...` : 'Processing thoughts...',
+                        timestamp: event.timestamp || new Date().toISOString()
                     });
+                    console.log(`📡 Forwarded agent_thought from ${event.agent} to WebSocket`);
+                } 
+                // Forward agent_vote events as model_status updates
+                else if (event.type === 'agent_vote') {
+                    sendWsMessage(ws, {
+                        type: 'model_status',
+                        model: event.agent || 'unknown',
+                        status: 'processing',
+                        message: 'Voting on responses...',
+                        timestamp: event.timestamp || new Date().toISOString()
+                    });
+                    console.log(`📡 Forwarded agent_vote from ${event.agent} to WebSocket`);
+                }
+                // Forward agent_thinking events as model_status updates
+                else if (event.type === 'agent_thinking') {
+                    sendWsMessage(ws, {
+                        type: 'model_status',
+                        model: event.agent || 'unknown',
+                        status: 'processing',
+                        message: 'Deep thinking...',
+                        timestamp: event.timestamp || new Date().toISOString()
+                    });
+                    console.log(`📡 Forwarded agent_thinking from ${event.agent} to WebSocket`);
+                }
+                // Forward agent_response_complete events as completed status
+                else if (event.type === 'agent_response_complete') {
+                    sendWsMessage(ws, {
+                        type: 'model_status',
+                        model: event.agent || 'unknown',
+                        status: 'completed',
+                        message: `Response complete (${event.responseLength || 0} chars)`,
+                        timestamp: event.timestamp || new Date().toISOString()
+                    });
+                    console.log(`📡 Forwarded agent_response_complete from ${event.agent} to WebSocket`);
+                }
+                // Forward phase_start events
+                else if (event.type === 'phase_start') {
+                    sendWsMessage(ws, {
+                        type: 'model_status',
+                        model: 'system',
+                        status: 'phase_change',
+                        message: event.phase || 'New phase starting...',
+                        timestamp: event.timestamp || new Date().toISOString()
+                    });
+                    console.log(`📡 Forwarded phase_start to WebSocket: ${event.phase}`);
+                }
+                // Forward progress_update events
+                else if (event.type === 'progress_update') {
+                    sendWsMessage(ws, {
+                        type: 'progress_update',
+                        phase: event.phase,
+                        currentStep: event.currentStep,
+                        totalSteps: event.totalSteps,
+                        percentage: event.percentage,
+                        timestamp: event.timestamp || new Date().toISOString()
+                    });
+                    console.log(`📡 Forwarded progress_update to WebSocket: ${event.phase} ${event.percentage}%`);
+                }
+                // Forward collaboration_complete events
+                else if (event.type === 'collaboration_complete') {
+                    sendWsMessage(ws, {
+                        type: 'collaboration_complete',
+                        timestamp: event.timestamp || new Date().toISOString()
+                    });
+                    console.log(`📡 Forwarded collaboration_complete to WebSocket`);
+                    
+                    // Clean up subscription
+                    unsubscribe();
+                    console.log(`📡 Unsubscribed from Redis channel: ${redisChannel}`);
                 }
             });
             
@@ -479,11 +600,12 @@ async function handleChatMessage(ws, data) {
                 mode: getCollaborationConfig().mode,
                 agents: modelsToQuery,
                 models: models,
+                sessionId: collaborationSessionId, // Pass session ID to collaboration
                 ignoreFailingModels: true, // Continue even if some models fail
                 skipSynthesisIfAllFailed: true, // Skip synthesis phase if all models fail
                 continueWithAvailableModels: true, // Continue with available models when some timeout
                 costCapDollars: 100.0, // Higher cost cap (effectively unlimited)
-                maxSeconds: 180, // 3 minute timeout
+                maxSeconds: 600, // 10 minute timeout for complex prompts
                 keepLoadingUntilComplete: true, // Keep loading indicators active until all phases complete
                 sequentialStyle: sequentialStyle, // Add the sequential style option if provided
                 onModelStatusChange: (model, status, message) => {
@@ -509,6 +631,13 @@ async function handleChatMessage(ws, data) {
                 
                 if (isErrorResult) {
                     console.error(`❌ Collaboration error response:`, collaborationResult.final);
+                    
+                    // Clean up Redis subscription on error
+                    if (typeof unsubscribe === 'function') {
+                        unsubscribe();
+                        console.log(`🔌 Cleaned up Redis subscription due to collaboration error`);
+                    }
+                    
                     onSummaryError(new Error(collaborationResult.final));
                 } else {
                     // Send summary response to all model UIs
@@ -527,9 +656,22 @@ async function handleChatMessage(ws, data) {
                         cost: collaborationResult.spentUSD.toFixed(4),
                         mode: getCollaborationConfig().mode
                     });
+                    
+                    // Clean up Redis subscription after successful completion
+                    if (typeof unsubscribe === 'function') {
+                        unsubscribe();
+                        console.log(`🔌 Cleaned up Redis subscription after successful completion`);
+                    }
                 }
             } else {
                 console.error("❌ Collaboration returned empty or null result");
+                
+                // Clean up Redis subscription on empty result
+                if (typeof unsubscribe === 'function') {
+                    unsubscribe();
+                    console.log(`🔌 Cleaned up Redis subscription due to empty result`);
+                }
+                
                 onSummaryError(new Error("Collaboration returned empty result. Please check server logs."));
             }
         } else { // Individual mode
@@ -756,6 +898,98 @@ async function handleTrimContext(ws, data) {
     } catch (error) {
         console.error('Error in handleTrimContext:', error);
         sendWsError(ws, 'Error trimming context: ' + error.message);
+    }
+}
+
+// --- Cost Control Handlers ---
+
+/**
+ * Handles a request to get session cost information
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleGetSessionCost(ws, data) {
+    if (!ws.userId || !ws.sessionId) {
+        return sendWsError(ws, 'Authentication required to get session cost.');
+    }
+
+    try {
+        const sessionId = data.sessionId || ws.sessionId;
+        const costInfo = await getSessionCost(sessionId);
+        
+        if (costInfo.success) {
+            sendWsMessage(ws, {
+                type: 'session_cost',
+                ...costInfo
+            });
+        } else {
+            sendWsError(ws, costInfo.error || 'Failed to retrieve session cost');
+        }
+    } catch (error) {
+        console.error('Error in handleGetSessionCost:', error);
+        sendWsError(ws, 'Error retrieving session cost: ' + error.message);
+    }
+}
+
+/**
+ * Handles a request to get daily cost information
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleGetDailyCost(ws, data) {
+    if (!ws.userId) {
+        return sendWsError(ws, 'Authentication required to get daily cost.');
+    }
+
+    try {
+        const date = data.date ? new Date(data.date) : new Date();
+        const costInfo = await getUserDailyCost(ws.userId, date);
+        
+        if (costInfo.success) {
+            sendWsMessage(ws, {
+                type: 'daily_cost',
+                ...costInfo
+            });
+        } else {
+            sendWsError(ws, costInfo.error || 'Failed to retrieve daily cost');
+        }
+    } catch (error) {
+        console.error('Error in handleGetDailyCost:', error);
+        sendWsError(ws, 'Error retrieving daily cost: ' + error.message);
+    }
+}
+
+/**
+ * Handles a request to set budget limit
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {Object} data - The message data
+ */
+async function handleSetBudgetLimit(ws, data) {
+    if (!ws.userId) {
+        return sendWsError(ws, 'Authentication required to set budget limit.');
+    }
+
+    try {
+        const { limit } = data;
+        
+        if (typeof limit !== 'number' || limit <= 0) {
+            return sendWsError(ws, 'Invalid budget limit. Must be a positive number.');
+        }
+        
+        const { enforceBudgetLimit } = await import('./lib/ai/costControl.mjs');
+        const result = await enforceBudgetLimit(ws.userId, limit);
+        
+        if (result.success) {
+            sendWsMessage(ws, {
+                type: 'budget_limit_set',
+                ...result
+            });
+        } else {
+            sendWsError(ws, result.error || 'Failed to set budget limit');
+        }
+    } catch (error) {
+        console.error('Error in handleSetBudgetLimit:', error);
+        sendWsError(ws, 'Error setting budget limit: ' + error.message);
     }
 }
 

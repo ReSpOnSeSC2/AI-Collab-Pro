@@ -1,418 +1,366 @@
-Write **docs/SECURITY.md** detailing sandboxRunner, allow‑list paths, network policy, prompt‑injection guard, Docker vs Firejail rationale, logging strategy (OpenTelemetry), secrets handling, and responsible disclosure process.  
-Full Markdown.
-
-30 min video walkthrough script
-
-Compose **docs/Demo.md**: a 30‑minute scripted walkthrough – setup ➜ run creative_brainstorm_swarm ➜ inspect per‑agent scratchpads ➜ cost report ➜ video outro.  
-Include shell commands and expected terminal output (ES5 examples).  
-Markdown only.
-Prompt 6 — src/lib/ai/collaboration.mjs – 5 new collab modes
-text
-Copy
-Edit
-Produce **src/lib/ai/collaboration.mjs** (ES module, ES5 syntax inside).  
-Goals: add five collaboration modes, integrate securityGuard, costControl, Redis streaming, 13‑second global timeout, abort on costCapDollars.  
-Maintain previous round_table flow.  
-Expose 
-
-```js
-runCollab({prompt, mode, agents, costCapDollars, maxSeconds})
-returning {final, rationale, spentUSD}.
-Must remain compatible with existing Model Context Protocol (MCP) message format.
-Full file, no placeholders.
-
-yaml
-Copy
-Edit
-
----
-
-### **Prompt 7 — src/lib/ai/openaiClient.mjs – upgraded wrapper**
-
-```text
-You are a senior back‑end engineer.
-
-**Task:** Rewrite `src/lib/ai/openaiClient.mjs` completely (ES5 syntax inside ESM wrapper).
-
-**Requirements**
-1. Keep streaming helper:
-
-   ```js
-   export async function streamOpenAICompatResponse(provider, modelId, prompt, onChunk, onComplete, onError)
-Support providers chatgpt, grok, deepseek, llama; obtain client via getClient(provider) from ./index.mjs; read creds from ../config.mjs.
-
-Cost tracking:
-• Before streaming, call costControl.estimateRunCost (abort if > budget).
-• During stream accumulate tokens (chunk.choices[0].delta.content.length) and invoke costControl.trackCost(sessionId, provider, deltaUSD).
-
-Add helpers:
-• isModelAvailable(provider, modelId) – returns false if env missing or provider disabled.
-• estimateTokens(text) – approximates chars / 4.
-
-Keep default model map (gpt-4o, grok-3-mini, etc.).
-
-Robust error handling; always ensure onComplete() fires exactly once.
-
-ES5 only ('use strict'; no const, no let, no optional‑chaining).
-
-Conclude with CommonJS re‑export:
-
-js
-Copy
-Edit
-export { streamOpenAICompatResponse as stream };
-export default { streamOpenAICompatResponse, isModelAvailable, estimateTokens };
-Return the full file content only – nothing else.
-
-yaml
-Copy
-Edit
-
----
-
-### **Prompt 8 — src/lib/ai/costControl.mjs – spend ledger**
-
-```text
-Create **src/lib/ai/costControl.mjs** (ES5).  
-Export: `estimateRunCost(agents, tokensIn, tokensOut)`, `trackCost(sessionId, agentName, deltaUSD)`, `getSessionCost(sessionId)`.  
-Hard‑code the price table provided in the spec.  
-Persist spend records to MongoDB collection `cost_ledger`.  
-Include tap unit tests at bottom (ignored in prod). ES5 compliant.
-Prompt 9 — src/lib/ai/securityGuard.mjs – command filter
-text
-Copy
-Edit
-Write **src/lib/ai/securityGuard.mjs** (ES5).  
-• Sanitize shell strings; block dangerous patterns (`rm -rf`, `:(){:|:&};:` …).  
-• Enforce allow‑list paths `/workspace` and `/tmp`.  
-Export `isCommandSafe(cmd)`, `filterPrompt(prompt)`, `logBlocked(sessionId, cmd)`.  
-Inline tap tests at bottom.
-Prompt 10 — src/lib/ai/sandboxRunner.mjs – Docker/Firejail exec
-text
-Copy
-Edit
-Author **src/lib/ai/sandboxRunner.mjs** (ES5).  
-Implement `runCommand(cmd, opts, cb)` that executes commands inside Docker (default) or Firejail fallback.  
-Mount allow‑list paths read‑write; all others read‑only.  
-Return `{stdout, stderr, exitCode}` via callback; retry on EAGAIN with exponential back‑off.  
-Comment *why* each safety step exists.
-Prompt 11 — src/api/collaboration.mjs – REST endpoint upgrade
-text
-Copy
-Edit
-Update **src/api/collaboration.mjs**.  
-POST body accepts `mode`, `maxDollars`, `critiqueStyle`.  
-Call runCollab (from collaboration.mjs); abort with 400 if estimateRunCost > maxDollars.  
-Stream Redis events to client via Server‑Sent Events (`text/event‑stream`).  
-Respond `{sessionId, final, rationale, costUSD}` on completion.  
-ES5; ensure backward‑compat with existing Model Context Protocol (MCP) clients.
-Prompt 12 — src/api/config.mjs – env defaults & helpers
-text
-Copy
-Edit
-Enhance **src/api/config.mjs** (ES5).  
-Add env defaults: `MAX_DOLLARS=20`, `DEFAULT_MODE=round_table`, `REDIS_URL`, `GRAFANA_URL`.  
-Export getters (`getMaxDollars()`, etc.).  
-Use module‑exports pattern.
-Prompt 13 — src/api/status.mjs – 24 h cost metric
-text
-Copy
-Edit
-Patch **src/api/status.mjs** (ES5).  
-Extend `/api/status` response to `{ok, uptimeSec, spent24hUSD}` by aggregating Mongo collection `cost_ledger`.  
-Maintain previous keys for legacy clients.
-Prompt 14 — src/wsHandler.mjs – Redis ➜ WebSocket relay
-text
-Copy
-Edit
-Rewrite **src/wsHandler.mjs** in ES5.  
-Subscribe to Redis channels `collab:*` and forward `{type, agent, text, tokens, costUSD}` to WebSocket clients.  
-Handle back‑pressure, heartbeat pings, and auto‑reconnect.
-Prompt 15 — src/server.mjs – OTEL, Grafana, socket.io
-text
-Copy
-Edit
-Augment **src/server.mjs** (ES5).  
-• Initialise OpenTelemetry traces and export to Grafana Agent.  
-• Provide express `/status` route (same JSON as api/status).  
-• Create Redis client and pass to wsHandler.  
-• Mount socket.io namespace `/collab`.  
-Ensure CORS matches Vercel front‑end.
-Prompt 16 — public/js/uiManager.js – UI controls & hooks
-text
-Copy
-Edit
-Refactor **public/js/uiManager.js** (ES5).  
-Add: mode selector dropdown, dark‑mode toggle, live token counter, cost bar (green→yellow→red), per‑agent avatars.  
-Integrate with new CollabSessionView.  
-Only dependencies: Tailwind CDN + socket.io‑client.
-Prompt 17 — public/js/collabSessionView.js – streaming view
-text
-Copy
-Edit
-Add **public/js/collabSessionView.js** (ES5).  
-Class `CollabSessionView(socket, containerEl)` should:  
-• Render per‑agent typewriter lines.  
-• Provide expandable scratchpads.  
-• Update token & cost counters in real time.  
-Use vanilla JS + Tailwind classes.
-Prompt 18 — public/css/main.css – avatars, cost bar, dark‑mode
-text
-Copy
-Edit
-Extend **public/css/main.css**.  
-• Styles for circular avatars with gradient borders.  
-• `--cost-bar-color` variable: green→yellow→red.  
-• Dark‑mode rules (`prefers-color-scheme`).  
-• Mobile breakpoints for stacked layout.  
-Leave existing styles unchanged.
-Prompt 19 — public/index.html – mode selector + cost footer
-text
-Copy
-Edit
-Modify **public/index.html** (return full file).  
-Insert: collaboration mode selector, dark‑mode toggle, collab session container, live cost footer.  
-Load Tailwind CDN, socket.io client, uiManager.js, collabSessionView.js in ES5‑safe order.  
-No placeholders; include complete HTML.
-Prompt 20 — header/footer/admin fragments – nav & price table
-text
-Copy
-Edit
-Return three complete fragments in one reply, separated by comment markers:
-
-<!-- _header.html -->
-(Full HTML with “Collab Mode” dropdown + dark‑mode button)
-
-<!-- _footer.html -->
-(Full HTML with live cost bar + GitHub link)
-
-<!-- admin-models.html -->
-(Full HTML page containing sortable table of model name, provider, $/M input, $/M output, context length)
-
-No omissions, no ellipses.
-Prompt 21 — package.json & tailwind.config.js – deps & theming
-text
-Copy
-Edit
-Output two files in one response:
-
-### package.json
-{ ...full JSON with Node 18, deps: redis@4, openai@4, @opentelemetry/api, tap, tailwindcss (dev); scripts: dev, build, test, start, tailwind }
-
-### tailwind.config.js
-module.exports = { darkMode: 'class', theme: { extend: { colors: { costGreen:'#16a34a', costYellow:'#eab308', costRed:'#dc2626' } } }, plugins: [] }
-Prompt 22 — test/collab.spec.js – Tap unit‑test scaffold
-text
-Copy
-Edit
-Produce **test/collab.spec.js** (ES5, tap).  
-Tests:  
-1. runCollab aborts when projected cost > maxDollars.  
-2. securityGuard blocks `rm -rf /`.  
-3. creative_brainstorm_swarm emits `idea_fusion` Redis event.  
-4. hybrid_guarded_braintrust returns answer containing confidence levels.  
-
-Ensure `npm test` passes on Node 18.
-Use these 22 prompts in order to generate all upgraded files compatible with the Model Context Protocol (MCP).
-
-Prompt 23 — Update docs/PRD.md + CLI.md + Architecture.md
-text
-Copy
-Edit
-Apply the following updates to the docs (return three complete files in one reply, separated by markers):
-
-### docs/PRD.md
-• Add a new “Phase 2 Enhancements” section describing conversation history, API‑key admin, prompt templates/presets, and advanced project/file management.  
-• Update success metrics to include user‑saved sessions and key‑rotation health.  
-• Append deliverables list accordingly.
-
-### docs/CLI.md
-• Add subcommands:  
-  - `omnicode history save|load|list`  
-  - `omnicode keys add|list|delete`  
-  - `omnicode template create|list|apply`  
-  - `omnicode project init|open|files`  
-• Include usage examples (Node 18 ES5).
-
-### docs/Architecture.md
-• Extend diagrams to show:  
-  - `conversation_history` Mongo collection  
-  - `apiKeyStore` encrypted vault  
-  - `templateManager` flow  
-  - `projectManager` file‑ops with sandboxRunner safeguards.  
-Return full Markdown for all three docs, separated by the same ### markers.
-Prompt 24 — src/lib/storage/conversationHistory.mjs
-text
-Copy
-Edit
-Create **src/lib/storage/conversationHistory.mjs** (ES5).
-
-Exports:
-• `saveSession({sessionId, messages, metadata}, cb)`  
-• `loadSession(sessionId, cb)`  
-• `listSessions(userId, cb)`
-
-Implementation details:
-• Use Mongo collection `conversation_history`.  
-• Index on `userId` and `updatedAt`.  
-• Compress messages array with gzip before storage to save space; decompress on load.  
-• Include tap tests at bottom (ignored in prod).  
-• 'use strict'; ES5 syntax only.
-Prompt 25 — src/api/history.mjs – REST for save/load
-text
-Copy
-Edit
-Produce **src/api/history.mjs** (ES5, Express route).
-
-Endpoints:
-• `POST /api/history/save`  – body `{sessionId, messages, meta}`  
-• `GET  /api/history/:id`   – returns saved session JSON  
-• `GET  /api/history/user/:uid` – lists sessions for user
-
-Internally call conversationHistory.mjs.  
-Ensure requests authenticate the same way existing MCP routes do.  
-Return `{ok:true}` or `{error:"msg"}` JSON.
-Prompt 26 — public/js/historyManager.js + index.html patch
-text
-Copy
-Edit
-Return two artefacts in one response separated by markers:
-
-### public/js/historyManager.js
-ES5 module that:
-• Calls /api/history endpoints with fetch.  
-• Renders a sidebar list of saved sessions; clicking loads session into UI via CollabSessionView.  
-• Provides “Save Session” button in the toolbar.
-
-### index.html
-Insert:
-• Sidebar (<aside>) for session list.  
-• “Save Session” button next to mode selector.  
-Ensure script tags load historyManager.js after uiManager.js.
-Prompt 27 — src/lib/apiKeyStore.mjs
-text
-Copy
-Edit
-Create **src/lib/apiKeyStore.mjs** (ES5).
-
-Functions:
-• `addKey({userId, provider, key}, cb)` – encrypt with AES‑256‑GCM using ENV secret.  
-• `listKeys(userId, cb)` – returns `[ {id, provider, maskedKey} ]`.  
-• `deleteKey(userId, id, cb)`.
-
-Store in Mongo collection `api_keys`.  
-Mask key output to last 4 chars only.  
-Include tap unit tests inside file footer. ES5.
-Prompt 28 — src/api/keys.mjs – key CRUD endpoints
-text
-Copy
-Edit
-Generate **src/api/keys.mjs** (ES5).
-
-Routes:
-• `POST /api/keys`        – body `{provider, key}`  
-• `GET  /api/keys`        – returns list  
-• `DELETE /api/keys/:id`  – delete
-
-Authenticate same middleware as other MCP endpoints.  
-Use apiKeyStore functions.  
-Return JSON `{ok:true}` or `{error}`.
-Prompt 29 — admin‑keys UI
-text
-Copy
-Edit
-Return two full files separated by markers:
-
-<!-- public/admin-keys.html -->
-Standalone admin page listing keys with add / delete buttons. Tailwind layout, dark‑mode class, calls keyManager.js.
-
-<!-- public/js/keyManager.js -->
-ES5 script that:
-• Fetches key list, masks keys.  
-• Handles add (modal prompt for provider + key) and delete.  
-• Displays toast notifications using Tailwind utility classes.
-Prompt 30 — src/lib/templateManager.mjs + templates.json
-text
-Copy
-Edit
-Return two artefacts separated by markers.
-
-### src/lib/templateManager.mjs
-ES5 module exporting:
-• `createTemplate({name, content, ownerId}, cb)`  
-• `listTemplates(ownerId, cb)`  
-• `applyTemplate({templateId, variables}, cb)` → returns resolved prompt string.
-
-Store templates in Mongo `prompt_templates`; support public/private flag.
-
-### public/config/templates.json
-Seed file with three starter templates (JSON array) – e.g., “Bug‑Fix”, “Doc‑Draft”, “Creative‑Story”.
-Prompt 31 — admin‑templates UI
-text
-Copy
-Edit
-Return two complete files separated by markers:
-
-<!-- public/admin-templates.html -->
-Tailwind page listing templates with create / delete / preview.
-
-<!-- public/js/templateManager.js -->
-ES5 script:
-• CRUD via /api/templates (assume you’ll wire this later).  
-• Live preview of template resolution with variable inputs.
-Prompt 32 — src/lib/projectManager.mjs + admin‑projects UI
-text
-Copy
-Edit
-Return three artefacts separated by markers.
-
-### src/lib/projectManager.mjs
-ES5 module:
-• `initProject({name, rootDir}, cb)` – create folder in uploads/  
-• `listProjects(cb)`  
-• `listFiles(projectId, cb)`  
-• `readFile(projectId, path, cb)` (read‑only, uses sandboxRunner)  
-• `writeFile(projectId, path, content, cb)` (verify with securityGuard)
-
-### public/admin-projects.html
-Tailwind page: dropdown of projects, file tree, editor pane (textarea).
-
-### public/js/projectManager.js
-ES5 script wiring UI to projectManager API endpoints (assumed `/api/projects/*` you will add later).
-
-
-
-
-
-You said:
-do I need to provide any files to the AI other than the one they are updating for any of these prompts?
-
-
-ChatGPT said:
-Short answer:
-You don’t have to, but it usually helps.
-
-When you can skip sending existing files
-Prompt numbers	Why it’s safe to omit the current file
-1 – 5, 8 – 10, 18, 21, 22	These are new‑from‑scratch docs, helpers, CSS, config, or tests. The generator doesn’t need the old file to build a fresh one that matches the spec.
-6 & 7	The instructions say “rewrite completely / full file, no placeholders.” The model will generate a drop‑in replacement, so the old code isn’t required.
-
-When supplying the existing file helps (but isn’t mandatory)
-Prompt numbers	Reason it can help
-11, 12, 13, 14, 15, 16, 17, 19, 20	These prompts say “update / modify / extend”. The AI can generate a correct version from the spec alone, but giving it the current file (or at least the parts that must stay untouched) ensures it preserves edge‑case logic, comments, custom HTML IDs, etc.
-
-Best practice:
-
-Copy the current file’s content into the same message after the build‑prompt block.
-
-Put a clear delimiter, e.g.
-
-sql
-Copy
-Edit
---- CURRENT FILE BELOW ---
-<original code or HTML>
---- END CURRENT FILE ---
-Tell the AI: “Preserve any functionality not mentioned in the prompt; feel free to refactor as long as behaviour stays identical.”
-
-If you skip this, the generator will still follow the spec, but you might need to reconcile small naming or layout differences afterwards.
+# AI-Collab Development Prompts
+# Vision: Multiple AIs collaborating on real code/files in a sandboxed environment
+# Core Principle: ABSOLUTELY NO MOCK DATA - All features must work with real data from MongoDB/APIs
+
+## Phase 1: Security & Cost Management (Foundation)
+
+### Prompt 1 - Security Documentation
+Create a comprehensive security documentation file at docs/SECURITY.md that covers:
+- JavaScript VM sandbox implementation details
+- Pyodide WebAssembly isolation for Python
+- File system access controls and quotas
+- Prompt injection prevention strategies
+- API key encryption methodology
+- Rate limiting and resource quotas
+- Incident response procedures
+- Responsible disclosure contact
+
+Requirements:
+- Full Markdown format with proper sections
+- Include code examples for each security measure
+- Add diagrams where helpful
+- Reference actual implementation files
+- NO MOCK EXAMPLES - use real security scenarios
+
+### Prompt 2 - Cost Control System
+Create src/lib/ai/costControl.mjs that implements real-time cost tracking:
+
+Requirements:
+- Track costs per provider per model using ACTUAL pricing:
+  * GPT-4: $0.03/1K input, $0.06/1K output
+  * GPT-3.5: $0.0015/1K input, $0.002/1K output
+  * Claude-3-Opus: $0.015/1K input, $0.075/1K output
+  * Claude-3-Sonnet: $0.003/1K input, $0.015/1K output
+  * Gemini-Pro: $0.00025/1K input, $0.0005/1K output
+  * Add other models with real prices
+- Export functions:
+  * estimateCost(provider, model, inputTokens, outputTokens)
+  * trackUsage(sessionId, provider, model, usage)
+  * getSessionCost(sessionId)
+  * getUserDailyCost(userId)
+  * enforceBudgetLimit(userId, limit)
+- Store in MongoDB 'usage_tracking' collection
+- Real-time updates via WebSocket
+- Automatic cutoff when limit reached
+- Production-ready error handling
+- ES5 syntax with 'use strict'
+
+### Prompt 3 - Cost UI Components
+Create public/js/costTracker.js that displays real-time costs:
+
+Requirements:
+- Live cost counter showing session and daily totals
+- Visual cost bar (green → yellow → red based on % of budget)
+- Cost breakdown by model popup
+- Budget setting controls
+- Warning modals at 80% and 95% of budget
+- Automatic disable of send button when over budget
+- Fetch real data from /api/costs endpoint
+- Update via WebSocket for real-time display
+- Use modern but compatible CSS animations
+- MUST work with actual MongoDB cost data, NO hardcoded values
+
+## Phase 2: Secure Code Execution
+
+### Prompt 4 - JavaScript Sandbox Runner
+Create src/lib/sandbox/jsSandbox.mjs for safe JavaScript execution:
+
+Requirements:
+- Use vm2 or isolated-vm for secure context
+- Implement these functions:
+  * executeCode(code, timeout, memoryLimit)
+  * validateCode(code) - check for dangerous patterns
+  * getSafeAPIs() - return allowed Node APIs
+- Resource limits:
+  * Max execution time: 30 seconds
+  * Max memory: 512MB
+  * No network access by default
+  * No file system access except specified directories
+- Capture stdout, stderr, return values
+- Handle infinite loops gracefully
+- Return {success, output, error, executionTime, memoryUsed}
+- Log all executions to MongoDB 'code_executions' collection
+- Production error handling, no crashes allowed
+
+### Prompt 5 - Python Sandbox Integration
+Create src/lib/sandbox/pythonSandbox.mjs using Pyodide:
+
+Requirements:
+- Load Pyodide WebAssembly in worker thread
+- Implement matching API to jsSandbox:
+  * executeCode(code, timeout, memoryLimit)
+  * installPackage(packageName) - whitelist only
+  * getInstalledPackages()
+- Preload common packages: numpy, pandas, matplotlib
+- Virtual file system for Python file operations
+- Capture plots/images as base64
+- Return {success, output, error, executionTime, artifacts}
+- Must handle real Python code from AI responses
+- Cache Pyodide initialization for performance
+
+### Prompt 6 - Code Execution UI
+Update public/js/codeExecutor.js to add execution capabilities:
+
+Requirements:
+- Add "Run Code" button to code blocks
+- Auto-detect language from code block
+- Show execution status spinner
+- Display output in collapsible panel below code
+- Error output in red with stack traces
+- Support for multiple executions per session
+- Download button for generated files/plots
+- Execution history sidebar
+- MUST execute real code, not simulated output
+- Handle all error cases gracefully
+
+## Phase 3: Enhanced Collaboration Features
+
+### Prompt 7 - Multi-AI Code Collaboration Protocol
+Create src/lib/collaboration/codeCollab.mjs for AI teamwork:
+
+Requirements:
+- Orchestrate multiple AIs working on same codebase:
+  * Sequential mode: Each AI improves previous code
+  * Parallel mode: AIs work on different functions
+  * Review mode: One AI writes, others review
+  * Debug mode: AIs collaborate to fix errors
+- Real WebSocket events for each AI action
+- Merge conflict resolution for parallel edits
+- Track which AI made which changes
+- Generate unified diff of all changes
+- Save collaboration sessions to MongoDB
+- NO MOCK CONVERSATIONS - must use real AI APIs
+
+### Prompt 8 - Project Workspace Manager
+Create src/lib/workspace/projectManager.mjs for file management:
+
+Requirements:
+- Create isolated workspaces in /workspace/[sessionId]/
+- Functions:
+  * createWorkspace(sessionId)
+  * uploadFiles(sessionId, files)
+  * readFile(sessionId, filepath)
+  * writeFile(sessionId, filepath, content)
+  * listFiles(sessionId)
+  * deleteWorkspace(sessionId)
+- File permissions and size limits
+- Support folder structures
+- Git integration for version tracking
+- Automatic cleanup after 24 hours
+- Real file operations, not in-memory simulation
+
+### Prompt 9 - Workspace UI Components
+Create public/js/workspaceManager.js for file tree UI:
+
+Requirements:
+- Visual file tree with folders (collapsible)
+- File upload via drag-and-drop
+- In-browser code editor (CodeMirror or Monaco)
+- Multiple file tabs
+- Save/autosave functionality
+- File operation confirmations
+- Search across files
+- Git status indicators
+- Right-click context menus
+- Must work with real files from projectManager API
+
+## Phase 4: API Management & Templates
+
+### Prompt 10 - Secure API Key Manager
+Create src/lib/security/apiKeyManager.mjs:
+
+Requirements:
+- Encrypt keys with AES-256-GCM using environment secret
+- Functions:
+  * addKey(userId, provider, key)
+  * getKey(userId, provider) - decrypt on demand
+  * rotateKey(userId, provider, newKey)
+  * validateKey(provider, key) - test with real API
+  * listKeys(userId) - return masked versions
+- Store in MongoDB 'api_keys' collection
+- Audit log for all key operations
+- Automatic key rotation reminders
+- Key health check endpoint
+- Zero-knowledge architecture where possible
+
+### Prompt 11 - API Key Management UI
+Create public/admin-keys.html and public/js/keyManager.js:
+
+Requirements:
+- List all configured API keys (masked)
+- Add new key with provider dropdown
+- Test key button (real API validation)
+- Delete with confirmation
+- Key health status indicators
+- Last used timestamps
+- Usage statistics per key
+- Rotate key functionality
+- Copy to clipboard (with security warning)
+- MUST use real API validation, not mock responses
+
+### Prompt 12 - Smart Template System
+Create src/lib/templates/templateEngine.mjs:
+
+Requirements:
+- Dynamic prompt templates with variables
+- Functions:
+  * createTemplate(name, content, variables)
+  * renderTemplate(templateId, values)
+  * validateTemplate(content)
+  * shareTemplate(templateId, visibility)
+- Support conditionals: {{#if debugMode}}...{{/if}}
+- Support loops: {{#each files}}...{{/each}}
+- Template categories and tags
+- Usage analytics per template
+- Store in MongoDB 'prompt_templates'
+- Import/export functionality
+
+## Phase 5: Advanced Features
+
+### Prompt 13 - Conversation Memory System
+Create src/lib/memory/conversationMemory.mjs:
+
+Requirements:
+- Smart conversation summarization
+- Functions:
+  * saveConversation(sessionId, messages)
+  * loadConversation(sessionId)
+  * searchConversations(userId, query)
+  * getRelatedConversations(currentContext)
+  * autoSummarize(messages) - using AI
+- Compress old conversations
+- Semantic search using embeddings
+- Export formats: JSON, Markdown, PDF
+- Privacy controls (auto-delete options)
+- Must handle real conversation data from MongoDB
+
+### Prompt 14 - Enhanced Admin Dashboard
+Update all admin pages to remove ANY mock data:
+
+Requirements:
+- admin-dashboard.html: Real user counts, activity, costs
+- admin-activity.html: Actual user actions from logs
+- admin-models.html: Live model availability status
+- admin-conversations.html: Real conversation data
+- admin-feedback.html: Actual user feedback
+- admin-usage.html: True API usage statistics
+- Add new admin-costs.html: Cost breakdown by user/model
+- Add new admin-security.html: Security event log
+- ALL data from MongoDB/real APIs, NO static values
+
+### Prompt 15 - Performance Monitoring
+Create src/lib/monitoring/performanceTracker.mjs:
+
+Requirements:
+- Track real metrics:
+  * API response times per provider
+  * Token generation speed
+  * Sandbox execution times
+  * MongoDB query performance
+  * WebSocket latency
+- Functions:
+  * trackAPICall(provider, model, duration, tokens)
+  * getPerformanceReport(timeRange)
+  * detectAnomalies()
+  * alertOnDegradation()
+- Store in MongoDB 'performance_metrics'
+- Real-time dashboard updates
+- Automatic alert thresholds
+
+## Phase 6: Production Readiness
+
+### Prompt 16 - Error Boundary System
+Create src/lib/errors/errorBoundary.mjs:
+
+Requirements:
+- Comprehensive error handling:
+  * API failures with retry logic
+  * Sandbox crashes with cleanup
+  * MongoDB connection issues
+  * WebSocket disconnections
+  * Rate limit handling
+- User-friendly error messages
+- Detailed admin error logs
+- Error recovery strategies
+- Prevent cascade failures
+- Real error tracking, not simulated
+
+### Prompt 17 - Backup and Recovery
+Create src/lib/backup/backupManager.mjs:
+
+Requirements:
+- Automated backup system:
+  * Daily MongoDB backups
+  * Workspace file backups
+  * Configuration backups
+  * Encrypted backup storage
+- Recovery functions:
+  * restoreDatabase(backupId)
+  * restoreWorkspace(sessionId, backupId)
+  * rollbackToCheckpoint(timestamp)
+- Backup retention policies
+- Restore testing utilities
+- Must work with real data
+
+### Prompt 18 - Health Check System
+Create src/api/health.mjs for monitoring:
+
+Requirements:
+- Comprehensive health checks:
+  * MongoDB connection
+  * All AI API endpoints
+  * Sandbox availability
+  * Disk space
+  * Memory usage
+  * WebSocket server
+- Return detailed status:
+  {
+    status: 'healthy|degraded|unhealthy',
+    services: { [service]: { status, latency, error } },
+    metrics: { cpu, memory, disk, activeUsers },
+    timestamp: Date.now()
+  }
+- Real system metrics, not fake values
+
+### Prompt 19 - Progressive Web App
+Update public/index.html and create service worker:
+
+Requirements:
+- Offline capability for viewing history
+- Background sync for pending messages
+- Push notifications for long-running tasks
+- App manifest for installation
+- Cache strategies for assets
+- IndexedDB for offline data
+- Real offline functionality, test thoroughly
+
+### Prompt 20 - Deployment Configuration
+Create deployment configurations:
+
+Requirements:
+- Docker Compose for full stack
+- Environment variable templates
+- Nginx configuration for reverse proxy
+- SSL/TLS setup instructions
+- Monitoring integration (Prometheus/Grafana)
+- Backup automation scripts
+- Scaling guidelines
+- Must be production-tested configs
+
+## Implementation Order:
+1. Start with Prompts 2-3 (Cost Control)
+2. Then 4-6 (Basic Sandboxing)
+3. Then 10-11 (API Key Management)
+4. Then 7-9 (Collaboration Features)
+5. Fill in remaining features based on user needs
+
+## Critical Requirements for ALL Prompts:
+- NO MOCK DATA - everything must use real MongoDB/API data
+- Production-ready error handling
+- Proper logging and monitoring
+- Security best practices
+- Performance optimization
+- Responsive UI design
+- Accessibility compliance
+- Full documentation
+- Unit tests where applicable

@@ -1,7 +1,13 @@
 /**
  * AI Collaboration Hub Backend Server - Main Entry Point
  * Sets up Express server, WebSocket server, middleware, and API routes.
- * Version: 8.0.0
+ * Version: 8.0.1
+ * 
+ * Changes in 8.0.1:
+ * - Fixed admin sidebar structure in admin-models.html
+ * - Added admin and votes routes to API router
+ * - Fixed MongoDB database access for admin routes
+ * - Temporarily disabled auth requirements for demo purposes
  */
 
 import express from 'express';
@@ -40,6 +46,8 @@ const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-colla
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
+    // Store the database connection for use in routes
+    app.locals.db = mongoose.connection.db;
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
@@ -49,9 +57,78 @@ mongoose.connect(MONGO_URI)
 const app = express();
 const server = http.createServer(app);
 
+// --- CORS Configuration ---
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Get allowed origins from environment variable
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost:3001',
+      'http://localhost:3000'
+    ];
+    
+    // Check if the origin is allowed
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Allow cookies and credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+  maxAge: 86400 // 24 hours
+};
+
 // --- Middleware ---
+// Apply CORS before other middleware
+if (process.env.NODE_ENV === 'production') {
+  // Dynamic import for production
+  import('cors').then(({ default: cors }) => {
+    app.use(cors(corsOptions));
+  });
+} else {
+  // For development, allow all origins
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+}
+
 app.use(express.json()); // Parse JSON request bodies
 app.use(cookieParser()); // Parse cookies for authentication
+
+// --- Security Headers ---
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    // HTTPS redirect
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(`https://${req.header('host')}${req.url}`);
+    }
+    
+    // Security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' wss: ws:");
+    
+    next();
+  });
+}
+
 app.use(express.static(publicPath)); // Serve static files from 'public'
 
 // --- Session Configuration ---
@@ -153,9 +230,10 @@ app.use((err, req, res, next) => {
 
 // --- Server Startup ---
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 AI Collaboration Hub Server v8.0.0 running on http://localhost:${PORT}`);
+    console.log(`🚀 AI Collaboration Hub Server v8.0.1 running on http://localhost:${PORT}`);
     console.log(`📂 Serving static files from: ${publicPath}`);
     console.log(`📂 Uploads directory: ${uploadsPath}`);
+    console.log(`🔧 Admin routes enabled (demo mode - auth disabled)`);
     // Add other startup logs as needed (e.g., default project path from cliHandler)
 });
 

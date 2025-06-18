@@ -1,0 +1,201 @@
+/* Page Header Styles - Consistent across chat and compare pages */
+'use strict';
+
+/* Global Header Height Fix */
+.global-header {
+    min-height: 60px;
+    background: var(--nexus-card-bg, #1f2937);
+}
+
+/* Light theme override for global header */
+.theme-light .global-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    color: #111827;
+}
+
+.theme-light .global-header a,
+.theme-light .global-header .btn {
+    color: #4b5563;
+}
+
+.theme-light .global-header a:hover,
+.theme-light .global-header .btn:hover {
+    color: #2563eb;
+}
+
+/* Ensure fixed positioning works properly */
+.global-header.fixed-top {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 1030;
+}
+
+/* Body padding to account for fixed header */
+body {
+    padding-top: 60px !important; /* This pushes ALL content down */
+}
+
+/* Page Header Container */
+.page-header {
+    background: var(--nexus-card-bg, #1f2937);
+    border-bottom: 1px solid var(--nexus-border, #374151);
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+/* Light theme override for page header */
+.theme-light .page-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.page-header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+/* Page Title */
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--nexus-text, #f9fafb);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.page-title i {
+    color: var(--nexus-accent, #3b82f6);
+}
+
+/* Light theme text colors */
+.theme-light .page-title {
+    color: #111827;
+}
+
+.theme-light .page-title i {
+    color: #2563eb;
+}
+
+/* Page Actions */
+.page-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Back Button */
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--nexus-card-bg, #1f2937);
+    border: 1px solid var(--nexus-border, #374151);
+    color: var(--nexus-text, #f9fafb);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--nexus-accent, #3b82f6);
+    color: white;
+    transform: translateX(-2px);
+    border-color: var(--nexus-accent, #3b82f6);
+}
+
+/* Light theme back button */
+.theme-light .back-btn {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+}
+
+.theme-light .back-btn:hover {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+/* Page Controls (for chat page) */
+.page-controls {
+    background: var(--nexus-bg, #111827);
+    border-bottom: 1px solid var(--nexus-border, #374151);
+    padding: 10px 20px;
+}
+
+/* Light theme page controls */
+.theme-light .page-controls {
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.page-controls-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Model Toggles Row */
+.model-toggles-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Feature Toggles Row */
+.feature-toggles-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Main Container - Consistent spacing */
+.main-container {
+    padding-top: 20px;
+    padding-bottom: 40px;
+    background: transparent; /* Ensure no background color */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-header {
+        padding: 10px 15px;
+    }
+    
+    .page-header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .page-title {
+        font-size: 1.25rem;
+    }
+    
+    .page-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .model-toggles-row,
+    .feature-toggles-row {
+        justify-content: flex-start;
+    }
+}

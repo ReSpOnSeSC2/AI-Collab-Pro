@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Feedback Analysis - Admin Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/admin-shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <button class="admin-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
+            <i class="fas fa-users"></i> Users
+          </a>
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
+          </a>
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item">
+            <i class="fas fa-poll"></i> Voting
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item">
+            <i class="fas fa-user-clock"></i> User Activity
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item active">
+            <i class="fas fa-comment-dots"></i> AI Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <a href="/hub.html" class="admin-nav-item">
+            <i class="fas fa-arrow-left"></i> Back to App
+          </a>
+          <a href="#" id="admin-logout" class="admin-nav-item">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="admin-header-content">
+          <h1 class="admin-page-title">AI Feedback Analysis</h1>
+          <div class="admin-header-actions">
+            <select class="admin-form-control" id="model-filter">
+              <option value="all">All Models</option>
+              <option value="claude">Claude</option>
+              <option value="gemini">Gemini</option>
+              <option value="chatgpt">ChatGPT</option>
+              <option value="grok">Grok</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="llama">Llama</option>
+            </select>
+            <select class="admin-form-control" id="sentiment-filter">
+              <option value="all">All Sentiments</option>
+              <option value="positive">Positive</option>
+              <option value="neutral">Neutral</option>
+              <option value="negative">Negative</option>
+            </select>
+            <button class="admin-btn admin-btn-primary" id="refresh-feedback">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <div id="alert-container"></div>
+
+        <!-- Feedback Overview -->
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card primary">
+            <div class="admin-stat-label">Total Feedback</div>
+            <div class="admin-stat-value" id="stat-total-feedback">0</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-feedback-change">+0%</span> this week
+            </div>
+          </div>
+
+          <div class="admin-stat-card success">
+            <div class="admin-stat-label">Average Sentiment</div>
+            <div class="admin-stat-value" id="stat-avg-sentiment">
+              <i class="fas fa-smile"></i> Positive
+            </div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-sentiment-change">+0%</span> improvement
+            </div>
+          </div>
+
+          <div class="admin-stat-card warning">
+            <div class="admin-stat-label">Response Quality</div>
+            <div class="admin-stat-value" id="stat-quality">0/10</div>
+            <div class="admin-stat-change neutral">
+              <i class="fas fa-minus"></i>
+              <span id="stat-quality-change">0%</span> vs target
+            </div>
+          </div>
+
+          <div class="admin-stat-card info">
+            <div class="admin-stat-label">Resolution Rate</div>
+            <div class="admin-stat-value" id="stat-resolution">0%</div>
+            <div class="admin-stat-change positive">
+              <i class="fas fa-arrow-up"></i>
+              <span id="stat-resolution-change">+0%</span> this month
+            </div>
+          </div>
+        </div>
+
+        <!-- Sentiment Analysis -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Sentiment Analysis by Model</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-chart-container">
+              <canvas id="sentimentChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback Categories -->
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Feedback Categories</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-chart-container">
+                <canvas id="categoryChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title">Common Issues</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="admin-issues-list">
+                <div class="admin-issue-item" id="issues-container">
+                  <!-- Issues will be populated here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quality Metrics -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Response Quality Metrics</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div class="admin-quality-metric">
+                <h3 class="admin-metric-title">Accuracy</h3>
+                <div class="admin-metric-gauge">
+                  <div class="admin-gauge-value" id="accuracy-value">0%</div>
+                  <div class="admin-gauge-chart">
+                    <canvas id="accuracyGauge"></canvas>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="admin-quality-metric">
+                <h3 class="admin-metric-title">Relevance</h3>
+                <div class="admin-metric-gauge">
+                  <div class="admin-gauge-value" id="relevance-value">0%</div>
+                  <div class="admin-gauge-chart">
+                    <canvas id="relevanceGauge"></canvas>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="admin-quality-metric">
+                <h3 class="admin-metric-title">Completeness</h3>
+                <div class="admin-metric-gauge">
+                  <div class="admin-gauge-value" id="completeness-value">0%</div>
+                  <div class="admin-gauge-chart">
+                    <canvas id="completenessGauge"></canvas>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="admin-quality-metric">
+                <h3 class="admin-metric-title">Helpfulness</h3>
+                <div class="admin-metric-gauge">
+                  <div class="admin-gauge-value" id="helpfulness-value">0%</div>
+                  <div class="admin-gauge-chart">
+                    <canvas id="helpfulnessGauge"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Feedback -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Recent Feedback</h2>
+            <button class="admin-btn admin-btn-sm admin-btn-outline" onclick="feedbackManager.exportFeedback()">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-table-responsive">
+              <table class="admin-table" id="feedback-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Model</th>
+                    <th>Sentiment</th>
+                    <th>Category</th>
+                    <th>Feedback</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="feedback-table-body">
+                  <!-- Feedback items will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback Trends -->
+        <div class="admin-card">
+          <div class="admin-card-header flex flex-between flex-center">
+            <h2 class="admin-card-title mb-0">Feedback Trends</h2>
+            <div class="admin-btn-group">
+              <button class="admin-btn admin-btn-sm active" data-trend="daily">Daily</button>
+              <button class="admin-btn admin-btn-sm" data-trend="weekly">Weekly</button>
+              <button class="admin-btn admin-btn-sm" data-trend="monthly">Monthly</button>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-chart-container">
+              <canvas id="trendsChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Word Cloud -->
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title">Feedback Word Cloud</h2>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-word-cloud" id="word-cloud">
+              <!-- Word cloud visualization will be rendered here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Feedback Detail Modal -->
+  <div class="admin-modal" id="feedback-modal">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-title">Feedback Details</h3>
+        <button class="admin-modal-close" onclick="feedbackManager.closeFeedbackModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="admin-feedback-detail">
+          <div class="admin-detail-row">
+            <label>User:</label>
+            <span id="detail-user"></span>
+          </div>
+          <div class="admin-detail-row">
+            <label>Model:</label>
+            <span id="detail-model"></span>
+          </div>
+          <div class="admin-detail-row">
+            <label>Timestamp:</label>
+            <span id="detail-timestamp"></span>
+          </div>
+          <div class="admin-detail-row">
+            <label>Sentiment:</label>
+            <span id="detail-sentiment"></span>
+          </div>
+          <div class="admin-detail-row">
+            <label>Category:</label>
+            <span id="detail-category"></span>
+          </div>
+          <div class="admin-detail-row">
+            <label>Original Query:</label>
+            <div class="admin-detail-content" id="detail-query"></div>
+          </div>
+          <div class="admin-detail-row">
+            <label>AI Response:</label>
+            <div class="admin-detail-content" id="detail-response"></div>
+          </div>
+          <div class="admin-detail-row">
+            <label>User Feedback:</label>
+            <div class="admin-detail-content" id="detail-feedback"></div>
+          </div>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="admin-btn admin-btn-secondary" onclick="feedbackManager.markAsReviewed()">
+          <i class="fas fa-check"></i> Mark as Reviewed
+        </button>
+        <button class="admin-btn admin-btn-primary" onclick="feedbackManager.createTicket()">
+          <i class="fas fa-ticket-alt"></i> Create Ticket
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/admin-shared.js"></script>
+  <script>
+    class FeedbackManager extends AdminDashboard {
+      constructor() {
+        super();
+        this.charts = {};
+        this.modelFilter = 'all';
+        this.sentimentFilter = 'all';
+        this.currentFeedback = null;
+      }
+
+      async loadFeedbackData() {
+        try {
+          this.showLoading();
+          
+          // Load all feedback data
+          const [overview, sentiment, categories, issues, quality, recent, trends] = await Promise.all([
+            this.apiRequest('/feedback/overview'),
+            this.apiRequest('/feedback/sentiment'),
+            this.apiRequest('/feedback/categories'),
+            this.apiRequest('/feedback/issues'),
+            this.apiRequest('/feedback/quality'),
+            this.apiRequest('/feedback/recent'),
+            this.apiRequest('/feedback/trends')
+          ]);
+          
+          this.updateOverview(overview.metrics || overview);
+          this.updateSentimentChart(sentiment.distribution || sentiment, sentiment.trend || {});
+          this.updateCategoryChart(categories.categories || categories);
+          this.updateIssues(issues.issues || issues);
+          this.updateQualityMetrics(quality.quality || quality);
+          this.updateRecentFeedback(recent.feedback || recent);
+          this.updateTrendsChart(trends.trends || trends);
+          this.createWordCloud(recent.feedback || recent);
+          
+          this.hideLoading();
+        } catch (error) {
+          console.error('Error loading feedback data:', error);
+          this.showAlert('Failed to load feedback data', 'danger');
+          this.hideLoading();
+        }
+      }
+
+      updateOverview(data) {
+        document.getElementById('stat-total-feedback').textContent = this.formatNumber(data.totalFeedback || 0);
+        document.getElementById('stat-feedback-change').textContent = `${data.feedbackChange > 0 ? '+' : ''}${data.feedbackChange || 0}%`;
+        
+        // Update sentiment indicator
+        const sentimentEl = document.getElementById('stat-avg-sentiment');
+        const sentiment = data.avgSentiment || 'neutral';
+        const sentimentIcons = {
+          positive: '<i class="fas fa-smile"></i> Positive',
+          neutral: '<i class="fas fa-meh"></i> Neutral',
+          negative: '<i class="fas fa-frown"></i> Negative'
+        };
+        sentimentEl.innerHTML = sentimentIcons[sentiment];
+        sentimentEl.className = `admin-stat-value sentiment-${sentiment}`;
+        
+        document.getElementById('stat-sentiment-change').textContent = `${data.sentimentChange > 0 ? '+' : ''}${data.sentimentChange || 0}%`;
+        
+        document.getElementById('stat-quality').textContent = `${(data.avgQuality || 0).toFixed(1)}/10`;
+        document.getElementById('stat-quality-change').textContent = `${data.qualityChange || 0}%`;
+        
+        document.getElementById('stat-resolution').textContent = `${data.resolutionRate || 0}%`;
+        document.getElementById('stat-resolution-change').textContent = `${data.resolutionChange > 0 ? '+' : ''}${data.resolutionChange || 0}%`;
+      }
+
+      updateSentimentChart(sentiment) {
+        const ctx = document.getElementById('sentimentChart').getContext('2d');
+        
+        if (this.charts.sentiment) {
+          this.charts.sentiment.destroy();
+        }
+        
+        this.charts.sentiment = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: sentiment.models || [],
+            datasets: [
+              {
+                label: 'Positive',
+                data: sentiment.positive || [],
+                backgroundColor: '#10b981'
+              },
+              {
+                label: 'Neutral',
+                data: sentiment.neutral || [],
+                backgroundColor: '#f59e0b'
+              },
+              {
+                label: 'Negative',
+                data: sentiment.negative || [],
+                backgroundColor: '#ef4444'
+              }
+            ]
+          },
+          options: {
+            ...this.getChartOptions('bar'),
+            scales: {
+              x: { stacked: true },
+              y: { stacked: true }
+            }
+          }
+        });
+      }
+
+      updateCategoryChart(categories) {
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        
+        if (this.charts.category) {
+          this.charts.category.destroy();
+        }
+        
+        this.charts.category = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: categories.map(c => c.name),
+            datasets: [{
+              data: categories.map(c => c.count),
+              backgroundColor: [
+                '#2563eb',
+                '#7c3aed',
+                '#10b981',
+                '#f59e0b',
+                '#ef4444',
+                '#8b5cf6'
+              ]
+            }]
+          },
+          options: this.getChartOptions('doughnut')
+        });
+      }
+
+      updateIssues(issues) {
+        const container = document.getElementById('issues-container');
+        container.innerHTML = '';
+        
+        issues.forEach((issue, index) => {
+          const item = document.createElement('div');
+          item.className = 'admin-issue-item';
+          item.innerHTML = `
+            <div class="admin-issue-rank">#${index + 1}</div>
+            <div class="admin-issue-content">
+              <div class="admin-issue-title">${issue.title}</div>
+              <div class="admin-issue-count">${issue.count} reports</div>
+            </div>
+            <div class="admin-issue-trend ${issue.trend > 0 ? 'up' : 'down'}">
+              <i class="fas fa-arrow-${issue.trend > 0 ? 'up' : 'down'}"></i>
+              ${Math.abs(issue.trend)}%
+            </div>
+          `;
+          container.appendChild(item);
+        });
+      }
+
+      updateQualityMetrics(quality) {
+        // Update accuracy gauge
+        this.createGauge('accuracyGauge', quality.accuracy || 0, '#10b981');
+        document.getElementById('accuracy-value').textContent = `${quality.accuracy || 0}%`;
+        
+        // Update relevance gauge
+        this.createGauge('relevanceGauge', quality.relevance || 0, '#2563eb');
+        document.getElementById('relevance-value').textContent = `${quality.relevance || 0}%`;
+        
+        // Update completeness gauge
+        this.createGauge('completenessGauge', quality.completeness || 0, '#7c3aed');
+        document.getElementById('completeness-value').textContent = `${quality.completeness || 0}%`;
+        
+        // Update helpfulness gauge
+        this.createGauge('helpfulnessGauge', quality.helpfulness || 0, '#f59e0b');
+        document.getElementById('helpfulness-value').textContent = `${quality.helpfulness || 0}%`;
+      }
+
+      createGauge(canvasId, value, color) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        
+        if (this.charts[canvasId]) {
+          this.charts[canvasId].destroy();
+        }
+        
+        this.charts[canvasId] = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [value, 100 - value],
+              backgroundColor: [color, '#e5e7eb'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            cutout: '80%',
+            rotation: -90,
+            circumference: 180,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false }
+            }
+          }
+        });
+      }
+
+      updateRecentFeedback(feedback) {
+        const tbody = document.getElementById('feedback-table-body');
+        tbody.innerHTML = '';
+        
+        feedback.forEach(item => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${this.formatDate(item.timestamp)}</td>
+            <td>${item.user}</td>
+            <td>
+              <span class="admin-badge admin-badge-${item.model.toLowerCase()}">${item.model}</span>
+            </td>
+            <td>
+              <span class="admin-sentiment admin-sentiment-${item.sentiment}">
+                <i class="fas fa-circle"></i> ${item.sentiment}
+              </span>
+            </td>
+            <td>${item.category}</td>
+            <td class="admin-feedback-text">${this.truncateText(item.feedback, 100)}</td>
+            <td>
+              <button class="admin-btn admin-btn-sm admin-btn-icon" onclick="feedbackManager.viewFeedback('${item.id}')">
+                <i class="fas fa-eye"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      updateTrendsChart(trends) {
+        const ctx = document.getElementById('trendsChart').getContext('2d');
+        
+        if (this.charts.trends) {
+          this.charts.trends.destroy();
+        }
+        
+        this.charts.trends = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: trends.labels || [],
+            datasets: [
+              {
+                label: 'Total Feedback',
+                data: trends.total || [],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'Positive',
+                data: trends.positive || [],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'Negative',
+                data: trends.negative || [],
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4
+              }
+            ]
+          },
+          options: this.getChartOptions('line')
+        });
+      }
+
+      createWordCloud(feedback) {
+        // Simple word cloud implementation
+        const wordCloud = document.getElementById('word-cloud');
+        wordCloud.innerHTML = '';
+        
+        // Extract and count words from feedback
+        const wordCounts = {};
+        feedback.forEach(item => {
+          const words = item.feedback.toLowerCase().split(/\s+/);
+          words.forEach(word => {
+            if (word.length > 3) { // Only include words longer than 3 characters
+              wordCounts[word] = (wordCounts[word] || 0) + 1;
+            }
+          });
+        });
+        
+        // Sort by frequency and take top 30
+        const topWords = Object.entries(wordCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 30);
+        
+        // Create word elements
+        topWords.forEach(([word, count]) => {
+          const span = document.createElement('span');
+          span.className = 'admin-word';
+          span.style.fontSize = `${Math.min(30, 12 + count * 2)}px`;
+          span.style.opacity = Math.min(1, 0.4 + count * 0.1);
+          span.textContent = word;
+          wordCloud.appendChild(span);
+        });
+      }
+
+      viewFeedback(feedbackId) {
+        // Load and display feedback details
+        this.apiRequest(`/feedback/${feedbackId}`).then(feedback => {
+          this.currentFeedback = feedback;
+          
+          document.getElementById('detail-user').textContent = feedback.user;
+          document.getElementById('detail-model').textContent = feedback.model;
+          document.getElementById('detail-timestamp').textContent = this.formatDate(feedback.timestamp);
+          document.getElementById('detail-sentiment').textContent = feedback.sentiment;
+          document.getElementById('detail-category').textContent = feedback.category;
+          document.getElementById('detail-query').textContent = feedback.query;
+          document.getElementById('detail-response').textContent = feedback.response;
+          document.getElementById('detail-feedback').textContent = feedback.feedback;
+          
+          document.getElementById('feedback-modal').classList.add('show');
+        });
+      }
+
+      closeFeedbackModal() {
+        document.getElementById('feedback-modal').classList.remove('show');
+      }
+
+      markAsReviewed() {
+        if (this.currentFeedback) {
+          this.apiRequest(`/feedback/${this.currentFeedback.id}/review`, 'POST')
+            .then(() => {
+              this.showAlert('Feedback marked as reviewed', 'success');
+              this.closeFeedbackModal();
+              this.loadFeedbackData();
+            });
+        }
+      }
+
+      createTicket() {
+        if (this.currentFeedback) {
+          this.showAlert('Creating support ticket...', 'info');
+          // Implementation for creating support ticket
+        }
+      }
+
+      exportFeedback() {
+        this.showAlert('Exporting feedback data...', 'info');
+        // Implementation for exporting feedback
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      window.feedbackManager = new FeedbackManager();
+      
+      // Model filter
+      document.getElementById('model-filter').addEventListener('change', (e) => {
+        window.feedbackManager.modelFilter = e.target.value;
+        window.feedbackManager.loadFeedbackData();
+      });
+      
+      // Sentiment filter
+      document.getElementById('sentiment-filter').addEventListener('change', (e) => {
+        window.feedbackManager.sentimentFilter = e.target.value;
+        window.feedbackManager.loadFeedbackData();
+      });
+      
+      // Refresh button
+      document.getElementById('refresh-feedback').addEventListener('click', () => {
+        window.feedbackManager.loadFeedbackData();
+      });
+      
+      // Trend toggle buttons
+      document.querySelectorAll('[data-trend]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-trend]').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          // Reload chart with new trend period
+          window.feedbackManager.loadFeedbackData();
+        });
+      });
+    });
+  </script>
+</body>
+</html>

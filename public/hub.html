@@ -26,6 +26,14 @@
     <link rel="stylesheet" href="/css/sequential-style.css?v=1">
     <!-- Context manager CSS -->
     <link rel="stylesheet" href="/css/context-manager.css?v=1">
+    <!-- Feedback system CSS -->
+    <link rel="stylesheet" href="/css/feedback-system.css?v=1">
+    <!-- Cost Tracker CSS -->
+    <link rel="stylesheet" href="/css/cost-tracker.css?v=1">
+    <!-- Page Header CSS -->
+    <link rel="stylesheet" href="/css/page-header.css?v=1">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <!-- Global Header Placeholder -->
@@ -36,15 +44,21 @@
     <!-- User info is now handled in the global header -->
     <!-- No separate authentication toolbar needed -->
 
-    <!-- Main container adjusted to work with injected header/footer -->
-    <div class="container-fluid d-flex flex-column main-container" style="padding-top: 10px; padding-bottom: 10px;">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <h1 class="page-title">
+                <i class="bi bi-chat-dots-fill"></i>
+                AI Chat
+            </h1>
+        </div>
+    </div>
 
-        <!-- Page-Specific Header Controls (Model Toggles, Collab Mode) -->
-        <div class="row page-controls-row py-0 align-items-center" style="margin-bottom: 3px;">
-            <div class="col">
-                <div class="d-flex flex-column align-items-center">
-                    <!-- Model Toggles -->
-                    <div class="model-select-toggles mb-1">
+    <!-- Page Controls -->
+    <div class="page-controls">
+        <div class="page-controls-content">
+            <!-- Model Toggles Row -->
+            <div class="model-toggles-row">
                         <div class="form-check form-switch claude-toggle">
                             <input class="form-check-input model-toggle" type="checkbox" id="claude-toggle" checked data-model="claude">
                             <label class="form-check-label" for="claude-toggle">Claude</label>
@@ -69,26 +83,26 @@
                             <input class="form-check-input model-toggle" type="checkbox" id="llama-toggle" checked data-model="llama">
                             <label class="form-check-label" for="llama-toggle">Llama</label>
                         </div>
-                    </div>
-                    <!-- Collaboration Controls -->
-                    <div class="d-flex flex-wrap">
-                        <div class="collaboration-mode-toggle me-3">
-                            <!-- Collaboration controls will be populated by collaborationControls.js -->
-                        </div>
-
-                        <!-- Context toggle -->
-                        <div class="context-memory-toggle me-3">
-                            <label class="context-toggle-switch-label">
-                                <span class="context-toggle-text">Model Context:</span>
-                                <input type="checkbox" id="context-toggle-switch" class="context-toggle-input">
-                                <span class="context-toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
+            </div>
+            <!-- Feature Toggles Row -->
+            <div class="feature-toggles-row">
+                <div class="collaboration-mode-toggle">
+                    <!-- Collaboration controls will be populated by collaborationControls.js -->
+                </div>
+                <!-- Context toggle -->
+                <div class="context-memory-toggle">
+                    <label class="context-toggle-switch-label">
+                        <span class="context-toggle-text">Model Context:</span>
+                        <input type="checkbox" id="context-toggle-switch" class="context-toggle-input">
+                        <span class="context-toggle-slider"></span>
+                    </label>
                 </div>
             </div>
-            <!-- Removed unnecessary utility buttons -->
         </div>
+    </div>
+
+    <!-- Main container -->
+    <div class="container-fluid d-flex flex-column main-container">
 
         <main class="row flex-grow-1 chat-area-row g-3">
             <!-- Claude Column -->
@@ -367,6 +381,13 @@
     <script src="/js/contextWindow.js?v=1"></script>
 
     <!-- Context toggle script removed -->
+    
+    <!-- Feedback System -->
+    <script src="/js/feedback-system.js?v=1"></script>
+    
+    <!-- Cost Tracker -->
+    <script src="/js/costTracker.js?v=1"></script>
+    <script src="/js/initCostTracker.js?v=1"></script>
 
     <!-- Optional: Load Debug Tools -->
     <!-- <script src="/js/debugUtils.js?v=8"></script> -->

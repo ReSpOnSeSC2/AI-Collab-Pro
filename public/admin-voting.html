@@ -4,90 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard - Voting Statistics</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/admin-shared.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
   <style>
-    :root {
-      --sidebar-width: 260px;
-    }
-    body {
-      min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
-    }
-    .sidebar {
-      width: var(--sidebar-width);
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100vh;
-      overflow-y: auto;
-      background-color: #202123;
-      color: #fff;
-      transition: transform 0.3s;
-      z-index: 1000;
-    }
-    .sidebar-header {
-      padding: 1.5rem 1rem;
-      border-bottom: 1px solid #444;
-    }
-    .main-content {
-      margin-left: var(--sidebar-width);
-      padding: 2rem;
-      transition: margin 0.3s;
-    }
-    .card {
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      margin-bottom: 1.5rem;
-    }
-    .card-header {
-      font-weight: 600;
-      background-color: #f8f9fa;
-    }
-    .stats-card {
-      border-left: 4px solid #4c6ef5;
-    }
-    .sidebar-menu .nav-link {
-      color: #adb5bd;
-      padding: 0.75rem 1rem;
-      border-radius: 0.25rem;
-      margin: 0.25rem 0.5rem;
-    }
-    .sidebar-menu .nav-link:hover,
-    .sidebar-menu .nav-link.active {
-      background-color: #343a40;
-      color: #fff;
-    }
-    .sidebar-menu .nav-link i {
-      margin-right: 0.75rem;
-      width: 1.25rem;
-    }
+    /* Voting admin specific styles */
     .chart-container {
       position: relative;
       height: 300px;
       width: 100%;
-    }
-    @media (max-width: 768px) {
-      .sidebar {
-        transform: translateX(-100%);
-      }
-      .sidebar.show {
-        transform: translateX(0);
-      }
-      .main-content {
-        margin-left: 0;
-      }
-      .show-sidebar-btn {
-        display: block !important;
-      }
-    }
-    .show-sidebar-btn {
-      display: none;
-      position: fixed;
-      top: 1rem;
-      left: 1rem;
-      z-index: 1001;
     }
     .spinner-overlay {
       position: fixed;
@@ -152,60 +79,90 @@
   </style>
 </head>
 <body>
-  <button class="btn btn-dark show-sidebar-btn">
+  <button class="admin-menu-toggle">
     <i class="fas fa-bars"></i>
   </button>
 
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <h4>Admin Dashboard</h4>
-    </div>
-    <div class="sidebar-menu">
-      <ul class="nav flex-column">
-        <li class="nav-item">
-          <a class="nav-link" href="admin-models.html">
-            <i class="fas fa-microchip"></i> Models
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
           </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link active" href="admin-voting.html">
-            <i class="fas fa-poll"></i> Voting Statistics
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
             <i class="fas fa-users"></i> Users
           </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">
-            <i class="fas fa-comment-alt"></i> Conversations
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
           </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item active">
+            <i class="fas fa-poll"></i> Voting
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item">
+            <i class="fas fa-user-clock"></i> User Activity
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item">
+            <i class="fas fa-comment-dots"></i> AI Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item">
             <i class="fas fa-cog"></i> Settings
           </a>
-        </li>
-        <li class="nav-item mt-3">
-          <a class="nav-link" href="hub.html">
-            <i class="fas fa-arrow-left"></i> Back to Main App
+          <a href="/hub.html" class="admin-nav-item">
+            <i class="fas fa-arrow-left"></i> Back to App
           </a>
-        </li>
-      </ul>
-    </div>
-  </aside>
-
-  <main class="main-content">
-    <div class="container-fluid">
-      <div class="row mb-4">
-        <div class="col-12">
-          <h1>Voting & Feedback Analytics</h1>
-          <p class="text-muted">Analyze user feedback and voting patterns for all AI responses</p>
+          <a href="#" id="admin-logout" class="admin-nav-item">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
         </div>
-      </div>
+      </nav>
+    </aside>
 
-      <div class="filter-section">
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="admin-header-content">
+          <h1 class="admin-page-title">Voting & Feedback Analytics</h1>
+          <div class="admin-header-actions">
+            <button class="admin-btn admin-btn-primary" onclick="loadVotingData()">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <div id="alert-container"></div>
+
+      <div class="admin-card mb-4">
+        <div class="admin-card-header">
+          <h2 class="admin-card-title">Filters</h2>
+        </div>
+        <div class="admin-card-body">
         <div class="row">
           <div class="col-md-3 mb-2">
             <select id="model-filter" class="form-select">
@@ -579,8 +536,8 @@
           </div>
         </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
   <div class="spinner-overlay d-none" id="loading-spinner">
     <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
@@ -592,10 +549,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Toggle sidebar on mobile
-      document.querySelector('.show-sidebar-btn').addEventListener('click', function() {
-        document.querySelector('.sidebar').classList.toggle('show');
-      });
+      // Admin shared.js handles sidebar toggling
 
       // Load initial data
       loadData();
@@ -695,25 +649,43 @@
         (totalRatingSum / totalRatingCount).toFixed(1) : '-';
       document.getElementById('avg-rating').textContent = overallAvgRating;
       
-      // For demo purposes, set placeholder growth values
-      document.getElementById('votes-change').textContent = '12.3';
-      document.getElementById('feedback-change').textContent = '8.7';
-      document.getElementById('user-change').textContent = '5.2';
-      
-      // Set feedback count (placeholder for now)
-      document.getElementById('feedback-count').textContent = Math.floor(totalVotes * 0.65).toLocaleString();
-      
-      // Set user count (placeholder for now)
-      document.getElementById('user-count').textContent = Math.floor(totalVotes / 3.5).toLocaleString();
-      
-      // Set rating change indicator
-      const ratingChangeElem = document.getElementById('avg-rating-change');
-      // Demo: randomly show increase or decrease
-      if (Math.random() > 0.5) {
-        ratingChangeElem.innerHTML = `<i class="fas fa-arrow-up text-success"></i> <span>1.8</span>% from last week`;
-      } else {
-        ratingChangeElem.innerHTML = `<i class="fas fa-arrow-down text-danger"></i> <span>0.7</span>% from last week`;
-      }
+      // Fetch actual growth statistics
+      fetch('/api/votes/growth-stats')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // Update with real percentage changes
+            document.getElementById('votes-change').textContent = data.votesChange || '0.0';
+            document.getElementById('feedback-change').textContent = data.feedbackChange || '0.0';
+            document.getElementById('user-change').textContent = data.userChange || '0.0';
+            
+            // Update feedback and user counts with real data
+            document.getElementById('feedback-count').textContent = (data.feedbackCount || 0).toLocaleString();
+            document.getElementById('user-count').textContent = (data.uniqueUsers || 0).toLocaleString();
+            
+            // Update rating change with real data
+            const ratingChangeElem = document.getElementById('avg-rating-change');
+            const ratingChange = data.ratingChange || 0;
+            
+            if (ratingChange > 0) {
+              ratingChangeElem.innerHTML = `<i class="fas fa-arrow-up text-success"></i> <span>${Math.abs(ratingChange).toFixed(1)}</span>% from last week`;
+            } else if (ratingChange < 0) {
+              ratingChangeElem.innerHTML = `<i class="fas fa-arrow-down text-danger"></i> <span>${Math.abs(ratingChange).toFixed(1)}</span>% from last week`;
+            } else {
+              ratingChangeElem.innerHTML = `<span class="text-muted">No change from last week</span>`;
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading growth stats:', error);
+          // Set to 0 on error instead of mock data
+          document.getElementById('votes-change').textContent = '0.0';
+          document.getElementById('feedback-change').textContent = '0.0';
+          document.getElementById('user-change').textContent = '0.0';
+          document.getElementById('feedback-count').textContent = '0';
+          document.getElementById('user-count').textContent = '0';
+          document.getElementById('avg-rating-change').innerHTML = '<span class="text-muted">No data available</span>';
+        });
     }
 
     function updateComparisonChart(comparison) {
@@ -1358,5 +1330,7 @@
       document.body.removeChild(link);
     }
   </script>
+  
+  <script src="/js/admin-shared.js"></script>
 </body>
 </html>

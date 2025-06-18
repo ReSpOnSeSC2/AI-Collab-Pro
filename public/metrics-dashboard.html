@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaboration Metrics Dashboard - AI-Collab</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/metrics-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header -->
+        <header id="header-placeholder"></header>
+
+        <!-- Main Content -->
+        <main class="metrics-dashboard">
+            <div class="dashboard-header">
+                <h1>Collaboration Metrics Dashboard</h1>
+                <div class="time-range-selector">
+                    <button class="time-range-btn" data-range="day">Day</button>
+                    <button class="time-range-btn active" data-range="week">Week</button>
+                    <button class="time-range-btn" data-range="month">Month</button>
+                    <button class="time-range-btn" data-range="quarter">Quarter</button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="metrics-summary">
+                <div class="metric-card">
+                    <div class="metric-icon">📊</div>
+                    <div class="metric-content">
+                        <h3>Total Collaborations</h3>
+                        <div class="metric-value" id="total-collaborations">0</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">⭐</div>
+                    <div class="metric-content">
+                        <h3>Avg Quality Score</h3>
+                        <div class="metric-value" id="avg-quality-score">0%</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">💰</div>
+                    <div class="metric-content">
+                        <h3>Total Cost</h3>
+                        <div class="metric-value" id="total-cost">$0.00</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">⚡</div>
+                    <div class="metric-content">
+                        <h3>Avg Duration</h3>
+                        <div class="metric-value" id="avg-duration">0s</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-grid">
+                <!-- Quality Score Trends -->
+                <div class="chart-container">
+                    <h2>Quality Score Trends</h2>
+                    <canvas id="quality-trends-chart"></canvas>
+                </div>
+
+                <!-- Model Performance Leaderboard -->
+                <div class="chart-container">
+                    <h2>Model Performance Leaderboard</h2>
+                    <div id="model-leaderboard" class="leaderboard-container">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Cost vs Quality Analysis -->
+                <div class="chart-container">
+                    <h2>Cost vs Quality Analysis</h2>
+                    <canvas id="cost-quality-chart"></canvas>
+                </div>
+
+                <!-- Team Chemistry Analysis -->
+                <div class="chart-container">
+                    <h2>Team Chemistry Analysis</h2>
+                    <canvas id="team-chemistry-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Cost Optimization Suggestions -->
+            <div class="optimization-section">
+                <h2>💡 Cost Optimization Suggestions</h2>
+                <div id="optimization-suggestions" class="suggestions-container">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Collaboration Type Analysis -->
+            <div class="collaboration-analysis">
+                <h2>Collaboration Type Performance</h2>
+                <div class="collab-type-grid">
+                    <div class="collab-type-card" data-type="parallel">
+                        <h3>Parallel</h3>
+                        <div class="collab-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Count:</span>
+                                <span class="stat-value" id="parallel-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Quality:</span>
+                                <span class="stat-value" id="parallel-quality">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="collab-type-card" data-type="sequential">
+                        <h3>Sequential</h3>
+                        <div class="collab-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Count:</span>
+                                <span class="stat-value" id="sequential-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Quality:</span>
+                                <span class="stat-value" id="sequential-quality">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="collab-type-card" data-type="voting">
+                        <h3>Voting</h3>
+                        <div class="collab-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Count:</span>
+                                <span class="stat-value" id="voting-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Quality:</span>
+                                <span class="stat-value" id="voting-quality">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="collab-type-card" data-type="critique">
+                        <h3>Critique</h3>
+                        <div class="collab-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Count:</span>
+                                <span class="stat-value" id="critique-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Quality:</span>
+                                <span class="stat-value" id="critique-quality">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer id="footer-placeholder"></footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading metrics data...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/applySavedTheme.js"></script>
+    <script src="/js/authHandler.js"></script>
+    <script src="/js/metrics-dashboard.js"></script>
+    <script>
+        // Load header and footer
+        fetch('/_header.html')
+            .then(response => response.text())
+            .then(data => document.getElementById('header-placeholder').innerHTML = data);
+        
+        fetch('/_footer.html')
+            .then(response => response.text())
+            .then(data => document.getElementById('footer-placeholder').innerHTML = data);
+    </script>
+</body>
+</html>

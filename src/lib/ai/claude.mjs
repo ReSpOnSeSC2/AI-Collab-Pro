@@ -6,7 +6,7 @@
 
 import { clients, availability } from './index.mjs'; // Import shared client and availability
 
-export const DEFAULT_CLAUDE_MODEL = 'claude-3-7-sonnet-20250219'; // Default to Claude 3.7 Sonnet which has a large context window
+export const DEFAULT_CLAUDE_MODEL = 'claude-4-sonnet-20250514'; // Default to Claude 4 Sonnet with extended thinking capabilities
 
 /**
  * Streams a response from the Claude API.

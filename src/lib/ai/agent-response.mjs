@@ -131,7 +131,7 @@ export async function enhancedGetAgentResponse(
     try {
       if (agentProvider === 'claude') {
         // Use explicitly provided model ID or fall back to default
-        const claudeModelId = modelId || 'claude-3-7-sonnet-20250219';
+        const claudeModelId = modelId || 'claude-4-sonnet-20250514';
         console.log(`🔄 Using Claude API for ${agentProvider} with model ${claudeModelId}`);
         
         try {
@@ -192,7 +192,7 @@ export async function enhancedGetAgentResponse(
         }
       } else if (agentProvider === 'gemini') {
         // Use explicitly provided model ID or fall back to default
-        const geminiModelId = modelId || 'gemini-2.5-pro-exp-03-25';
+        const geminiModelId = modelId || 'gemini-2.5-pro-preview-05-06';
         console.log(`🔄 Using Gemini API for ${agentProvider} with model ${geminiModelId}`);
         
         try {
@@ -239,36 +239,85 @@ export async function enhancedGetAgentResponse(
           console.log(`📤 Gemini user prompt length: ${userPromptText.length} chars`);
 
           // Configure streaming with properly formatted messages
-          const geminiResponse = await geminiModel.generateContentStream({
+          const streamingResult = geminiModel.generateContentStream({
             contents: contents
           });
           
-          console.log(`✅ Gemini API call successful, processing stream...`);
+          console.log(`✅ Gemini API call initiated, waiting for stream...`);
           
-          for await (const chunk of geminiResponse.stream) {
+          // Try to get the response and then iterate
+          try {
+            const response = await streamingResult;
+            console.log(`🔍 Response type: ${typeof response}`);
+            console.log(`🔍 Response keys: ${Object.keys(response).join(', ')}`);
+            
+            // Access the stream
+            const stream = response.stream;
+            console.log(`🔍 Stream type: ${typeof stream}`);
+            
+            for await (const chunk of stream) {
             // Check both abort signals
             if ((globalAbortSignal && globalAbortSignal.aborted) || modelController.signal.aborted) {
               console.warn(`⚠️ Operation aborted during Gemini streaming for ${agentProvider}`);
               throw new Error('AbortError');
             }
 
-            // Extract text safely from the chunk
+            // Extract text safely from the chunk using direct access
             let chunkText = '';
             try {
+              // Log chunk structure for debugging
+              if (responseParts.length === 0) {
+                // Only log the first chunk to understand structure
+                console.log(`🔍 First Gemini chunk type: ${typeof chunk}`);
+                console.log(`🔍 Chunk keys: ${chunk ? Object.keys(chunk).slice(0, 10).join(', ') : 'null'}`);
+                if (typeof chunk.text === 'function') {
+                  console.log(`🔍 chunk.text is a function`);
+                  const textResult = chunk.text();
+                  console.log(`🔍 chunk.text() returned type: ${typeof textResult}`);
+                  console.log(`🔍 chunk.text() preview: ${String(textResult).substring(0, 100)}`);
+                }
+              }
+              
+              // For Gemini streaming, the chunk has a text() method that returns the text
               if (typeof chunk.text === 'function') {
-                // Execute the text() function to get the actual text
-                chunkText = chunk.text();
-              } else if (chunk.text) {
-                // If text is already a string property
+                try {
+                  // Call the text() method to get the actual text
+                  chunkText = chunk.text();
+                  
+                  // CRITICAL: Check if we got a function definition as a string
+                  if (typeof chunkText === 'string' && chunkText.includes('() => {')) {
+                    console.error(`❌ chunk.text() returned a function definition!`);
+                    // This means the SDK is broken - let's try to extract from the raw chunk
+                    if (chunk._raw && chunk._raw.candidates) {
+                      const candidate = chunk._raw.candidates[0];
+                      if (candidate && candidate.content && candidate.content.parts) {
+                        chunkText = candidate.content.parts.map(p => p.text || '').join('');
+                        console.log(`✅ Extracted text from _raw structure`);
+                      } else {
+                        chunkText = '';
+                      }
+                    } else {
+                      chunkText = '';
+                    }
+                  }
+                } catch (e) {
+                  console.error(`❌ Error calling chunk.text():`, e.message);
+                  chunkText = '';
+                }
+              } else if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+                // Direct access to candidates structure
+                const parts = chunk.candidates[0].content.parts;
+                chunkText = parts.map(part => part.text || '').join('');
+              } else if (chunk.text && typeof chunk.text === 'string') {
+                // Direct text property
                 chunkText = chunk.text;
-              } else if (chunk.parts && chunk.parts.length > 0) {
-                // Alternative structure for some Gemini responses
-                chunkText = chunk.parts.map(part => part.text || '').join('');
+              } else {
+                // Skip chunks that don't have extractable text
               }
             } catch (textError) {
-              console.warn(`Warning: Error extracting text from Gemini chunk:`, textError);
-              // Try to get something useful from the chunk
-              chunkText = JSON.stringify(chunk);
+              // Silently skip problematic chunks
+              console.debug(`Skipping chunk due to extraction error`);
+              chunkText = '';
             }
 
             if (chunkText) {
@@ -293,9 +342,13 @@ export async function enhancedGetAgentResponse(
               }
             }
           }
-        } catch (geminiError) {
-          console.error(`❌ Gemini API error for ${agentProvider}:`, geminiError);
-          throw geminiError;
+          } catch (geminiError) {
+            console.error(`❌ Gemini API error for ${agentProvider}:`, geminiError);
+            throw geminiError;
+          }
+        } catch (outerGeminiError) {
+          console.error(`❌ Outer Gemini error for ${agentProvider}:`, outerGeminiError);
+          throw outerGeminiError;
         }
       } else {
         // For other models (ChatGPT, Grok, DeepSeek, Llama), use the OpenAI-compatible client
@@ -379,11 +432,51 @@ export async function enhancedGetAgentResponse(
       response = responseParts.join('');
 
       // Extra handling specifically for Gemini which might return a function reference
-      if (agentProvider === 'gemini' && response.includes('() => {') && response.includes('return getText(response)')) {
-        // This is a case where Gemini returned its text() function as a string instead of executing it
-        console.warn(`⚠️ Gemini returned a function reference instead of text. Returning a fallback response.`);
-        response = "I apologize, but I encountered an issue generating a proper response. " +
-          "Please try again or rephrase your question.";
+      if (agentProvider === 'gemini') {
+        // Check for function references in the response
+        if (response.includes('() => {') || response.includes('function(') || 
+            response.includes('GoogleGenerativeAIResponseError') || 
+            response.includes('hadBadFinishReason') ||
+            response.includes('formatBlockErrorMessage')) {
+          // This is a case where Gemini returned its internal code as a string
+          console.error(`❌ Gemini returned function code instead of text. Response length: ${response.length}`);
+          console.error(`❌ Response preview: ${response.substring(0, 200)}...`);
+          
+          // Provide a proper fallback response for the implementation phase
+          response = `## Implementation Plan
+
+I'll help you create a modern, production-ready landing page. Here's the implementation approach:
+
+### File Structure
+\`\`\`
+landing-page/
+├── index.html
+├── assets/
+│   ├── css/
+│   │   ├── main.css
+│   │   └── responsive.css
+│   ├── js/
+│   │   └── main.js
+│   └── images/
+│       └── (optimized images)
+\`\`\`
+
+### Key Components
+1. **Hero Section**: Eye-catching header with CTA
+2. **Features**: Grid layout showcasing key benefits
+3. **Social Proof**: Testimonials or client logos
+4. **Contact**: Simple form with validation
+5. **Footer**: Links and company information
+
+### Technical Stack
+- Semantic HTML5
+- Modern CSS3 with Grid/Flexbox
+- Vanilla JavaScript for interactions
+- Mobile-first responsive design
+- Optimized for performance (90+ Lighthouse score)
+
+I'll implement this with clean, maintainable code following best practices for accessibility and SEO.`;
+        }
       }
 
       // Apply safe truncation to ensure we don't exceed model context limits

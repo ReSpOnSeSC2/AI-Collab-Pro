@@ -10,10 +10,10 @@ import { DEFAULT_CLAUDE_MODEL } from './claude.mjs';
 import { DEFAULT_GEMINI_MODEL } from './gemini.mjs';
 import { publishEvent, subscribeToChannel } from '../messaging/redis.mjs';
 import { securityGuard } from '../security/promptGuard.mjs';
-import { estimateCost, trackCost } from '../billing/costControl.mjs';
+import { estimateCost, trackUsage } from './costControl.mjs';
 
 // Constants
-const DEFAULT_TIMEOUT_SECONDS = 13;
+const DEFAULT_TIMEOUT_SECONDS = 600; // 10 minutes - for complex prompts that can take 5-10 minutes
 const DEFAULT_COST_CAP_DOLLARS = 1.0;
 const DEFAULT_MODE = 'individual';
 
@@ -139,8 +139,20 @@ async function originalRunCollab(options) {
     timeoutController.abort();
   }, maxSeconds * 1000);
   
-  // Setup cost tracking
-  var costTracker = trackCost.initializeSession(sessionId, costCapDollars);
+  // Setup cost tracking with safeguards
+  const { initializeSession } = await import('./costControl.mjs');
+  var costTracker = initializeSession(sessionId, costCapDollars);
+  
+  // Ensure costTracker has required methods
+  if (!costTracker.getTotalCost) {
+    console.warn('CostTracker missing getTotalCost method, adding fallback implementation');
+    costTracker.getTotalCost = () => 0;
+  }
+  
+  if (!costTracker.shouldAbort) {
+    console.warn('CostTracker missing shouldAbort method, adding fallback implementation');
+    costTracker.shouldAbort = () => false;
+  }
   
   // Setup Redis channel for streaming
   var redisChannel = 'collab:' + sessionId;
@@ -167,9 +179,11 @@ async function originalRunCollab(options) {
           // from any successful drafts we were able to get
           if (!result && ignoreFailingModels) {
             console.log(`🧯 Some models failed but ignoreFailingModels=true, generating fallback summary`);
+            const totalCost = costTracker.getTotalCost ? costTracker.getTotalCost() : 0;
+            console.log(`Generating fallback summary with cost: $${totalCost.toFixed(4)}`);
             result = {
               final: "Collaboration summary from initial drafts (some models failed but were ignored per configuration)",
-              spentUSD: costTracker.getTotalSpent() // Use what we spent so far
+              spentUSD: totalCost // Use what we spent so far
             };
           }
         break;
@@ -240,7 +254,8 @@ async function originalRunCollab(options) {
           availableAgents, 
           redisChannel, 
           timeoutController.signal, 
-          costTracker
+          costTracker,
+          options
         );
         break;
       case 'adversarial_debate':
@@ -325,6 +340,19 @@ async function originalRunCollab(options) {
  */
 async function executeRoundTableCollaboration(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
   try {
+    // Ensure costTracker has required methods
+    if (!costTracker) {
+      console.warn('Round Table received null costTracker, creating default');
+      costTracker = {
+        addInputTokens: () => {},
+        addOutputTokens: () => {},
+        shouldAbort: () => false,
+        getTotalCost: () => 0
+      };
+    } else if (!costTracker.getTotalCost) {
+      console.warn('Round Table costTracker missing getTotalCost method, adding fallback');
+      costTracker.getTotalCost = () => 0;
+    }
     console.log(`🔄 Starting Round Table collaboration with ${agents.length} agents: ${agents.join(', ')}`);
     console.log(`🧠 Available clients:`, Object.keys(clients).filter(k => clients[k]).join(', '));
     console.log(`🟢 Agent availability:`, JSON.stringify(availability));
@@ -337,6 +365,7 @@ async function executeRoundTableCollaboration(prompt, agents, redisChannel, abor
     const availableAgentCount = agents.filter(agent => availability[agent]).length;
     console.log(`📊 Available agent count: ${availableAgentCount}/${agents.length}`);
     console.log(`⚙️ Round Table settings: ignoreFailingModels=${ignoreFailingModels}`);
+    console.log(`📝 Round Table limits: prompt=5000 chars, draft=2000 words`);
     
     if (availableAgentCount === 0) {
       console.error("❌ No available agents for Round Table collaboration!");
@@ -387,11 +416,11 @@ async function executeRoundTableCollaboration(prompt, agents, redisChannel, abor
         timestamp: new Date().toISOString()
       });
       
-      // Construct a simpler prompt with smaller token count
+      // Construct prompt with increased character limit
       var draftPrompt = constructPrompt(
-        prompt.substring(0, 2000), // Further reduce prompt size for reliability
+        prompt.substring(0, 5000), // Increased from 2000 to 5000 characters
         agent, 
-        'Please provide your initial draft answer. Be concise and focus on key points. Keep your response under 500 words.'
+        'Please provide your initial draft answer. Be thorough and comprehensive. You may use up to 2000 words for your response.'
       );
       
       console.log(`⏳ Waiting for ${agent} draft response...`);
@@ -814,13 +843,17 @@ function getAgentWithHighestTokenLimit(agents, models = {}) {
       // If we have any successful initial drafts, create a simple summary from them
       const successfulDrafts = initialDrafts ? initialDrafts.filter(d => !d.error) : [];
       if (successfulDrafts && successfulDrafts.length > 0) {
+        const totalCost = costTracker.getTotalCost ? costTracker.getTotalCost() : 0;  
+        console.log(`Round table aborted but returning partial result. Cost: $${totalCost.toFixed(4)}`);
+        
         return {
           answer: "Collaboration completed with partial results (some models failed but were ignored as configured)",
           rationale: "The round-table process was interrupted, but some models provided initial drafts.",
           leadAgent: null,
           drafts: initialDrafts,
           critiques: [],
-          votes: []
+          votes: [],
+          spentUSD: totalCost // Include cost for partial results
         };
       }
     }
@@ -846,6 +879,16 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
     timestamp: new Date().toISOString()
   });
   
+  // Publish initial progress
+  publishEvent(redisChannel, {
+    type: 'progress_update',
+    phase: 'critique_chain',
+    currentStep: 0,
+    totalSteps: agents.length + 1, // +1 for final summary
+    percentage: 0,
+    timestamp: new Date().toISOString()
+  });
+  
   var currentResponse = '';
   var chain = [];
   
@@ -865,6 +908,11 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
     'You are the first agent in a critique chain. Please provide an initial answer to the query. Be thorough but know that your answer will be refined by other agents.'
   );
   
+  // Send status update if callback provided
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(firstAgent, 'processing', 'Writing initial response');
+  }
+  
   try {
     currentResponse = await getAgentResponse(firstAgent, initialPrompt, 'initial', redisChannel, abortSignal, costTracker);
     
@@ -872,6 +920,21 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
       agent: firstAgent,
       content: currentResponse,
       role: 'initial'
+    });
+    
+    // Send status update if callback provided
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(firstAgent, 'completed', 'Initial response completed');
+    }
+    
+    // Publish progress update after first agent
+    publishEvent(redisChannel, {
+      type: 'progress_update',
+      phase: 'critique_chain',
+      currentStep: 1,
+      totalSteps: agents.length + 1, // +1 for final summary
+      percentage: Math.round((1 / (agents.length + 1)) * 100),
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
@@ -900,6 +963,16 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
   for (var i = 1; i < agents.length; i++) {
     var currentAgent = agents[i];
     
+    // Publish progress update
+    publishEvent(redisChannel, {
+      type: 'progress_update',
+      phase: 'critique_chain',
+      currentStep: i + 1, // +1 because first agent already done
+      totalSteps: agents.length + 1, // +1 for final summary
+      percentage: Math.round(((i + 1) / (agents.length + 1)) * 100),
+      timestamp: new Date().toISOString()
+    });
+    
     publishEvent(redisChannel, {
       type: 'agent_thinking',
       agent: currentAgent,
@@ -917,6 +990,11 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
       critiqueStyle + '. Incorporate what works, fix what doesn\'t, and add missing perspectives or information.'
     );
     
+    // Send status update if callback provided
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(currentAgent, 'processing', `Writing ${critiqueStyle} critique`);
+    }
+    
     try {
       currentResponse = await getAgentResponse(currentAgent, chainPrompt, 'critique_' + i, redisChannel, abortSignal, costTracker);
       
@@ -925,6 +1003,11 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
         content: currentResponse,
         role: 'critique_' + i
       });
+      
+      // Send status update if callback provided
+      if (options && typeof options.onModelStatusChange === 'function') {
+        options.onModelStatusChange(currentAgent, 'completed', `${critiqueStyle} critique completed`);
+      }
       
     } catch (error) {
       console.error(`Error getting critique from ${currentAgent}:`, error);
@@ -952,6 +1035,16 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
   }
   
   console.log(`👑 Using ${summarizerAgent} for final sequential chain summarization (highest token limit)`);
+  
+  // Publish progress for final summary
+  publishEvent(redisChannel, {
+    type: 'progress_update',
+    phase: 'critique_chain',
+    currentStep: agents.length,
+    totalSteps: agents.length + 1,
+    percentage: Math.round((agents.length / (agents.length + 1)) * 100),
+    timestamp: new Date().toISOString()
+  });
   
   publishEvent(redisChannel, {
     type: 'agent_thinking',
@@ -1445,7 +1538,7 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
     var ideationPrompt = constructPrompt(
       prompt,
       agent,
-      'Generate 3-5 novel, creative ideas or approaches to address this prompt. Focus on originality and thinking outside the box. Present each idea clearly with a title and brief explanation.'
+      'You are in the creative ideation phase. Generate 3-5 novel, creative ideas or approaches that directly answer the user\'s question. Focus on originality and thinking outside the box about THE SPECIFIC TOPIC they asked about. Present each idea clearly with a title and brief explanation. Remember: answer about what they asked, not about collaboration itself.'
     );
     
     try {
@@ -1510,7 +1603,7 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
     var fusionPrompt = constructPrompt(
       prompt + "\n\nALL IDEAS FROM PHASE A:\n" + allIdeasText,
       agent,
-      'Select at least two distinct ideas from the list (they can be yours or from other agents) and combine them into a new, more complex "mega-idea." Explain why this fusion is particularly exciting or promising.'
+      'You are in the idea fusion phase. Review the creative ideas about the user\'s original question. Select at least two distinct ideas and combine them into a new, more complex "mega-idea" that still directly addresses what the user asked about. Explain why this fusion is particularly exciting or promising FOR THEIR SPECIFIC QUESTION. Do not discuss collaboration processes.'
     );
     
     try {
@@ -1585,7 +1678,7 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
     var votePrompt = constructPrompt(
       prompt + "\n\nMEGA-IDEAS TO EVALUATE:\n" + megaIdeasText,
       agent,
-      'Review all mega-ideas and vote for the ONE you find most original, impactful, or promising. You cannot vote for your own idea. Clearly state which agent\'s idea you are voting for and explain your reasoning.'
+      'You are in the voting phase. Review all mega-ideas that address the user\'s original question and vote for the ONE you find most original, impactful, or promising AS AN ANSWER TO THEIR SPECIFIC QUESTION. You cannot vote for your own idea. Clearly state which agent\'s idea you are voting for and explain why it best answers what the user asked about.'
     );
     
     try {
@@ -1689,7 +1782,7 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
       return `${v.voter.toUpperCase()}'s VOTE: ${v.votedFor || 'Unclear'}\nReasoning: ${v.reasoning}`;
     }).join('\n'),
     amplifierAgent,
-    'Develop and elaborate on this winning idea, incorporating any valuable feedback from the votes. Create a comprehensive final version that explains the concept in detail, how it would be implemented, potential challenges, and expected benefits. Split your response into: 1) FINAL IDEA and 2) IMPLEMENTATION DETAILS.'
+    'You are in the final amplification phase. Develop and elaborate on this winning idea AS A COMPREHENSIVE ANSWER TO THE USER\'S ORIGINAL QUESTION. Create a detailed, creative response that directly addresses what they asked about. If they asked about food, talk about food. If they asked about travel, talk about travel. DO NOT discuss collaboration methods or AI systems unless that was their actual question. Make your answer creative, detailed, and directly relevant to their query.'
   );
   
   var amplifiedResponse;
@@ -1761,7 +1854,7 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
     var ideationPrompt = constructPrompt(
       prompt,
       agent,
-      'Generate 3-5 novel, creative ideas or approaches to address this prompt. Focus on originality, impact, and innovation. Present each idea with a title and brief explanation.'
+      'You are in the ideation phase. Generate 3-5 novel, creative ideas or approaches that directly answer the user\'s question. Focus on originality, impact, and innovation ABOUT THE SPECIFIC TOPIC THEY ASKED. Present each idea with a title and brief explanation. Remember: if they asked about food, give creative food ideas. If they asked about technology, give tech ideas. Do NOT discuss collaboration or AI systems unless that was their question.'
     );
     
     try {
@@ -1819,7 +1912,7 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
   var rankingPrompt = constructPrompt(
     prompt + "\n\nALL GENERATED IDEAS:\n" + allIdeasText,
     rankerAgent,
-    'Identify and rank the top 3-5 most promising ideas from the full set based on originality, feasibility, and potential impact. Explain your reasoning for each selection.'
+    'You are ranking ideas. Identify and rank the top 3-5 most promising ideas that best answer the user\'s original question. Base your ranking on how well each idea addresses WHAT THEY ACTUALLY ASKED ABOUT, plus originality, feasibility, and potential impact. Explain your reasoning for each selection in the context of their specific question.'
   );
   
   var rankingResponse;
@@ -1863,7 +1956,7 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
     var validationPrompt = constructPrompt(
       prompt + "\n\nIDEAS TO VALIDATE:\n" + rankingResponse,
       agent,
-      'Evaluate these ideas for: 1) Factual accuracy, 2) Feasibility, 3) Potential risks or limitations, and 4) Evidence supporting the concept. Rate each idea on a scale of 1-10 for overall validity and provide brief justification.'
+      'You are validating ideas. Evaluate these ideas IN THE CONTEXT OF THE USER\'S ORIGINAL QUESTION for: 1) Factual accuracy, 2) Feasibility, 3) Potential risks or limitations, and 4) Evidence supporting the concept. Rate each idea on how well it answers what they asked about. Focus on validating the content related to their specific topic, not collaboration methods.'
     );
     
     try {
@@ -1935,7 +2028,7 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
     "\n\nRANKED IDEAS:\n" + rankingResponse + 
     "\n\nVALIDATIONS:\n" + validationsText,
     elaboratorAgent,
-    'Based on the validations, identify the highest-ranking idea that balances creativity with feasibility and evidence. Then develop this idea into a comprehensive solution. Include: 1) Core concept, 2) Implementation approach, 3) Evidence supporting it, 4) How it addresses potential concerns, and 5) Expected outcomes. Split your response into: FINAL SOLUTION and SUPPORTING EVIDENCE.'
+    'You are creating the final answer. Based on the validations, identify the best idea that answers the user\'s original question. Develop this into a comprehensive response ABOUT WHAT THEY ASKED. If they asked about food, give a detailed food answer. If they asked about travel, give travel details. Include creative elements but stay focused on their actual topic. Do NOT discuss collaboration processes unless that was their question.'
   );
   
   var elaborationResponse;
@@ -1997,21 +2090,34 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
  * Construct a prompt for a specific agent with system instructions
  */
 function constructPrompt(userPrompt, agentProvider, instructions) {
-  var systemPrompt = SYSTEM_PROMPTS[agentProvider]?.agent ||
+  var baseSystemPrompt = SYSTEM_PROMPTS[agentProvider]?.agent ||
     "You are an AI assistant participating in a multi-model collaboration.";
 
+  var systemPrompt = baseSystemPrompt;
+  
+  // If there are collaboration instructions, format them properly
   if (instructions) {
-    systemPrompt += " " + instructions;
+    systemPrompt = `${baseSystemPrompt}
+
+COLLABORATION INSTRUCTIONS: ${instructions}
+
+CRITICAL: You must answer the user's actual question below. Focus on the specific topic they are asking about. Do NOT discuss collaboration methods, AI systems, or meta-topics unless that is explicitly what the user is asking about. Use your collaborative role to enhance your answer to their actual question.`;
   }
 
-  // Ensure userPrompt is never empty
+  // Ensure userPrompt is never empty and clearly marked
   const safeUserPrompt = userPrompt || "Please provide a response based on your expertise.";
+  
+  // Add clear separation to ensure the user's question is the focus
+  const formattedUserPrompt = `USER'S ACTUAL QUESTION TO ANSWER:
+${safeUserPrompt}
 
-  console.log(`📋 constructPrompt for ${agentProvider}: system=${systemPrompt.length} chars, user=${safeUserPrompt.length} chars`);
+Please provide your response focusing specifically on answering this question.`;
+
+  console.log(`📋 constructPrompt for ${agentProvider}: system=${systemPrompt.length} chars, user=${formattedUserPrompt.length} chars`);
 
   return {
     systemPrompt: systemPrompt,
-    userPrompt: safeUserPrompt
+    userPrompt: formattedUserPrompt
   };
 }
 
@@ -2124,20 +2230,39 @@ async function getAgentResponse(agentProvider, prompt, phase, redisChannel, abor
         console.log(`✅ Gemini API call successful, processing stream...`);
         
         for await (const chunk of geminiResponse.stream) {
-          if (chunk.text) {
-            responseParts.push(chunk.text);
+          // Extract text from chunk - it's a function that needs to be called
+          let chunkText = '';
+          if (typeof chunk.text === 'function') {
+            try {
+              chunkText = chunk.text();
+              // Check if we got a function definition instead of actual text
+              if (typeof chunkText === 'string' && chunkText.includes('() => {')) {
+                console.error(`❌ chunk.text() returned a function definition in Code Architect mode!`);
+                // Skip this problematic chunk
+                continue;
+              }
+            } catch (e) {
+              console.error(`❌ Error calling chunk.text():`, e.message);
+              continue;
+            }
+          } else if (chunk.text && typeof chunk.text === 'string') {
+            chunkText = chunk.text;
+          }
+          
+          if (chunkText) {
+            responseParts.push(chunkText);
             
             // Stream the chunk to Redis
             publishEvent(redisChannel, {
               type: 'agent_thought',
               agent: agentProvider,
               phase: phase,
-              text: chunk.text,
+              text: chunkText,
               timestamp: new Date().toISOString()
             });
             
             // Track token usage
-            costTracker.addOutputTokens(agentProvider, estimateTokenCount(chunk.text));
+            costTracker.addOutputTokens(agentProvider, estimateTokenCount(chunkText));
             
             // Check if we should abort
             if (costTracker.shouldAbort()) {
@@ -2219,6 +2344,15 @@ async function getAgentResponse(agentProvider, prompt, phase, redisChannel, abor
     response = responseParts.join('');
     console.log(`✅ Complete response received from ${agentProvider} (${response.length} chars)`);
     
+    // Publish completion event to Redis
+    publishEvent(redisChannel, {
+      type: 'agent_response_complete',
+      agent: agentProvider,
+      phase: phase,
+      responseLength: response.length,
+      timestamp: new Date().toISOString()
+    });
+    
     // Calculate approximate token counts for billing (more precise count available in API responses)
     var inputTokenEstimate = estimateTokenCount(prompt.systemPrompt + prompt.userPrompt);
     costTracker.addInputTokens(agentProvider, inputTokenEstimate);
@@ -2256,12 +2390,12 @@ async function getAgentResponse(agentProvider, prompt, phase, redisChannel, abor
  */
 function getDefaultModelForProvider(provider) {
   var modelMap = {
-    'claude': 'claude-3-7-sonnet-20250219',
+    'claude': 'claude-4-sonnet-20250514',
     'chatgpt': 'gpt-4.1',
     'grok': 'grok-3-mini',
     'deepseek': 'deepseek-chat',
     'llama': 'Llama-4-Maverick-17B-128E-Instruct-FP8',
-    'gemini': 'gemini-2.5-pro-exp-03-25'
+    'gemini': 'gemini-2.5-pro-preview-05-06'
   };
 
   return modelMap[provider] || provider;
@@ -2419,7 +2553,7 @@ async function executeIndividualResponses(prompt, agents, redisChannel, abortSig
   var summarizedAnswer = "Individual responses from each AI model:";
   
   validResponses.forEach(function(response) {
-    summarizedAnswer += `\n\n## ${response.agent.toUpperCase()}'S RESPONSE:\n${response.content.substring(0, 300)}...`;
+    summarizedAnswer += `\n\n## ${response.agent.toUpperCase()}'S RESPONSE:\n${response.content}`;
   });
   
   return {
@@ -2433,7 +2567,7 @@ async function executeIndividualResponses(prompt, agents, redisChannel, abortSig
  * Code Architect Mode
  * Enterprise software development workflow
  */
-async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, costTracker) {
+async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
   // Need at least 3 agents for this mode
   if (agents.length < 3) {
     throw new Error("Code Architect mode requires at least 3 agents");
@@ -2452,6 +2586,26 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
     tester: agents.length > 3 ? agents[3] : agents[1]
   };
   
+  // Set initial pending status for all agents
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(roles.architect, 'pending', 'Waiting for architecture phase');
+    if (roles.developer !== roles.architect) {
+      options.onModelStatusChange(roles.developer, 'pending', 'Waiting for implementation phase');
+    }
+    if (roles.reviewer !== roles.architect && roles.reviewer !== roles.developer) {
+      options.onModelStatusChange(roles.reviewer, 'pending', 'Waiting for review phase');
+    }
+    if (roles.tester !== roles.architect && roles.tester !== roles.developer && roles.tester !== roles.reviewer) {
+      options.onModelStatusChange(roles.tester, 'pending', 'Waiting for testing phase');
+    }
+  }
+  
+  // Helper function to truncate content to prevent token overflow
+  function truncateForContext(content, maxChars = 2000) {
+    if (content.length <= maxChars) return content;
+    return content.substring(0, maxChars) + "\n\n[Content truncated for brevity...]";
+  }
+  
   // Phase 1: Architecture and Design
   publishEvent(redisChannel, {
     type: 'phase_start',
@@ -2466,10 +2620,15 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
     timestamp: new Date().toISOString()
   });
   
+  // Update status to processing
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(roles.architect, 'processing', 'Creating architecture design');
+  }
+  
   var architectPrompt = constructPrompt(
     prompt,
     roles.architect,
-    'You are the Software Architect. Create a detailed technical design for this code request, including: requirements analysis, system architecture, component design, data structures, API specifications, and implementation guidelines. Focus on separation of concerns, code organization, and clear interfaces.'
+    'You are the Software Architect. Create a detailed technical design for this code request. Provide:\n\n1. FUNCTIONAL REQUIREMENTS: Clear list of what the code must do\n2. TECHNICAL REQUIREMENTS: Performance, browser compatibility, etc.\n3. FILE STRUCTURE: Exact file names and organization\n4. COMPONENT DESIGN: Detailed breakdown of each component/module\n5. TECHNOLOGY STACK: Specific technologies, frameworks, libraries to use\n6. IMPLEMENTATION GUIDELINES: Clear instructions for the developer\n\nBe specific and detailed. The developer will use this to create production-ready code.'
   );
   
   var architectureDesign;
@@ -2482,8 +2641,27 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
       abortSignal,
       costTracker
     );
+    
+    // Publish completion for architect
+    publishEvent(redisChannel, {
+      type: 'agent_response_complete',
+      agent: roles.architect,
+      phase: 'architecture_design',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Update status to completed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.architect, 'completed', 'Architecture design completed');
+    }
   } catch (error) {
     console.error("Error in architecture phase:", error);
+    
+    // Update status to failed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.architect, 'failed', `Architecture failed: ${error.message}`);
+    }
+    
     return {
       answer: "Failed during architecture phase.",
       rationale: `Error: ${error.message}`,
@@ -2513,10 +2691,15 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
     timestamp: new Date().toISOString()
   });
   
+  // Update status to processing
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(roles.developer, 'processing', 'Implementing code based on architecture');
+  }
+  
   var implementationPrompt = constructPrompt(
-    prompt + "\n\nARCHITECTURE DESIGN:\n" + architectureDesign,
+    prompt + "\n\nARCHITECTURE DESIGN:\n" + truncateForContext(architectureDesign),
     roles.developer,
-    'You are the Developer. Implement the code according to the provided architecture design. Include all necessary files, modules, functions, and tests. Focus on clean, maintainable, production-ready code. Add comments to explain complex logic. Handle edge cases and potential errors appropriately.'
+    'You are the Developer. Implement COMPLETE, FUNCTIONAL, PRODUCTION-READY code according to the provided architecture design. IMPORTANT: Provide the FULL working code, not code snippets or placeholders. Include:\n- Complete HTML files with proper structure\n- Complete CSS files with all styling\n- Complete JavaScript files with all functionality\n- All necessary files and dependencies\n- Proper file organization and structure\n- Production-ready, fully functional code\n\nDO NOT provide incomplete code, templates, or "// TODO" placeholders. Provide COMPLETE working implementation that can be used immediately in production.'
   );
   
   var implementation;
@@ -2529,8 +2712,27 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
       abortSignal,
       costTracker
     );
+    
+    // Publish completion for developer
+    publishEvent(redisChannel, {
+      type: 'agent_response_complete',
+      agent: roles.developer,
+      phase: 'implementation',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Update status to completed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.developer, 'completed', 'Implementation completed');
+    }
   } catch (error) {
     console.error("Error in implementation phase:", error);
+    
+    // Update status to failed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.developer, 'failed', `Implementation failed: ${error.message}`);
+    }
+    
     return {
       answer: "Failed during implementation phase.",
       rationale: `Error: ${error.message}`,
@@ -2560,10 +2762,15 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
     timestamp: new Date().toISOString()
   });
   
+  // Update status to processing
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(roles.reviewer, 'processing', 'Reviewing code quality');
+  }
+  
   var reviewPrompt = constructPrompt(
     prompt + 
-    "\n\nARCHITECTURE DESIGN:\n" + architectureDesign + 
-    "\n\nIMPLEMENTATION:\n" + implementation,
+    "\n\nARCHITECTURE DESIGN:\n" + truncateForContext(architectureDesign) + 
+    "\n\nIMPLEMENTATION:\n" + truncateForContext(implementation),
     roles.reviewer,
     'You are the Code Reviewer. Review the implementation against the architecture design and requirements. Identify bugs, code smells, security vulnerabilities, performance issues, and maintainability concerns. Provide specific suggestions for improvement with code examples where appropriate.'
   );
@@ -2578,8 +2785,27 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
       abortSignal,
       costTracker
     );
+    
+    // Publish completion for reviewer
+    publishEvent(redisChannel, {
+      type: 'agent_response_complete',
+      agent: roles.reviewer,
+      phase: 'code_review',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Update status to completed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.reviewer, 'completed', 'Code review completed');
+    }
   } catch (error) {
     console.error("Error in review phase:", error);
+    
+    // Update status to failed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.reviewer, 'failed', `Review failed: ${error.message}`);
+    }
+    
     return {
       answer: "Failed during review phase.",
       rationale: `Error: ${error.message}`,
@@ -2609,11 +2835,16 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
     timestamp: new Date().toISOString()
   });
   
+  // Update status to processing
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(roles.tester, 'processing', 'Creating test plans');
+  }
+  
   var testPrompt = constructPrompt(
     prompt + 
-    "\n\nARCHITECTURE DESIGN:\n" + architectureDesign + 
-    "\n\nIMPLEMENTATION:\n" + implementation +
-    "\n\nCODE REVIEW:\n" + review,
+    "\n\nARCHITECTURE DESIGN:\n" + truncateForContext(architectureDesign) + 
+    "\n\nIMPLEMENTATION:\n" + truncateForContext(implementation) +
+    "\n\nCODE REVIEW:\n" + truncateForContext(review),
     roles.tester,
     'You are the QA Engineer. Create a comprehensive test plan for this code including unit tests, integration tests, and end-to-end tests. Focus on edge cases, error conditions, and important functional requirements. Include test data and expected outcomes.'
   );
@@ -2628,8 +2859,27 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
       abortSignal,
       costTracker
     );
+    
+    // Publish completion for tester
+    publishEvent(redisChannel, {
+      type: 'agent_response_complete',
+      agent: roles.tester,
+      phase: 'test_planning',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Update status to completed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.tester, 'completed', 'Test planning completed');
+    }
   } catch (error) {
     console.error("Error in testing phase:", error);
+    
+    // Update status to failed
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(roles.tester, 'failed', `Testing failed: ${error.message}`);
+    }
+    
     return {
       answer: "Failed during testing phase.",
       rationale: `Error: ${error.message}`,
@@ -2640,12 +2890,12 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
     };
   }
   
-  // Compile final answer
+  // Compile final answer with FULL content - no truncation
   var finalAnswer = "# Software Development Summary\n\n";
-  finalAnswer += "## Architecture Design\n\n" + architectureDesign.substring(0, 500) + "...\n\n";
-  finalAnswer += "## Implementation\n\n" + implementation.substring(0, 500) + "...\n\n";
-  finalAnswer += "## Code Review\n\n" + review.substring(0, 500) + "...\n\n";
-  finalAnswer += "## Test Plan\n\n" + tests.substring(0, 500) + "...";
+  finalAnswer += "## Architecture Design\n\n" + architectureDesign + "\n\n";
+  finalAnswer += "## Implementation\n\n" + implementation + "\n\n";
+  finalAnswer += "## Code Review\n\n" + review + "\n\n";
+  finalAnswer += "## Test Plan\n\n" + tests;
   
   return {
     answer: finalAnswer,
@@ -2864,9 +3114,9 @@ async function executeAdversarialDebate(prompt, agents, redisChannel, abortSigna
   
   // Compile final answer
   var finalAnswer = "# Structured Debate Analysis\n\n";
-  finalAnswer += "## Pro Perspective\n\n" + proArgument.substring(0, 500) + "...\n\n";
-  finalAnswer += "## Con Perspective\n\n" + conArgument.substring(0, 500) + "...\n\n";
-  finalAnswer += "## Rebuttal\n\n" + rebuttal.substring(0, 500) + "...\n\n";
+  finalAnswer += "## Pro Perspective\n\n" + proArgument + "\n\n";
+  finalAnswer += "## Con Perspective\n\n" + conArgument + "\n\n";
+  finalAnswer += "## Rebuttal\n\n" + rebuttal + "\n\n";
   finalAnswer += "## Balanced Synthesis\n\n" + synthesis;
   
   return {
@@ -3082,14 +3332,14 @@ async function executeExpertPanel(prompt, agents, redisChannel, abortSignal, cos
   
   // Compile final answer
   var finalAnswer = "# Multi-Disciplinary Expert Analysis\n\n";
-  finalAnswer += "## Expert Panel Summary\n\n";
+  finalAnswer += "## Expert Panel Insights\n\n";
   
-  // Create a condensed summary of each expert's key points
+  // Include full expert insights
   validInsights.forEach(function(insight) {
-    finalAnswer += `### ${insight.role}\n${insight.content.substring(0, 200)}...\n\n`;
+    finalAnswer += `### ${insight.role}\n${insight.content}\n\n`;
   });
   
-  finalAnswer += "## Panel Discussion Highlights\n\n" + discussion.substring(0, 500) + "...\n\n";
+  finalAnswer += "## Panel Discussion\n\n" + discussion + "\n\n";
   finalAnswer += "## Integrated Recommendation\n\n" + recommendation;
   
   return {
@@ -3105,7 +3355,7 @@ async function executeExpertPanel(prompt, agents, redisChannel, abortSignal, cos
  * Scenario Analysis Mode
  * Strategic foresight methodology
  */
-async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal, costTracker) {
+async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
   // Need at least 3 agents for this mode
   if (agents.length < 3) {
     throw new Error("Scenario Analysis mode works best with at least 3 agents");
@@ -3114,6 +3364,16 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
   publishEvent(redisChannel, {
     type: 'phase_start',
     phase: 'scenario_analysis',
+    timestamp: new Date().toISOString()
+  });
+  
+  // Publish initial progress
+  publishEvent(redisChannel, {
+    type: 'progress_update',
+    phase: 'scenario_analysis',
+    currentStep: 0,
+    totalSteps: 3, // 3 phases: trends, scenarios, strategy
+    percentage: 0,
     timestamp: new Date().toISOString()
   });
   
@@ -3142,6 +3402,11 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
     'You are a Trends Analyst. Identify the key trends, drivers of change, and critical uncertainties relevant to this question or challenge. For each factor, assess its impact and uncertainty. Focus on factors that have high impact but uncertain outcomes as these will form the basis for different future scenarios.'
   );
   
+  // Send status update if callback provided
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(trendsAnalyst, 'processing', 'Analyzing trends and uncertainties');
+  }
+  
   var trendsAnalysis;
   try {
     trendsAnalysis = await getAgentResponse(
@@ -3152,6 +3417,21 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
       abortSignal,
       costTracker
     );
+    
+    // Mark complete
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(trendsAnalyst, 'completed', 'Trends analysis completed');
+    }
+    
+    // Update progress
+    publishEvent(redisChannel, {
+      type: 'progress_update',
+      phase: 'scenario_analysis',
+      currentStep: 1,
+      totalSteps: 3,
+      percentage: 33,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error("Error in trends analysis phase:", error);
     return {
@@ -3188,6 +3468,11 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
     'You are a Scenario Planner. Based on the identified trends and uncertainties, develop 3-4 distinct, plausible future scenarios. Each scenario should have a descriptive name, narrative description, key characteristics, and implications for the question or challenge. These scenarios should be diverse enough to cover the range of possible futures.'
   );
   
+  // Send status update if callback provided
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(scenarioBuilder, 'processing', 'Building future scenarios');
+  }
+  
   var scenarios;
   try {
     scenarios = await getAgentResponse(
@@ -3198,6 +3483,21 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
       abortSignal,
       costTracker
     );
+    
+    // Mark complete
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(scenarioBuilder, 'completed', 'Scenario development completed');
+    }
+    
+    // Update progress
+    publishEvent(redisChannel, {
+      type: 'progress_update',
+      phase: 'scenario_analysis',
+      currentStep: 2,
+      totalSteps: 3,
+      percentage: 67,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error("Error in scenario development phase:", error);
     return {
@@ -3236,6 +3536,11 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
     'You are a Strategic Advisor. Develop robust strategic recommendations that would work across multiple scenarios. Identify "no-regrets" moves that make sense in any future, as well as contingent strategies that should be implemented only if certain scenarios begin to unfold. Provide a clear roadmap with short-term actions and longer-term strategic positioning.'
   );
   
+  // Send status update if callback provided
+  if (options && typeof options.onModelStatusChange === 'function') {
+    options.onModelStatusChange(strategist, 'processing', 'Developing strategic recommendations');
+  }
+  
   var strategy;
   try {
     strategy = await getAgentResponse(
@@ -3246,6 +3551,21 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
       abortSignal,
       costTracker
     );
+    
+    // Mark complete
+    if (options && typeof options.onModelStatusChange === 'function') {
+      options.onModelStatusChange(strategist, 'completed', 'Strategic recommendations completed');
+    }
+    
+    // Update progress to 100%
+    publishEvent(redisChannel, {
+      type: 'progress_update',
+      phase: 'scenario_analysis',
+      currentStep: 3,
+      totalSteps: 3,
+      percentage: 100,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error("Error in strategy development phase:", error);
     return {
@@ -3259,8 +3579,8 @@ async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal
   
   // Compile final answer
   var finalAnswer = "# Strategic Scenario Analysis\n\n";
-  finalAnswer += "## Key Trends & Uncertainties\n\n" + trendsAnalysis.substring(0, 500) + "...\n\n";
-  finalAnswer += "## Alternative Future Scenarios\n\n" + scenarios.substring(0, 500) + "...\n\n";
+  finalAnswer += "## Key Trends & Uncertainties\n\n" + trendsAnalysis + "\n\n";
+  finalAnswer += "## Alternative Future Scenarios\n\n" + scenarios + "\n\n";
   finalAnswer += "## Strategic Recommendations\n\n" + strategy;
   
   return {
@@ -3491,4 +3811,17 @@ const enhancedModule = patchCollaborationModule(collaborationModule);
 
 // Export the enhanced version of runCollab
 export const runCollab = enhancedModule.runCollab;
+
+// Export individual collaboration functions for enhanced integration
+export { 
+  executeCodeArchitect,
+  executeAdversarialDebate, 
+  executeExpertPanel,
+  executeScenarioAnalysis,
+  executeCreativeBrainstormSwarm,
+  executeHybridGuardedBraintrust,
+  executeValidatedConsensus,
+  executeRoundTableCollaboration,
+  executeSequentialCritiqueChain
+};
 

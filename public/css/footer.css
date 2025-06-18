@@ -1,0 +1,79 @@
+/* Global Footer Styles */
+'use strict';
+
+/* Footer Container */
+.global-footer {
+    background: var(--bg-secondary, #1e1e1e);
+    border-top: 1px solid var(--border-color, #333);
+    padding: 12px 20px;
+    margin-top: auto;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #999);
+}
+
+/* Footer Content */
+.footer-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Footer Links */
+.footer-links {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.footer-links a {
+    color: var(--text-secondary, #999);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-color, #2196f3);
+}
+
+/* Footer Separator */
+.footer-separator {
+    color: var(--text-secondary, #666);
+    margin: 0 10px;
+}
+
+/* Connection Status (if moved to footer) */
+.footer-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success-color, #4caf50);
+}
+
+.status-indicator.disconnected {
+    background: var(--error-color, #f44336);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .footer-links {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

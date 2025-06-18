@@ -10,6 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/css/main.css?v=8">
+    <link rel="stylesheet" href="/css/page-header.css?v=1">
     <script>
         // Apply theme before DOM content loads
         (function() {
@@ -139,38 +140,7 @@
              box-shadow: 0 2px 5px rgba(37, 99, 235, 0.15);
          }
 
-        .comparison-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-         .comparison-header h1 {
-             font-size: 1.5rem;
-         }
-
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            color: var(--nexus-accent);
-            text-decoration: none;
-            transition: var(--nexus-transition);
-            font-size: 0.9rem;
-            padding: 0.3rem 0.6rem;
-            border: 1px solid transparent;
-            border-radius: var(--nexus-radius-sm);
-        }
-        .back-btn:hover {
-            color: var(--nexus-accent-hover);
-            background-color: rgba(60, 126, 255, 0.1);
-            border-color: rgba(60, 126, 255, 0.3);
-        }
-         .theme-light .back-btn:hover {
-             background-color: rgba(37, 99, 235, 0.08);
-             border-color: rgba(37, 99, 235, 0.2);
-         }
+        /* Back button styles removed - now handled by page-header.css */
 
         .model-name {
             font-weight: 600;
@@ -239,15 +209,22 @@
 <body>
     <div id="global-header-placeholder"></div>
 
-    <div class="container-fluid main-container" style="padding-top: 60px; padding-bottom: 40px;">
-        <div class="comparison-header">
-            <h1>AI Model Comparison</h1>
-            <div>
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <h1 class="page-title">
+                <i class="bi bi-bar-chart-line"></i>
+                AI Model Comparison
+            </h1>
+            <div class="page-actions">
                 <a href="hub.html" class="back-btn">
-                    <i class="bi bi-arrow-left me-1"></i> Back to Chat
+                    <i class="bi bi-arrow-left"></i> Back to Chat
                 </a>
             </div>
         </div>
+    </div>
+
+    <div class="container-fluid main-container">
 
         <div class="filter-section">
             <h5 class="mb-3 h6">Filter Models</h5>

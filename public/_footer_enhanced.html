@@ -1,0 +1,38 @@
+<footer class="global-footer">
+    <div class="footer-content">
+        <div class="footer-links">
+            <small class="text-muted">AI Collaboration Hub v8.0.1 © 2024</small>
+            <span class="footer-separator">•</span>
+            <a href="https://github.com/yourusername/ai-collab" target="_blank" rel="noopener">
+                <i class="bi bi-github"></i> GitHub
+            </a>
+            <span class="footer-separator">•</span>
+            <a href="/docs/API_Reference.md" target="_blank">API Docs</a>
+            <span class="footer-separator">•</span>
+            <a href="/docs/User_Guide.md" target="_blank">Help</a>
+        </div>
+        <div class="footer-status">
+            <span class="status-indicator" id="footer-connection-status"></span>
+            <span class="status-text" id="footer-connection-text">Connected</span>
+        </div>
+    </div>
+</footer>
+
+<script>
+// Update connection status in footer
+document.addEventListener('DOMContentLoaded', function() {
+    const indicator = document.getElementById('footer-connection-status');
+    const text = document.getElementById('footer-connection-text');
+    
+    // Listen for connection events
+    document.addEventListener('websocket-connected', function() {
+        if (indicator) indicator.classList.remove('disconnected');
+        if (text) text.textContent = 'Connected';
+    });
+    
+    document.addEventListener('websocket-disconnected', function() {
+        if (indicator) indicator.classList.add('disconnected');
+        if (text) text.textContent = 'Disconnected';
+    });
+});
+</script>

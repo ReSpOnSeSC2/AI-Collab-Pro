@@ -10,7 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="/css/main.css?v=8">
+    <link rel="stylesheet" href="/css/admin-shared.css">
     <script>
         // Apply theme before DOM content loads to prevent flash
         (function() {
@@ -19,177 +19,87 @@
         })();
     </script>
     <style>
-        :root {
-            --sidebar-width: 260px;
-        }
-        body {
-            min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
-        }
-        .sidebar {
-            width: var(--sidebar-width);
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            overflow-y: auto;
-            background-color: #202123;
-            color: #fff;
-            transition: transform 0.3s;
-            z-index: 1000;
-        }
-        .sidebar-header {
-            padding: 1.5rem 1rem;
-            border-bottom: 1px solid #444;
-        }
-        .main-content {
-            margin-left: var(--sidebar-width);
-            padding: 2rem;
-            transition: margin 0.3s;
-        }
-        .sidebar-menu .nav-link {
-            color: #adb5bd;
-            padding: 0.75rem 1rem;
-            border-radius: 0.25rem;
-            margin: 0.25rem 0.5rem;
-        }
-        .sidebar-menu .nav-link:hover,
-        .sidebar-menu .nav-link.active {
-            background-color: #343a40;
-            color: #fff;
-        }
-        .sidebar-menu .nav-link i {
-            margin-right: 0.75rem;
-            width: 1.25rem;
-        }
         @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
+            #settingsTabList {
+                flex-direction: column;
             }
-            .sidebar.show {
-                transform: translateX(0);
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .show-sidebar-btn {
-                display: block !important;
+            #settingsTabList .nav-link {
+                width: 100%;
+                text-align: left;
+                border-radius: 0.25rem !important;
+                margin-bottom: 0.25rem;
             }
         }
-        .show-sidebar-btn {
-            display: none;
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            z-index: 1001;
-        }
-        
-        /* Admin components styling */
-        .admin-card {
-            background-color: var(--nexus-card-bg);
+        .setting-group {
             border: 1px solid var(--nexus-border);
             border-radius: var(--nexus-radius);
-            box-shadow: var(--nexus-shadow);
+            padding: 1.5rem;
             margin-bottom: 1.5rem;
-            overflow: hidden;
+            background-color: rgba(255, 255, 255, 0.02);
         }
-        .admin-card-header {
-            background-color: rgba(255, 255, 255, 0.03);
-            padding: 0.8rem 1.2rem;
-            border-bottom: 1px solid var(--nexus-border);
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .theme-light .admin-card-header {
+        .theme-light .setting-group {
             background-color: #f8f9fa;
         }
-        
-        /* Settings specific styles */
-        .setting-group {
-            border-bottom: 1px solid var(--nexus-border);
-            padding-bottom: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .setting-group:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-            margin-bottom: 0;
-        }
         .setting-title {
-            font-weight: 600;
             margin-bottom: 0.5rem;
+            font-weight: 600;
         }
         .setting-description {
             color: var(--nexus-text-secondary);
             font-size: 0.9rem;
             margin-bottom: 1rem;
         }
-        .form-check-input:checked {
-            background-color: var(--nexus-accent);
-            border-color: var(--nexus-accent);
-        }
-        .nav-tabs .nav-link {
+        .form-text {
             color: var(--nexus-text-secondary);
-            border: none;
-            padding: 0.75rem 1rem;
-            border-radius: 0;
-            border-bottom: 2px solid transparent;
-        }
-        .nav-tabs .nav-link:hover {
-            color: var(--nexus-text);
-            border-bottom-color: var(--nexus-border);
-        }
-        .nav-tabs .nav-link.active {
-            color: var(--nexus-accent);
-            background-color: transparent;
-            border-bottom-color: var(--nexus-accent);
-            font-weight: 500;
+            font-size: 0.8rem;
         }
         .token-display {
             font-family: var(--nexus-mono);
-            background-color: rgba(0, 0, 0, 0.2);
-            padding: 0.75rem;
-            border-radius: 4px;
-            color: var(--nexus-text);
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 0.75rem 1rem;
+            border-radius: var(--nexus-radius-sm);
+            word-break: break-all;
+            user-select: all;
         }
         .theme-light .token-display {
-            background-color: #f1f3f5;
+            background-color: #e9ecef;
+            color: #212529;
         }
+        
+        /* API method badges */
         .api-method {
-            display: inline-block;
             padding: 0.2rem 0.5rem;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
-            margin-right: 0.5rem;
         }
         .api-method.get {
-            background-color: rgba(46, 204, 113, 0.2);
-            color: #2ecc71;
-        }
-        .api-method.post {
             background-color: rgba(52, 152, 219, 0.2);
             color: #3498db;
         }
+        .api-method.post {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
         .api-method.put {
-            background-color: rgba(230, 126, 34, 0.2);
-            color: #e67e22;
+            background-color: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
         }
         .api-method.delete {
             background-color: rgba(231, 76, 60, 0.2);
             color: #e74c3c;
         }
         
-        /* System logs styles */
+        /* Log table styles */
         .log-table {
-            font-family: var(--nexus-mono);
-            font-size: 0.8rem;
+            font-size: 0.85rem;
+        }
+        .log-table tbody {
+            max-height: 400px;
+            overflow-y: auto;
         }
         .log-level {
-            display: inline-block;
-            padding: 0.15rem 0.5rem;
+            padding: 0.2rem 0.5rem;
             border-radius: 4px;
             font-size: 0.7rem;
             font-weight: 600;
@@ -271,58 +181,81 @@
     </style>
 </head>
 <body>
-    <button class="btn btn-dark show-sidebar-btn">
-        <i class="fas fa-bars"></i>
-    </button>
+  <button class="admin-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
 
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h4>Admin Dashboard</h4>
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>AI-Collab Admin</h1>
+      </div>
+      
+      <nav class="admin-sidebar-nav">
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Overview</div>
+          <a href="/admin-dashboard.html" class="admin-nav-item">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
         </div>
-        <div class="sidebar-menu">
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link" href="admin-models.html">
-                        <i class="fas fa-microchip"></i> Models
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="admin-voting.html">
-                        <i class="fas fa-poll"></i> Voting Statistics
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="admin-users.html">
-                        <i class="fas fa-users"></i> Users
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="admin-conversations.html">
-                        <i class="fas fa-comment-alt"></i> Conversations
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="admin-settings.html">
-                        <i class="fas fa-cog"></i> Settings
-                    </a>
-                </li>
-                <li class="nav-item mt-3">
-                    <a class="nav-link" href="hub.html">
-                        <i class="fas fa-arrow-left"></i> Back to Main App
-                    </a>
-                </li>
-            </ul>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Management</div>
+          <a href="/admin-users.html" class="admin-nav-item">
+            <i class="fas fa-users"></i> Users
+          </a>
+          <a href="/admin-conversations.html" class="admin-nav-item">
+            <i class="fas fa-comments"></i> Conversations
+          </a>
+          <a href="/admin-models.html" class="admin-nav-item">
+            <i class="fas fa-robot"></i> AI Models
+          </a>
+          <a href="/admin-voting.html" class="admin-nav-item">
+            <i class="fas fa-poll"></i> Voting
+          </a>
         </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">Analytics</div>
+          <a href="/admin-analytics.html" class="admin-nav-item">
+            <i class="fas fa-chart-line"></i> Revenue & Growth
+          </a>
+          <a href="/admin-activity.html" class="admin-nav-item">
+            <i class="fas fa-user-clock"></i> User Activity
+          </a>
+          <a href="/admin-feedback.html" class="admin-nav-item">
+            <i class="fas fa-comment-dots"></i> AI Feedback
+          </a>
+        </div>
+
+        <div class="admin-nav-section">
+          <div class="admin-nav-section-title">System</div>
+          <a href="/admin-settings.html" class="admin-nav-item active">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <a href="/hub.html" class="admin-nav-item">
+            <i class="fas fa-arrow-left"></i> Back to App
+          </a>
+          <a href="#" id="admin-logout" class="admin-nav-item">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </nav>
     </aside>
 
-    <main class="main-content">
-        <div class="row mb-4">
-            <div class="col-12">
-                <h1>System Settings</h1>
-                <p class="text-muted">Configure application behavior, manage API access, and view system information</p>
+    <!-- Main Content -->
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="admin-header-content">
+                <div>
+                    <h1 class="admin-page-title">System Settings</h1>
+                    <p class="text-muted mb-0">Configure application behavior, manage API access, and view system information</p>
+                </div>
             </div>
-        </div>
-
+        </header>
+        
+        <div class="admin-content">
         <!-- Settings Tabs -->
         <div class="admin-card mb-4">
             <div class="admin-card-header">
@@ -335,32 +268,32 @@
                     </button>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <!-- Settings Navigation Tabs -->
-                <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+            <div class="card-body">
+                <!-- Tab navigation -->
+                <ul class="nav nav-tabs nav-fill mb-4" id="settingsTabList" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="true">
-                            <i class="bi bi-sliders me-1"></i> General
+                            <i class="bi bi-sliders me-2"></i> General
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">
-                            <i class="bi bi-shield-lock me-1"></i> Security
+                            <i class="bi bi-shield-lock me-2"></i> Security
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button" role="tab" aria-controls="api" aria-selected="false">
-                            <i class="bi bi-code-slash me-1"></i> API
+                            <i class="bi bi-code-slash me-2"></i> API
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications" aria-selected="false">
-                            <i class="bi bi-bell me-1"></i> Notifications
+                            <i class="bi bi-bell me-2"></i> Notifications
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="appearance-tab" data-bs-toggle="tab" data-bs-target="#appearance" type="button" role="tab" aria-controls="appearance" aria-selected="false">
-                            <i class="bi bi-palette me-1"></i> Appearance
+                            <i class="bi bi-palette me-2"></i> Appearance
                         </button>
                     </li>
                 </ul>
@@ -863,39 +796,39 @@
                     <div class="card-body">
                         <div class="system-info-item">
                             <div class="system-info-label">Version</div>
-                            <div class="system-info-value">2.4.1</div>
+                            <div class="system-info-value" id="system-version">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">Node.js Version</div>
-                            <div class="system-info-value">18.20.8</div>
+                            <div class="system-info-value" id="nodejs-version">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">MongoDB Version</div>
-                            <div class="system-info-value">7.0.2</div>
+                            <div class="system-info-value" id="mongodb-version">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">System Uptime</div>
-                            <div class="system-info-value">14 days, 7 hours</div>
+                            <div class="system-info-value" id="system-uptime">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">Database Size</div>
-                            <div class="system-info-value">2.7 GB</div>
+                            <div class="system-info-value" id="database-size">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">Memory Usage</div>
-                            <div class="system-info-value">1.3 GB / 4.0 GB</div>
+                            <div class="system-info-value" id="memory-usage">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">CPU Usage</div>
-                            <div class="system-info-value">23%</div>
+                            <div class="system-info-value" id="cpu-usage">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">Total Users</div>
-                            <div class="system-info-value">3,256</div>
+                            <div class="system-info-value" id="total-users">-</div>
                         </div>
                         <div class="system-info-item">
                             <div class="system-info-label">Total Conversations</div>
-                            <div class="system-info-value">45,728</div>
+                            <div class="system-info-value" id="total-conversations">-</div>
                         </div>
                     </div>
                 </div>
@@ -926,48 +859,9 @@
                                         <th>Message</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="log-table-body">
                                     <tr>
-                                        <td>2025-05-14 01:43:20</td>
-                                        <td><span class="log-level log-info">INFO</span></td>
-                                        <td>server.js</td>
-                                        <td>Server started on port 3001</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2025-05-14 01:43:18</td>
-                                        <td><span class="log-level log-info">INFO</span></td>
-                                        <td>database.js</td>
-                                        <td>Connected to MongoDB database</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2025-05-14 01:42:55</td>
-                                        <td><span class="log-level log-warn">WARN</span></td>
-                                        <td>auth.js</td>
-                                        <td>Failed login attempt: jay1988stud@gmail.com</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2025-05-14 01:40:22</td>
-                                        <td><span class="log-level log-error">ERROR</span></td>
-                                        <td>api.js</td>
-                                        <td>API rate limit exceeded: IP 192.168.1.105</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2025-05-14 01:35:41</td>
-                                        <td><span class="log-level log-info">INFO</span></td>
-                                        <td>users.js</td>
-                                        <td>New user registered: sarah.johnson@example.com</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2025-05-14 01:32:10</td>
-                                        <td><span class="log-level log-debug">DEBUG</span></td>
-                                        <td>websocket.js</td>
-                                        <td>WebSocket connection established: client_id_12345</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2025-05-14 01:30:45</td>
-                                        <td><span class="log-level log-info">INFO</span></td>
-                                        <td>server.js</td>
-                                        <td>Configuration loaded from .env file</td>
+                                        <td colspan="4" class="text-center text-muted py-3">Loading logs...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -991,7 +885,9 @@
                 </div>
             </div>
         </div>
+        </div><!-- End admin-content -->
     </main>
+  </div><!-- End admin-container -->
 
     <!-- Toast container for notifications -->
     <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -1019,8 +915,15 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Toggle sidebar on mobile
-            document.querySelector('.show-sidebar-btn')?.addEventListener('click', function() {
-                document.querySelector('.sidebar').classList.toggle('show');
+            document.querySelector('.admin-menu-toggle')?.addEventListener('click', function() {
+                document.querySelector('.admin-sidebar').classList.toggle('collapsed');
+            });
+
+            // Logout functionality
+            document.getElementById('admin-logout').addEventListener('click', function(e) {
+                e.preventDefault();
+                localStorage.removeItem('adminToken');
+                window.location.href = '/admin.html';
             });
             
             // Initialize tooltips
@@ -1045,15 +948,31 @@
                     return;
                 }
                 
-                // Generate a random API key (in production, this would be a server API call)
-                const apiKey = 'ak_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                
-                // Display the key
-                document.getElementById('api-key-value').textContent = apiKey;
-                document.getElementById('api-key-display').classList.remove('d-none');
-                
-                // Clear the input
-                document.getElementById('api-key-name').value = '';
+                // Request API key from server
+                showSpinner();
+                fetch('/api/admin/settings/generate-api-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: keyName })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideSpinner();
+                    if (data.apiKey) {
+                        const apiKey = data.apiKey;
+                        
+                        // Display the key
+                        document.getElementById('api-key-value').textContent = apiKey;
+                        document.getElementById('api-key-display').classList.remove('d-none');
+                        
+                        // Clear the input
+                        document.getElementById('api-key-name').value = '';
+                    }
+                })
+                .catch(error => {
+                    hideSpinner();
+                    console.error('Error generating API key:', error);
+                });
             });
             
             // Create admin account
@@ -1082,14 +1001,25 @@
                 // In production, this would be a server API call
                 setTimeout(() => {
                     // Simulate updated system info
-                    hideSpinner();
-                    // Here you would update the system info values with fresh data
+                    // Fetch system info from server
+                    fetch('/api/admin/system/info')
+                        .then(response => response.json())
+                        .then(data => {
+                            hideSpinner();
+                            if (data.success) {
+                                updateSystemInfo(data);
+                            }
+                        })
+                        .catch(error => {
+                            hideSpinner();
+                            console.error('Error fetching system info:', error);
+                        });
                 }, 500);
             });
             
             // Log filtering
             document.getElementById('log-level').addEventListener('change', function() {
-                filterLogs(this.value);
+                loadSystemLogs(this.value);
             });
             
             // Clear logs
@@ -1112,24 +1042,22 @@
                 
                 // In production, this would generate a file from the server
                 setTimeout(() => {
-                    // Create a sample log file for download
-                    const logContent = "2025-05-14 01:43:20 [INFO] server.js: Server started on port 3001\n" +
-                                      "2025-05-14 01:43:18 [INFO] database.js: Connected to MongoDB database\n" +
-                                      "2025-05-14 01:42:55 [WARN] auth.js: Failed login attempt: jay1988stud@gmail.com\n" +
-                                      "2025-05-14 01:40:22 [ERROR] api.js: API rate limit exceeded: IP 192.168.1.105\n" +
-                                      "2025-05-14 01:35:41 [INFO] users.js: New user registered: sarah.johnson@example.com\n" +
-                                      "2025-05-14 01:32:10 [DEBUG] websocket.js: WebSocket connection established: client_id_12345\n" +
-                                      "2025-05-14 01:30:45 [INFO] server.js: Configuration loaded from .env file";
-                    
-                    const blob = new Blob([logContent], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `system_logs_${new Date().toISOString().slice(0, 10)}.log`;
-                    link.click();
-                    
-                    URL.revokeObjectURL(url);
-                    hideSpinner();
+                    // Download logs from server
+                    fetch('/api/admin/logs/download')
+                        .then(response => response.blob())
+                        .then(blob => {
+                            hideSpinner();
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `system_logs_${new Date().toISOString().slice(0, 10)}.log`;
+                            link.click();
+                            URL.revokeObjectURL(url);
+                        })
+                        .catch(error => {
+                            hideSpinner();
+                            console.error('Error downloading logs:', error);
+                        });
                 }, 500);
             });
             
@@ -1138,27 +1066,6 @@
                 // Apply the selected theme to the document for preview
                 document.documentElement.className = this.value;
             });
-            
-            // Filter logs by level
-            function filterLogs(level) {
-                const logRows = document.querySelectorAll('.log-table tbody tr');
-                
-                logRows.forEach(row => {
-                    const logLevel = row.querySelector('.log-level').textContent;
-                    
-                    if (level === 'all') {
-                        row.style.display = '';
-                    } else if (level === 'error' && logLevel !== 'ERROR') {
-                        row.style.display = 'none';
-                    } else if (level === 'warn' && !['ERROR', 'WARN'].includes(logLevel)) {
-                        row.style.display = 'none';
-                    } else if (level === 'info' && logLevel === 'DEBUG') {
-                        row.style.display = 'none';
-                    } else {
-                        row.style.display = '';
-                    }
-                });
-            }
             
             // Save settings
             function saveSettings() {
@@ -1183,6 +1090,102 @@
             function hideSpinner() {
                 document.getElementById('loading-spinner').classList.add('d-none');
             }
+            
+            // Update system info
+            function updateSystemInfo(data) {
+                if (data.system) {
+                    document.getElementById('system-version').textContent = data.system.version || 'Unknown';
+                    document.getElementById('nodejs-version').textContent = data.system.nodeVersion || 'Unknown';
+                    
+                    // Format uptime
+                    const uptimeSeconds = data.system.uptime || 0;
+                    const days = Math.floor(uptimeSeconds / 86400);
+                    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+                    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+                    document.getElementById('system-uptime').textContent = `${days}d ${hours}h ${minutes}m`;
+                    
+                    // Memory usage percentage
+                    const memUsage = data.system.totalMemory && data.system.freeMemory ? 
+                        Math.round((1 - data.system.freeMemory / data.system.totalMemory) * 100) : 0;
+                    document.getElementById('memory-usage').textContent = `${memUsage}%`;
+                    
+                    // CPU usage from load average
+                    const loadAvg = data.system.loadAverage ? data.system.loadAverage[0] : 0;
+                    const cpuCount = data.system.cpus ? data.system.cpus.length : 1;
+                    const cpuUsage = Math.min(100, Math.round((loadAvg / cpuCount) * 100));
+                    document.getElementById('cpu-usage').textContent = `${cpuUsage}%`;
+                }
+                
+                if (data.database) {
+                    // MongoDB version not available from stats, show as N/A
+                    document.getElementById('mongodb-version').textContent = 'N/A';
+                    
+                    // Format database size
+                    const dbSize = data.database.dataSize || 0;
+                    const dbSizeFormatted = dbSize > 1024 * 1024 * 1024 ? 
+                        `${(dbSize / (1024 * 1024 * 1024)).toFixed(2)} GB` :
+                        dbSize > 1024 * 1024 ?
+                        `${(dbSize / (1024 * 1024)).toFixed(2)} MB` :
+                        `${(dbSize / 1024).toFixed(2)} KB`;
+                    document.getElementById('database-size').textContent = dbSizeFormatted;
+                }
+                
+                if (data.counts) {
+                    document.getElementById('total-users').textContent = data.counts.users || 0;
+                    document.getElementById('total-conversations').textContent = data.counts.conversations || 0;
+                }
+            }
+            
+            // Load system logs
+            function loadSystemLogs(level = 'all') {
+                fetch(`/api/admin/system/logs?level=${level}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.logs) {
+                            const tbody = document.getElementById('log-table-body');
+                            tbody.innerHTML = '';
+                            
+                            if (data.logs.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No logs found</td></tr>';
+                                return;
+                            }
+                            
+                            data.logs.forEach(log => {
+                                const row = document.createElement('tr');
+                                const timestamp = new Date(log.timestamp).toLocaleString();
+                                const levelClass = `log-${log.level.toLowerCase()}`;
+                                
+                                row.innerHTML = `
+                                    <td>${timestamp}</td>
+                                    <td><span class="log-level ${levelClass}">${log.level}</span></td>
+                                    <td>${log.source}</td>
+                                    <td>${log.message}</td>
+                                `;
+                                tbody.appendChild(row);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading logs:', error);
+                        const tbody = document.getElementById('log-table-body');
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Error loading logs</td></tr>';
+                    });
+            }
+            
+            // Load system info on page load
+            fetch('/api/admin/system/info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateSystemInfo(data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading system info:', error);
+                });
+                
+            // Load system logs on page load
+            loadSystemLogs();
         });
     </script>
 </body>

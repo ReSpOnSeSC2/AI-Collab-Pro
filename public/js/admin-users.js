@@ -5,8 +5,8 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     // Toggle sidebar on mobile
-    document.querySelector('.show-sidebar-btn')?.addEventListener('click', function() {
-        document.querySelector('.sidebar').classList.toggle('show');
+    document.querySelector('.admin-menu-toggle')?.addEventListener('click', function() {
+        document.querySelector('.admin-sidebar').classList.toggle('collapsed');
     });
     
     // UI Elements

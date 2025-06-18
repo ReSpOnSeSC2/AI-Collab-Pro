@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: ai-collab-backend
+    runtime: node
+    repo: https://github.com/YOUR_GITHUB_USERNAME/ai-collab # Update this with your repo
+    branch: main
+    rootDir: .
+    buildCommand: npm install
+    startCommand: node src/server.mjs
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: MONGODB_URI
+        fromDatabase:
+          name: mongodb
+          property: connectionString
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: API_KEY_ENCRYPTION_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      # Frontend URL for CORS
+      - key: FRONTEND_URL
+        value: https://your-app.vercel.app # Update with your Vercel URL
+      - key: ALLOWED_ORIGINS
+        value: https://your-app.vercel.app,https://your-custom-domain.com
+      # Redis for rate limiting (optional)
+      - key: REDIS_URL
+        fromDatabase:
+          name: redis
+          property: connectionString
+      # OAuth (optional)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+    autoDeploy: false # Set to true once you're ready
+    plan: starter # Options: starter ($7/month), standard, pro
+    
+databases:
+  - name: mongodb
+    databaseName: ai_collab
+    user: ai_collab_user
+    plan: starter # MongoDB Atlas connection string will be added manually
+  
+  - name: redis
+    plan: starter # Optional, for rate limiting

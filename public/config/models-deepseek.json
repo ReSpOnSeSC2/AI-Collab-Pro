@@ -4,22 +4,26 @@
   "models": [
     { 
       "id": "deepseek-chat", 
-      "name": "DeepSeek Chat", 
-      "price": "$0.27/M in, $1.10/M out", 
+      "name": "DeepSeek-V3-0324", 
+      "price": "$0.27/M in (cache miss), $0.07/M in (cache hit), $1.10/M out", 
+      "discountPrice": "$0.135/M in (cache miss), $0.035/M in (cache hit), $0.55/M out (UTC 16:30-00:30)",
       "contextLength": "64K tokens", 
+      "maxOutput": "4K default, 8K maximum",
       "description": "General conversational and text generation tasks", 
-      "features": ["High Context", "Chat"],
+      "features": ["High Context", "Chat", "JSON Output", "Function Calling", "Chat Prefix Completion (Beta)", "FIM Completion (Beta)"],
       "platforms": {
         "api": "deepseek-chat"
       } 
     },
     { 
       "id": "deepseek-reasoner", 
-      "name": "DeepSeek Reasoner", 
-      "price": "$0.55/M in, $2.19/M out", 
+      "name": "DeepSeek-R1-0528", 
+      "price": "$0.55/M in (cache miss), $0.14/M in (cache hit), $2.19/M out", 
+      "discountPrice": "$0.135/M in (cache miss), $0.035/M in (cache hit), $0.55/M out (UTC 16:30-00:30)",
       "contextLength": "64K tokens", 
+      "maxOutput": "32K default, 64K maximum",
       "description": "Complex problem-solving with step-by-step reasoning", 
-      "features": ["Chain of Thought", "Reasoning", "Problem Solving"],
+      "features": ["Chain of Thought", "Reasoning", "Problem Solving", "JSON Output", "Function Calling", "Chat Prefix Completion (Beta)"],
       "platforms": {
         "api": "deepseek-reasoner"
       }

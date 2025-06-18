@@ -4,10 +4,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Toggle sidebar on mobile
-    document.querySelector('.show-sidebar-btn')?.addEventListener('click', function() {
-        document.querySelector('.sidebar').classList.toggle('show');
-    });
+    // Admin shared.js handles sidebar toggling
     
     // Enable tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -32,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDashboardStats();
     initializeCharts();
     loadConversations();
+    loadTopicsData();
     
     // Add event listeners
     document.getElementById('date-range').addEventListener('change', handleDateRangeChange);
@@ -97,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadDashboardStats();
         refreshCharts();
         loadConversations();
+        loadTopicsData();
     }
     
     /**
@@ -122,30 +121,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('total-messages').textContent = data.stats.totalMessages.toLocaleString();
                 document.getElementById('avg-length').textContent = data.stats.avgMessagesPerConversation.toLocaleString();
                 
-                // Simulate sentiment score (in a real app, this would come from the API)
-                const sentiment = parseFloat((3.5 + Math.random()).toFixed(1));
-                document.getElementById('sentiment-score').textContent = sentiment.toString();
+                // Sentiment analysis not yet implemented
+                document.getElementById('sentiment-score').textContent = 'N/A';
+                document.getElementById('sentiment-score').className = 'text-muted';
                 
-                // Set sentiment class
-                const sentimentEl = document.getElementById('sentiment-score');
-                if (sentiment >= 4) {
-                    sentimentEl.className = 'sentiment-positive';
-                } else if (sentiment >= 3) {
-                    sentimentEl.className = 'sentiment-neutral';
-                } else {
-                    sentimentEl.className = 'sentiment-negative';
-                }
-                
-                // Calculate change percentages (in a real app, this would come from the API)
-                const conversationsChange = Math.floor(Math.random() * 30) - 10;
-                const messagesChange = Math.floor(Math.random() * 30) - 10;
-                const lengthChange = Math.floor(Math.random() * 10) - 5;
-                const sentimentChange = Math.floor(Math.random() * 6) - 2;
-                
-                updateChangeIndicator('conversations-change', conversationsChange);
-                updateChangeIndicator('messages-change', messagesChange);
-                updateChangeIndicator('length-change', lengthChange);
-                updateChangeIndicator('sentiment-change', sentimentChange);
+                // Change percentages not yet implemented in backend
+                updateChangeIndicator('conversations-change', 0);
+                updateChangeIndicator('messages-change', 0);
+                updateChangeIndicator('length-change', 0);
+                updateChangeIndicator('sentiment-change', 0);
                 
                 // Update charts with real data
                 if (window.modeChart && data.stats.modeDistribution) {
@@ -330,15 +314,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Placeholder data for other charts (topic and query charts)
+        // Initialize topics chart with empty data
         const topicsCtx = document.getElementById('topics-chart').getContext('2d');
         window.topicsChart = new Chart(topicsCtx, {
             type: 'bar',
             data: {
-                labels: ['Programming', 'AI/ML', 'Business', 'Writing', 'Education', 'Science', 'Math', 'Other'],
+                labels: [],
                 datasets: [{
                     label: 'Conversations',
-                    data: [628, 542, 354, 320, 298, 246, 215, 653],
+                    data: [],
                     backgroundColor: 'rgba(54, 162, 235, 0.7)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1
@@ -360,13 +344,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        // Initialize query types chart with empty data
         const queryCtx = document.getElementById('query-chart').getContext('2d');
         window.queryChart = new Chart(queryCtx, {
             type: 'pie',
             data: {
-                labels: ['Information', 'Code Generation', 'Creative Writing', 'Problem Solving', 'Brainstorming', 'Summarization'],
+                labels: [],
                 datasets: [{
-                    data: [35, 25, 15, 10, 10, 5],
+                    data: [],
                     backgroundColor: [
                         'rgba(54, 162, 235, 0.7)',
                         'rgba(255, 99, 132, 0.7)',
@@ -672,19 +657,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 formattedDuration = `${Math.round(durationMinutes)}m`;
             }
             
-            // Format sentiment icon (random for now)
-            const sentiment = Math.round(Math.random() * 2) + 3; // Random 3-5
-            let sentimentIcon, sentimentClass;
-            if (sentiment >= 4) {
-                sentimentIcon = 'bi-emoji-smile-fill';
-                sentimentClass = 'sentiment-positive';
-            } else if (sentiment >= 3) {
-                sentimentIcon = 'bi-emoji-neutral-fill';
-                sentimentClass = 'sentiment-neutral';
-            } else {
-                sentimentIcon = 'bi-emoji-frown-fill';
-                sentimentClass = 'sentiment-negative';
-            }
+            // Sentiment analysis not yet implemented
+            const sentimentIcon = 'bi-dash-circle';
+            const sentimentClass = 'text-muted';
+            const sentiment = 'N/A';
             
             row.innerHTML = `
                 <td>
@@ -697,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${formattedStartTime}</td>
                 <td>${formattedDuration}</td>
                 <td>
-                    <i class="bi ${sentimentIcon} ${sentimentClass}" title="Sentiment: ${sentiment}/5"></i>
+                    <i class="bi ${sentimentIcon} ${sentimentClass}" title="Sentiment: Not available"></i>
                 </td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary view-conversation-btn" data-conversation-id="${conv.id}">
@@ -975,5 +951,66 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function hideSpinner() {
         document.getElementById('loading-spinner').classList.add('d-none');
+    }
+    
+    /**
+     * Load topics and query types data
+     */
+    async function loadTopicsData() {
+        try {
+            console.log('Loading topics data...');
+            const queryParams = new URLSearchParams();
+            queryParams.append('days', dateRange || 30);
+            queryParams.append('_t', Date.now()); // Prevent caching
+            
+            const response = await fetch(`/api/admin/stats/topics?${queryParams}`);
+            
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Topics data received:', data);
+            
+            if (data.success) {
+                // Update topics chart
+                if (window.topicsChart && data.popularTopics) {
+                    console.log('Updating topics chart with:', data.popularTopics);
+                    
+                    // Clear existing data
+                    window.topicsChart.data.labels = [];
+                    window.topicsChart.data.datasets[0].data = [];
+                    
+                    // Set new data
+                    const labels = data.popularTopics.map(item => item.topic);
+                    const counts = data.popularTopics.map(item => item.count);
+                    
+                    window.topicsChart.data.labels = labels;
+                    window.topicsChart.data.datasets[0].data = counts;
+                    window.topicsChart.update('none'); // Update without animation
+                }
+                
+                // Update query types chart
+                if (window.queryChart && data.queryTypes) {
+                    console.log('Updating query chart with:', data.queryTypes);
+                    
+                    // Clear existing data
+                    window.queryChart.data.labels = [];
+                    window.queryChart.data.datasets[0].data = [];
+                    
+                    // Set new data
+                    const labels = data.queryTypes.map(item => item.type);
+                    const percentages = data.queryTypes.map(item => item.percentage);
+                    
+                    window.queryChart.data.labels = labels;
+                    window.queryChart.data.datasets[0].data = percentages;
+                    window.queryChart.update('none'); // Update without animation
+                }
+            } else {
+                console.error('Failed to load topics data:', data.error);
+            }
+        } catch (error) {
+            console.error('Error loading topics data:', error);
+        }
     }
 });

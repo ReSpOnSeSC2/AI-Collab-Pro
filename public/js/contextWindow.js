@@ -104,15 +104,15 @@ const MODEL_CONTEXT_WINDOWS = {
     'deepseek': {
         // INPUT context windows
         input: {
-            'default': 32000,
-            'deepseek-chat': 32000,
-            'deepseek-reasoner': 32000,
+            'default': 64000,
+            'deepseek-chat': 64000,
+            'deepseek-reasoner': 64000,
         },
         // OUTPUT context windows
         output: {
-            'default': 8000, // DeepSeek output limit
+            'default': 8000, // DeepSeek default output limit
             'deepseek-chat': 8000,
-            'deepseek-reasoner': 8000,
+            'deepseek-reasoner': 64000,
         }
     },
     'llama': {

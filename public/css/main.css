@@ -53,24 +53,43 @@
 }
 
 /* ========== GLOBAL STYLES ========== */
-html, body {
+html {
     height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto; /* Allow scrolling at html level */
+}
+
+body {
+    min-height: 100%;
     margin: 0;
     padding: 0;
     background-color: var(--nexus-bg);
     color: var(--nexus-text);
     font-family: var(--nexus-font);
     line-height: 1.5;
-    overflow-x: hidden;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Light theme overrides for body */
+body.theme-light,
+.theme-light body {
+    background-color: var(--nexus-bg);
+    color: var(--nexus-text);
 }
 
 /* Global Header Styles */
 .global-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
     background-color: var(--nexus-card-bg);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border-bottom: 1px solid var(--nexus-border);
     padding: 5px 15px;
+    height: 50px; /* Fixed height for consistency */
 }
 
 .global-header .header-title {
@@ -1130,4 +1149,195 @@ pre {
         margin-right: 0;
         margin-bottom: 2px;
     }
+}
+
+/* ========== INDIVIDUAL SCROLLBARS FOR AI MODELS ========== */
+/* Ensure main container uses full height */
+.main-container {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 50px); /* Use min-height instead of height */
+    margin-top: 50px; /* Push content below fixed header */
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: visible; /* Allow content to be visible */
+    position: relative;
+}
+
+/* Remove any default padding/margin */
+body {
+    margin: 0;
+    padding: 0;
+}
+
+/* Make chat area row flex and take available space */
+.chat-area-row {
+    display: flex !important;
+    flex: 1;
+    min-height: 0; /* Important for Firefox */
+    overflow: visible !important; /* Allow content to be visible */
+    margin: 0 !important;
+    gap: 8px !important; /* Consistent spacing between columns */
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Override Bootstrap column classes for proper flex behavior */
+.chat-area-row > [class*="col"] {
+    flex: 1 1 0 !important;
+    min-width: 0 !important; /* Allow columns to shrink */
+    max-width: none !important;
+    width: auto !important;
+    padding: 0 !important;
+}
+
+/* Style each chat column */
+.chat-column {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0; /* Important for proper scrolling */
+    border: 1px solid var(--nexus-border);
+    border-radius: var(--nexus-radius);
+    background-color: var(--nexus-card-bg);
+    overflow: hidden;
+}
+
+/* Fix chat header to not overlap content */
+.chat-header {
+    flex-shrink: 0; /* Prevent header from shrinking */
+    z-index: 1; /* Ensure header stays on top of messages */
+    position: relative;
+}
+
+/* Ensure chat messages have individual scrollbars */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem;
+    min-height: 0; /* Important for proper scrolling */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--nexus-border) transparent; /* Firefox */
+    /* Add margin to prevent content from going under header */
+    margin-top: 2px;
+}
+
+/* Webkit scrollbar styling */
+.chat-messages::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: var(--nexus-border);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--nexus-accent);
+}
+
+/* Ensure context window and footer don't overflow */
+.context-window-row,
+.cli-row {
+    flex-shrink: 0;
+}
+
+/* Hide columns when toggle is off */
+.hidden-column {
+    display: none !important;
+}
+
+/* Ensure visible columns distribute space evenly */
+.chat-area-row > [class*="col"]:not(.hidden-column) {
+    flex: 1 1 0 !important;
+    max-width: none !important; /* Override Bootstrap max-width */
+    width: auto !important;
+}
+
+/* Force override any Bootstrap column width classes */
+.chat-area-row > .col-12,
+.chat-area-row > .col-md-6,
+.chat-area-row > .col-md-4,
+.chat-area-row > .col-md-3,
+.chat-area-row > .col-lg-2,
+.chat-area-row > .col-lg-20,
+.chat-area-row > .col {
+    flex: 1 1 0 !important;
+    max-width: none !important;
+    width: auto !important;
+}
+
+/* Fix Bootstrap grid for dynamic columns */
+.row.chat-area-row {
+    --bs-gutter-x: 0; /* Remove Bootstrap gutters */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1200px) {
+    .chat-area-row {
+        gap: 4px !important;
+    }
+}
+
+@media (max-width: 992px) {
+    /* Stack columns on smaller screens */
+    .chat-area-row {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .chat-area-row > .col-lg {
+        width: 100%;
+        margin-bottom: 10px;
+        height: 400px; /* Fixed height for each when stacked */
+    }
+}
+
+/* Fix for page controls row */
+.page-controls-row {
+    flex-shrink: 0;
+    margin-bottom: 8px !important;
+    padding: 5px 0 !important;
+}
+
+/* Ensure proper container height calculation */
+.container-fluid.main-container {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Ensure chat columns are visible even at edges */
+.chat-area-row {
+    padding: 0 5px; /* Small padding to prevent edge clipping */
+}
+
+/* Force all columns to fit within viewport */
+.chat-area-row > [class*="col"] > .chat-column {
+    min-width: 0; /* Allow columns to shrink below their content width */
+    flex-shrink: 1; /* Allow columns to shrink */
+}
+
+/* Ensure model dropdowns don't push columns too wide */
+.model-selector-container {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.model-selected {
+    max-width: 100%;
+}
+
+.selected-model-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

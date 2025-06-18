@@ -23,6 +23,85 @@ const CONTEXT_MODES = {
   FULL: 'full'
 };
 
+/**
+ * Clean up any duplicate context elements that might have been created at the bottom of the page
+ */
+function cleanupDuplicateContextElements() {
+  // Find any context-actions containers that are direct children of body
+  const bodyContextActions = document.querySelectorAll('body > .context-actions');
+  bodyContextActions.forEach(element => {
+    console.log('Context Manager: Removing duplicate context-actions from body');
+    element.remove();
+  });
+  
+  // Find any context elements that are after the footer
+  const footer = document.querySelector('footer');
+  if (footer) {
+    let sibling = footer.nextElementSibling;
+    while (sibling) {
+      const nextSibling = sibling.nextElementSibling;
+      if (sibling.classList && (
+          sibling.classList.contains('context-actions') ||
+          sibling.classList.contains('context-warning') ||
+          sibling.id === 'context-status' ||
+          sibling.id === 'context-warning' ||
+          sibling.id === 'context-progress'
+      )) {
+        console.log('Context Manager: Removing duplicate context element after footer:', sibling.id || sibling.className);
+        sibling.remove();
+      }
+      sibling = nextSibling;
+    }
+  }
+}
+
+/**
+ * Remove all context management UI elements except token displays
+ */
+function removeContextManagementUI() {
+  // Remove all context-actions containers
+  document.querySelectorAll('.context-actions').forEach(element => {
+    console.log('Context Manager: Removing context-actions container');
+    element.remove();
+  });
+  
+  // Remove specific context elements by ID
+  const elementsToRemove = [
+    'context-status',
+    'context-reset-button',
+    'context-trim-button',
+    'context-warning',
+    'context-progress',
+    'context-mode-selector',
+    'reset-context-button',
+    'trim-context-button'
+  ];
+  
+  elementsToRemove.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      console.log(`Context Manager: Removing element with id: ${id}`);
+      element.remove();
+    }
+  });
+  
+  // Remove any elements with context-related classes
+  const classesToRemove = [
+    '.context-status',
+    '.context-action-button',
+    '.context-warning',
+    '.context-progress-bar',
+    '.context-mode-selector-container'
+  ];
+  
+  classesToRemove.forEach(selector => {
+    document.querySelectorAll(selector).forEach(element => {
+      console.log(`Context Manager: Removing element with class: ${selector}`);
+      element.remove();
+    });
+  });
+}
+
 // DOM Elements
 let contextStatusElement;
 let contextResetButton;
@@ -36,23 +115,22 @@ let contextToggleSwitch;
  * Initialize the context manager UI elements
  */
 export function initializeContextManager() {
-  // Find or create UI elements
-  contextStatusElement = document.getElementById('context-status') || createContextStatusElement();
-  contextResetButton = document.getElementById('context-reset-button') || createContextActionButton('Reset Context', handleResetContext);
-  contextTrimButton = document.getElementById('context-trim-button') || createContextActionButton('Trim Context', handleTrimContext);
-  contextWarningElement = document.getElementById('context-warning') || createContextWarningElement();
-  contextProgressBar = document.getElementById('context-progress') || createContextProgressBar();
-  contextModeSelector = document.getElementById('context-mode-selector') || createContextModeSelector();
-  contextToggleSwitch = document.getElementById('context-toggle-switch') || createContextToggleSwitch();
+  // First, clean up any duplicate context elements that might be at the bottom of the page
+  cleanupDuplicateContextElements();
+  
+  // Also remove all context management UI elements - we only want the token displays
+  removeContextManagementUI();
+  
+  // Only keep the toggle switch that already exists in HTML
+  contextToggleSwitch = document.getElementById('context-toggle-switch');
+  
+  // Add event listener to existing toggle switch
+  if (contextToggleSwitch && !contextToggleSwitch.hasAttribute('data-initialized')) {
+    contextToggleSwitch.addEventListener('change', handleContextToggle);
+    contextToggleSwitch.setAttribute('data-initialized', 'true');
+  }
 
-  // Initially hide or disable elements
-  contextWarningElement.style.display = 'none';
-  contextTrimButton.disabled = true;
-
-  // Update UI with initial state
-  updateContextUI();
-
-  console.log('Context Manager: Initialized');
+  console.log('Context Manager: Initialized (UI elements removed, only token displays remain)');
 }
 
 /**
@@ -65,9 +143,15 @@ function createContextStatusElement() {
   element.classList.add('context-status');
   element.innerHTML = 'Context: <span class="context-size">0</span> / <span class="max-size">32000</span> chars';
   
-  // Find a place to insert it in the UI
-  const container = document.querySelector('.hub-sidebar') || document.querySelector('.toolbar') || document.body;
-  container.appendChild(element);
+  // Find proper container for context status - should be in context-window-row
+  const container = document.querySelector('.context-windows-wrapper') || 
+                    document.querySelector('.context-window-row') || 
+                    document.querySelector('.input-area-container');
+  if (container) {
+    container.appendChild(element);
+  } else {
+    console.warn('Context Manager: Could not find proper container for context status');
+  }
   
   return element;
 }
@@ -85,20 +169,26 @@ function createContextActionButton(label, clickHandler) {
   button.textContent = label;
   button.addEventListener('click', clickHandler);
   
-  // Find the best container for the button
-  const container = document.querySelector('.context-actions') || 
-                    document.querySelector('.hub-sidebar') || 
-                    document.querySelector('.toolbar');
-                    
-  if (container) {
-    container.appendChild(button);
-  } else {
-    // Create a container if none exists
-    const newContainer = document.createElement('div');
-    newContainer.classList.add('context-actions');
-    newContainer.appendChild(button);
-    document.body.appendChild(newContainer);
+  // Find the best container for the button - should be near context windows
+  let container = document.querySelector('.context-actions');
+  
+  if (!container) {
+    // Create context-actions container in the proper location
+    container = document.createElement('div');
+    container.classList.add('context-actions');
+    
+    // Insert after context windows
+    const contextRow = document.querySelector('.context-window-row') || 
+                      document.querySelector('.context-windows-wrapper');
+    if (contextRow) {
+      contextRow.parentNode.insertBefore(container, contextRow.nextSibling);
+    } else {
+      console.warn('Context Manager: Could not find proper location for context actions');
+      return button; // Don't append to body
+    }
   }
+  
+  container.appendChild(button);
   
   return button;
 }
@@ -129,8 +219,14 @@ function createContextWarningElement() {
     contextInfo.hasWarningDisplayed = false;
   });
   
-  // Add to UI
-  document.body.appendChild(element);
+  // Add to proper container - warning should appear near context controls
+  const container = document.querySelector('.context-actions') || 
+                    document.querySelector('.context-window-row');
+  if (container) {
+    container.parentNode.insertBefore(element, container.nextSibling);
+  } else {
+    console.warn('Context Manager: Could not find proper container for context warning');
+  }
   
   return element;
 }
@@ -201,20 +297,26 @@ function createContextModeSelector() {
 
   container.appendChild(select);
 
-  // Find a place to insert it
-  const parent = document.querySelector('.context-actions') ||
-                document.querySelector('.hub-sidebar') ||
-                document.querySelector('.toolbar');
-
-  if (parent) {
-    parent.appendChild(container);
-  } else {
-    // If no suitable parent exists, create one
-    const newContainer = document.createElement('div');
-    newContainer.classList.add('context-actions');
-    newContainer.appendChild(container);
-    document.body.appendChild(newContainer);
+  // Find or create context-actions container in proper location
+  let parent = document.querySelector('.context-actions');
+  
+  if (!parent) {
+    // Create context-actions container in the proper location
+    parent = document.createElement('div');
+    parent.classList.add('context-actions');
+    
+    // Insert after context windows
+    const contextRow = document.querySelector('.context-window-row') || 
+                      document.querySelector('.context-windows-wrapper');
+    if (contextRow) {
+      contextRow.parentNode.insertBefore(parent, contextRow.nextSibling);
+    } else {
+      console.warn('Context Manager: Could not find proper location for context mode selector');
+      return select; // Don't append to body
+    }
   }
+  
+  parent.appendChild(container);
 
   return select;
 }
@@ -276,20 +378,26 @@ function createContextToggleSwitch() {
     handleContextToggle(event);
   });
 
-  // Find a place to insert it
-  const parent = document.querySelector('.context-actions') ||
-                document.querySelector('.hub-sidebar') ||
-                document.querySelector('.toolbar');
-
-  if (parent) {
-    parent.insertBefore(container, parent.firstChild); // Insert at the beginning
-  } else {
-    // If no suitable parent exists, create one
-    const newContainer = document.createElement('div');
-    newContainer.classList.add('context-actions');
-    newContainer.appendChild(container);
-    document.body.appendChild(newContainer);
+  // Find or create context-actions container in proper location
+  let parent = document.querySelector('.context-actions');
+  
+  if (!parent) {
+    // Create context-actions container in the proper location
+    parent = document.createElement('div');
+    parent.classList.add('context-actions');
+    
+    // Insert after context windows
+    const contextRow = document.querySelector('.context-window-row') || 
+                      document.querySelector('.context-windows-wrapper');
+    if (contextRow) {
+      contextRow.parentNode.insertBefore(parent, contextRow.nextSibling);
+    } else {
+      console.warn('Context Manager: Could not find proper location for context toggle');
+      return toggleInput; // Don't append to body
+    }
   }
+  
+  parent.insertBefore(container, parent.firstChild); // Insert at the beginning
 
   return toggleInput;
 }
@@ -495,8 +603,8 @@ function handleContextModeChange(event) {
   }
 
   // Send request to server
-  if (window.connectionManager && typeof window.connectionManager.sendMessageToServer === 'function') {
-    window.connectionManager.sendMessageToServer({
+  if (window.sendMessageToServer && typeof window.sendMessageToServer === 'function') {
+    window.sendMessageToServer({
       type: 'set_context_mode',
       mode: newMode
     });
@@ -542,11 +650,11 @@ function handleContextToggle(event) {
   console.log('Context Manager: Toggle context to:', newMode, 'Previous mode:', contextInfo.contextMode);
 
   // Send mode update to server
-  if (window.connectionManager && typeof window.connectionManager.sendMessageToServer === 'function') {
+  if (window.sendMessageToServer && typeof window.sendMessageToServer === 'function') {
     // Update internal state before sending to ensure UI stays consistent
     contextInfo.contextMode = newMode;
     
-    window.connectionManager.sendMessageToServer({
+    window.sendMessageToServer({
       type: 'set_context_mode',
       mode: newMode
     });
@@ -554,12 +662,13 @@ function handleContextToggle(event) {
     // Show temporary visual feedback
     showTemporaryMessage(`Context ${newMode === CONTEXT_MODES.NONE ? 'disabled' : 'enabled - mode: ' + newMode}`);
   } else {
-    // Fallback to direct WebSocket
-    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+    // Try to get WebSocket from window.getWebSocket
+    const ws = window.getWebSocket?.() || window.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
       // Update internal state before sending to ensure UI stays consistent
       contextInfo.contextMode = newMode;
       
-      window.ws.send(JSON.stringify({
+      ws.send(JSON.stringify({
         type: 'set_context_mode',
         mode: newMode
       }));
@@ -579,42 +688,15 @@ function handleContextToggle(event) {
  * Update the UI elements with current context state
  */
 function updateContextUI() {
-  if (contextStatusElement) {
-    const sizeEl = contextStatusElement.querySelector('.context-size');
-    const maxEl = contextStatusElement.querySelector('.max-size');
-    
-    if (sizeEl) sizeEl.textContent = contextInfo.contextSize.toLocaleString();
-    if (maxEl) maxEl.textContent = contextInfo.maxContextSize.toLocaleString();
-  }
-  
-  if (contextProgressBar) {
-    // Update progress bar width
-    contextProgressBar.style.width = `${contextInfo.percentUsed}%`;
-    
-    // Update color based on usage
-    if (contextInfo.percentUsed >= 90) {
-      contextProgressBar.style.backgroundColor = '#e74c3c'; // Red
-    } else if (contextInfo.percentUsed >= 75) {
-      contextProgressBar.style.backgroundColor = '#f39c12'; // Orange
-    } else {
-      contextProgressBar.style.backgroundColor = '#2ecc71'; // Green
-    }
-  }
-  
-  // Enable/disable trim button based on context size
-  if (contextTrimButton) {
-    contextTrimButton.disabled = contextInfo.contextSize < 1000;
-  }
+  // This function is now empty since we've removed all context UI elements
+  // Only the token displays remain, which are updated elsewhere
 }
 
 /**
  * Show the context warning UI
  */
 function showContextWarning() {
-  if (contextWarningElement) {
-    contextWarningElement.style.display = 'flex'; // Show the warning
-    contextInfo.hasWarningDisplayed = true;
-  }
+  // Warning UI has been removed - this function is now a no-op
 }
 
 /**
@@ -653,14 +735,15 @@ function handleResetContext() {
   
   // Send reset request to server
   // This assumes connectionManager is globally available
-  if (window.connectionManager && typeof window.connectionManager.sendMessageToServer === 'function') {
-    window.connectionManager.sendMessageToServer({
+  if (window.sendMessageToServer && typeof window.sendMessageToServer === 'function') {
+    window.sendMessageToServer({
       type: 'reset_context'
     });
   } else {
-    // If connectionManager isn't available, try WebSocket directly
-    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-      window.ws.send(JSON.stringify({
+    // If sendMessageToServer isn't available, try WebSocket directly
+    const ws = window.getWebSocket?.() || window.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
         type: 'reset_context'
       }));
     } else {
@@ -680,14 +763,15 @@ function handleTrimContext() {
   }
   
   // Send trim request to server via available connection method
-  if (window.connectionManager && typeof window.connectionManager.sendMessageToServer === 'function') {
-    window.connectionManager.sendMessageToServer({
+  if (window.sendMessageToServer && typeof window.sendMessageToServer === 'function') {
+    window.sendMessageToServer({
       type: 'trim_context'
     });
   } else {
     // Fallback to direct WebSocket
-    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-      window.ws.send(JSON.stringify({
+    const ws = window.getWebSocket?.() || window.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
         type: 'trim_context'
       }));
     } else {
@@ -713,16 +797,17 @@ export function setMaxContextSize(maxSize) {
   }
   
   // Send request to server
-  if (window.connectionManager && typeof window.connectionManager.sendMessageToServer === 'function') {
-    window.connectionManager.sendMessageToServer({
+  if (window.sendMessageToServer && typeof window.sendMessageToServer === 'function') {
+    window.sendMessageToServer({
       type: 'set_max_context_size',
       maxSize
     });
     return true;
   } else {
     // Fallback to direct WebSocket
-    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-      window.ws.send(JSON.stringify({
+    const ws = window.getWebSocket?.() || window.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
         type: 'set_max_context_size',
         maxSize
       }));
