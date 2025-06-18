@@ -4,7 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security & Privacy - AI-Collab</title>
-    <link rel="stylesheet" href="/css/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" id="highlight-style">
+    <!-- Link the consolidated CSS file -->
+    <link rel="stylesheet" href="/css/main.css?v=8">
+    <!-- Load the standalone theme manager script that works on all pages -->
+    <script src="/js/applySavedTheme.js"></script>
+    <!-- Page Header CSS -->
+    <link rel="stylesheet" href="/css/page-header.css?v=1">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .security-page {
             max-width: 1200px;
@@ -211,7 +224,9 @@
 <body>
     <div id="app-container">
         <!-- Header -->
-        <header id="global-header-placeholder"></header>
+        <div id="global-header-placeholder">
+            <!-- Header will be injected here -->
+        </div>
 
         <!-- Main Content -->
         <main class="security-page">
@@ -410,11 +425,21 @@ const encrypted = await crypto.encrypt(apiKey, AES_256_GCM);
         </main>
 
         <!-- Footer -->
-        <footer id="global-footer-placeholder"></footer>
+        <div id="global-footer-placeholder">
+            <!-- Footer will be injected here -->
+        </div>
     </div>
 
-    <!-- Include layout manager for header/footer injection -->
-    <script src="/js/layoutManager.js"></script>
+    <!-- Load Layout Manager FIRST (non-module for immediate execution) -->
+    <script src="/js/layoutManager.js?v=8"></script>
+    
+    <!-- Load Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <!-- Load Authentication -->
+    <script src="/js/auth.js"></script>
     
     <script>
         // Encryption demo
