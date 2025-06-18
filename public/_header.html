@@ -40,34 +40,54 @@
 
 <script>
 // Initialize header user info and logout functionality
-document.addEventListener('DOMContentLoaded', () => {
+// Use a timeout to ensure the button is in the DOM
+setTimeout(() => {
     // Handle auth:login event to update user info
     document.addEventListener('auth:login', (event) => {
         const user = event.detail;
         if (user && user.name) {
-            document.getElementById('header-user-info').textContent = `Hello, ${user.name}`;
+            const headerUserInfo = document.getElementById('header-user-info');
+            if (headerUserInfo) {
+                headerUserInfo.textContent = `Hello, ${user.name}`;
+            }
         }
     });
     
-    // Setup logout button
+    // Setup logout button with event delegation
     const logoutBtn = document.getElementById('global-logout-button');
+    console.log('Logout button element:', logoutBtn);
+    
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        // Remove any existing listeners
+        logoutBtn.replaceWith(logoutBtn.cloneNode(true));
+        
+        // Get the fresh button reference
+        const freshLogoutBtn = document.getElementById('global-logout-button');
+        
+        freshLogoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Logout button clicked!');
+            
+            // Clear auth data manually
+            localStorage.removeItem('ai_collab_token');
+            localStorage.removeItem('ai_collab_authenticated');
+            localStorage.removeItem('ai_collab_user');
+            localStorage.removeItem('ai_collab_email');
+            localStorage.removeItem('ai_collab_name');
+            
             // Check if AICollabAuth is available
-            if (window.AICollabAuth && window.AICollabAuth.logout) {
-                console.log('Logging out using AICollabAuth...');
+            if (window.AICollabAuth && typeof window.AICollabAuth.logout === 'function') {
+                console.log('Using AICollabAuth.logout()');
                 window.AICollabAuth.logout();
             } else {
-                console.log('AICollabAuth not available, using direct navigation...');
-                // Clear auth data manually and redirect
-                localStorage.removeItem('ai_collab_token');
-                localStorage.removeItem('ai_collab_authenticated');
-                localStorage.removeItem('ai_collab_user');
-                localStorage.removeItem('ai_collab_email');
-                localStorage.removeItem('ai_collab_name');
+                console.log('Direct redirect to login');
                 window.location.href = '/login.html';
             }
         });
+        
+        console.log('Logout button listener attached');
+    } else {
+        console.error('Logout button not found!');
     }
-});
+}, 100);
 </script>

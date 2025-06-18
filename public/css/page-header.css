@@ -10,7 +10,12 @@
 /* Adjust vertical positioning of header content */
 .global-header .global-nav,
 .global-header .user-info {
-    margin-bottom: 20px; /* Raises the content up by 20px */
+    margin-bottom: 40px; /* Raises the content up by 40px */
+}
+
+/* Adjust logo positioning */
+.global-header img {
+    margin-top: -40px; /* Raises the logo up by 40px */
 }
 
 /* Light theme override for global header */
