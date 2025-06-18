@@ -5,7 +5,11 @@
  */
 
 // Configuration
-const API_BASE_URL = '/api';
+// Detect if we're in production and use the appropriate backend URL
+const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+const BACKEND_URL = isProduction ? 'https://ai-collab-pro.onrender.com' : '';
+const API_BASE_URL = `${BACKEND_URL}/api`;
+
 const AUTH_ENDPOINTS = {
     LOGIN: `${API_BASE_URL}/auth/login`,
     SIGNUP: `${API_BASE_URL}/auth/signup`,
@@ -447,11 +451,8 @@ function handleGoogleAuth(mode) {
     localStorage.setItem('ai_collab_redirect', '/hub.html');
     localStorage.setItem('ai_collab_auth_mode', mode);
     
-    // Build the Google auth URL - using Passport.js
-    const baseUrl = window.location.origin;
-    
-    // Direct to Passport.js Google authentication route
-    const googleAuthUrl = `${baseUrl}/api/auth/google`;
+    // Use the configured Google auth endpoint
+    const googleAuthUrl = AUTH_ENDPOINTS.GOOGLE;
     
     console.log('Redirecting for Google auth using Passport.js:', googleAuthUrl);
     
