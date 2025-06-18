@@ -27,7 +27,7 @@
             <i class="bi bi-gear me-1"></i> Admin
         </a>
         <!-- Logout button -->
-        <button id="global-logout-button" class="btn btn-sm btn-outline-danger me-2" aria-label="Logout" title="Logout">
+        <button id="global-logout-button" class="btn btn-sm btn-outline-danger me-2" aria-label="Logout" title="Logout" onclick="handleLogout()">
             <i class="bi bi-box-arrow-right me-1"></i> Logout
         </button>
         <!-- Theme Toggle is essential globally -->
@@ -39,6 +39,27 @@
 </header>
 
 <script>
+// Global logout function
+function handleLogout() {
+    console.log('Logout function called!');
+    
+    // Clear all auth data
+    localStorage.removeItem('ai_collab_token');
+    localStorage.removeItem('ai_collab_authenticated');
+    localStorage.removeItem('ai_collab_user');
+    localStorage.removeItem('ai_collab_email');
+    localStorage.removeItem('ai_collab_name');
+    
+    // Clear session storage too
+    sessionStorage.clear();
+    
+    // Redirect to login
+    console.log('Redirecting to login page...');
+    window.location.href = '/login.html';
+    
+    return false; // Prevent any default action
+}
+
 // Initialize header functionality
 (function() {
     // Handle auth:login event to update user info
@@ -52,30 +73,6 @@
         }
     });
     
-    // Use event delegation on the document body for logout button
-    document.addEventListener('click', function(e) {
-        // Check if the clicked element is the logout button or its child
-        const logoutBtn = e.target.closest('#global-logout-button');
-        
-        if (logoutBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Logout button clicked via delegation!');
-            
-            // Clear all auth data
-            localStorage.removeItem('ai_collab_token');
-            localStorage.removeItem('ai_collab_authenticated');
-            localStorage.removeItem('ai_collab_user');
-            localStorage.removeItem('ai_collab_email');
-            localStorage.removeItem('ai_collab_name');
-            
-            // Always redirect to login
-            console.log('Redirecting to login page...');
-            window.location.href = '/login.html';
-        }
-    });
-    
-    console.log('Header logout handler initialized with event delegation');
+    console.log('Header initialized with logout handler');
 })();
 </script>
