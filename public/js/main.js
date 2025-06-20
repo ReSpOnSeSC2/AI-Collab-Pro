@@ -377,7 +377,20 @@ function handleSendMessage(messageText) {
     window.connectionManager = ConnectionManager;
 
     const activeColumnsData = UIManager.getActiveAndVisibleColumns();
+    console.log("Active columns data:", activeColumnsData);
     const activeAISystems = activeColumnsData.map(colData => colData.id);
+    console.log("Active AI systems:", activeAISystems);
+    
+    // Check if no models are detected
+    if (activeAISystems.length === 0) {
+        console.error("No active AI systems detected!");
+        // Try to debug what's happening
+        ['claude', 'gemini', 'chatgpt', 'grok', 'deepseek', 'llama'].forEach(provider => {
+            const column = document.getElementById(`${provider}-column`);
+            console.log(`${provider}-column:`, column, 
+                column ? `display: ${window.getComputedStyle(column).display}` : 'not found');
+        });
+    }
     
     // Show loading screen for round-table collaboration if multiple models are selected
     if (activeAISystems.length > 1 && state.collaboration.mode !== 'individual') {
@@ -474,6 +487,11 @@ function handleSendMessage(messageText) {
         sequentialStyle: sequentialStyle // Add sequential style option if applicable
     };
 
+    console.log("Sending message payload:", payload);
+    console.log("Model info payload details:", modelInfoPayload);
+    console.log("Selected models state:", state.selectedModels);
+    console.log("Default models state:", state.defaultModels);
+    
     const success = window.sendMessageToServer(payload);
 
     if (success) {
