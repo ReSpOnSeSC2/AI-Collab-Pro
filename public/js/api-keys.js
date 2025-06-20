@@ -45,6 +45,28 @@ class ApiKeysManager {
     initFormHandlers() {
         const form = document.getElementById('api-key-form');
         form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+        
+        // Add character counter for API key input
+        const apiKeyInput = document.getElementById('api-key-input');
+        const lengthDisplay = document.getElementById('api-key-length');
+        const charCount = document.getElementById('key-char-count');
+        
+        if (apiKeyInput && lengthDisplay && charCount) {
+            apiKeyInput.addEventListener('input', (e) => {
+                const length = e.target.value.length;
+                charCount.textContent = length;
+                lengthDisplay.style.display = length > 0 ? 'block' : 'none';
+            });
+            
+            // Also update on paste
+            apiKeyInput.addEventListener('paste', (e) => {
+                setTimeout(() => {
+                    const length = apiKeyInput.value.length;
+                    charCount.textContent = length;
+                    lengthDisplay.style.display = length > 0 ? 'block' : 'none';
+                }, 10);
+            });
+        }
     }
 
     async handleFormSubmit(e) {
@@ -52,12 +74,28 @@ class ApiKeysManager {
         
         const formData = new FormData(e.target);
         const provider = formData.get('provider');
-        const apiKey = formData.get('apiKey');
+        let apiKey = formData.get('apiKey');
 
         if (!provider || !apiKey) {
             this.showMessage('Please select a provider and enter an API key', 'error');
             return;
         }
+
+        // Trim whitespace from the API key
+        apiKey = apiKey.trim();
+
+        // Debug: Log API key details
+        console.log('API Key Debug:', {
+            provider,
+            keyLength: apiKey.length,
+            keyPreview: apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 10),
+            hasWhitespace: apiKey !== formData.get('apiKey'),
+            startsWithExpected: {
+                openai: apiKey.startsWith('sk-'),
+                anthropic: apiKey.startsWith('sk-ant-'),
+                google: apiKey.length > 30 // Google keys are typically long
+            }
+        });
 
         try {
             const token = localStorage.getItem('ai_collab_token');
@@ -75,7 +113,16 @@ class ApiKeysManager {
 
             if (!response.ok) {
                 console.error('API response not OK:', response.status, data);
-                this.showMessage(data.error || data.message || `HTTP ${response.status}: Failed to save API key`, 'error');
+                
+                // Check for specific validation errors
+                let errorMessage = data.error || data.message || `HTTP ${response.status}: Failed to save API key`;
+                
+                // Add helpful hints based on the error
+                if (errorMessage.includes('Invalid API key')) {
+                    errorMessage += '. Please check: 1) The key is correct and complete, 2) The key hasn't been revoked, 3) You selected the correct provider';
+                }
+                
+                this.showMessage(errorMessage, 'error');
                 return;
             }
 
@@ -346,12 +393,15 @@ function toggleApiKeyVisibility() {
 
 async function validateApiKey() {
     const provider = document.getElementById('provider-select').value;
-    const apiKey = document.getElementById('api-key-input').value;
+    let apiKey = document.getElementById('api-key-input').value;
     
     if (!provider || !apiKey) {
         apiKeysManager.showMessage('Please select a provider and enter an API key', 'error');
         return;
     }
+
+    // Trim whitespace
+    apiKey = apiKey.trim();
 
     // Show security preview
     showSecurityPreview(apiKey);

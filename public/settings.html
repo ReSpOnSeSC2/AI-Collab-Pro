@@ -176,12 +176,15 @@
                                             name="apiKey" 
                                             placeholder="Enter your API key"
                                             required
+                                            maxlength="500"
+                                            autocomplete="off"
                                         />
                                         <button type="button" class="btn btn-outline-secondary toggle-visibility" onclick="toggleApiKeyVisibility()">
                                             <i class="bi bi-eye"></i>
                                         </button>
                                     </div>
                                     <small class="form-text text-muted">Your API key will be encrypted before storage</small>
+                                    <small class="form-text text-muted" id="api-key-length" style="display: none;">Length: <span id="key-char-count">0</span> characters</small>
                                 </div>
                                 
                                 <div class="form-actions">
