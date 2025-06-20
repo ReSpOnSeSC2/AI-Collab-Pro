@@ -13,6 +13,10 @@ class ApiKeysManager {
             'llama': { name: 'Llama', icon: '🦙' }
         };
         
+        // Set up backend URL for production
+        this.isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        this.BACKEND_URL = this.isProduction ? 'https://ai-collab-pro.onrender.com' : '';
+        
         this.init();
     }
 
@@ -56,10 +60,12 @@ class ApiKeysManager {
         }
 
         try {
-            const response = await fetch('/api/api-keys', {
+            const token = localStorage.getItem('ai_collab_token');
+            const response = await fetch(`${this.BACKEND_URL}/api/api-keys`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
                 },
                 credentials: 'include',
                 body: JSON.stringify({ provider, apiKey })
@@ -91,7 +97,11 @@ class ApiKeysManager {
 
     async loadProviderStatus() {
         try {
-            const response = await fetch('/api/api-keys/status', {
+            const token = localStorage.getItem('ai_collab_token');
+            const response = await fetch(`${this.BACKEND_URL}/api/api-keys/status`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 credentials: 'include'
             });
 
@@ -144,7 +154,11 @@ class ApiKeysManager {
 
     async loadSavedKeys() {
         try {
-            const response = await fetch('/api/api-keys', {
+            const token = localStorage.getItem('ai_collab_token');
+            const response = await fetch(`${this.BACKEND_URL}/api/api-keys`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 credentials: 'include'
             });
 
@@ -212,7 +226,11 @@ class ApiKeysManager {
         try {
             // This would typically fetch from a user stats endpoint
             // For now, we'll use placeholder data
-            const response = await fetch('/api/auth/session', {
+            const token = localStorage.getItem('ai_collab_token');
+            const response = await fetch(`${this.BACKEND_URL}/api/auth/session`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 credentials: 'include'
             });
 
@@ -238,10 +256,12 @@ class ApiKeysManager {
 
     async testKey(provider) {
         try {
-            const response = await fetch(`/api/api-keys/validate`, {
+            const token = localStorage.getItem('ai_collab_token');
+            const response = await fetch(`${this.BACKEND_URL}/api/api-keys/validate`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
                 },
                 credentials: 'include',
                 body: JSON.stringify({ provider })
@@ -266,8 +286,12 @@ class ApiKeysManager {
         }
 
         try {
-            const response = await fetch(`/api/api-keys/${provider}`, {
+            const token = localStorage.getItem('ai_collab_token');
+            const response = await fetch(`${this.BACKEND_URL}/api/api-keys/${provider}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 credentials: 'include'
             });
 
@@ -333,10 +357,15 @@ async function validateApiKey() {
     showSecurityPreview(apiKey);
 
     try {
-        const response = await fetch('/api/api-keys/validate', {
+        const token = localStorage.getItem('ai_collab_token');
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const BACKEND_URL = isProduction ? 'https://ai-collab-pro.onrender.com' : '';
+        
+        const response = await fetch(`${BACKEND_URL}/api/api-keys/validate`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
             },
             credentials: 'include',
             body: JSON.stringify({ provider, apiKey })
@@ -399,10 +428,15 @@ async function testApiKey() {
         // Create a temporary session storage for the test
         sessionStorage.setItem(`test_api_key_${provider}`, apiKey);
         
-        const response = await fetch('/api/api-keys/test', {
+        const token = localStorage.getItem('ai_collab_token');
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const BACKEND_URL = isProduction ? 'https://ai-collab-pro.onrender.com' : '';
+        
+        const response = await fetch(`${BACKEND_URL}/api/api-keys/test`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
             },
             credentials: 'include',
             body: JSON.stringify({ provider, apiKey, testMode: true })
