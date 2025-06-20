@@ -35,6 +35,38 @@ async function checkAuthStatus() {
     }
 
     console.log("Auth Handler: Checking authentication status...");
+    
+    // FIRST: Check URL parameters for OAuth redirect tokens
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUser = urlParams.get('user');
+    
+    if (urlToken && urlUser) {
+        try {
+            const userData = JSON.parse(decodeURIComponent(urlUser));
+            console.log('Auth Handler: Found OAuth token in URL, processing user data...');
+            currentUser = {
+                id: userData.id || userData._id, // Use MongoDB ObjectId
+                _id: userData._id || userData.id,
+                name: userData.name || 'Authenticated User',
+                email: userData.email,
+                image: userData.image,
+                subscriptionTier: userData.subscriptionTier || 'free',
+                apiKeysConfigured: userData.apiKeysConfigured || {}
+            };
+            console.log("Auth Handler: OAuth user authenticated:", currentUser.id);
+            console.log("Auth Handler: API keys configured:", currentUser.apiKeysConfigured);
+            dispatchLogin(currentUser);
+            authCheckComplete = true;
+            dispatchAuthChecked(true);
+            authCheckPromise = Promise.resolve();
+            return; // Exit early - we're authenticated via OAuth
+        } catch (e) {
+            console.error('Auth Handler: Error processing OAuth token from URL:', e);
+            // Continue with normal auth flow
+        }
+    }
+    
     try {
         // Use ConnectionManager or wsPathHelper if available for URL construction
         const sessionUrl = '/api/auth/session'; // Keep it simple for standalone

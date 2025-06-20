@@ -134,9 +134,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Event handler functions (extracted for better readability)
 function handleAuthLogin(event) {
-    state.userId = event.detail?.id;
-    console.log(`User authenticated/identified: ${state.userId}`);
-    console.log(`User details:`, event.detail);
+    const previousUserId = state.userId;
+    const newUserId = event.detail?.id || event.detail?._id; // Try both id and _id
+    
+    state.userId = newUserId;
+    console.log(`🎯 AUTH:LOGIN Event Received!`);
+    console.log(`  - User ID: ${state.userId}`);
+    console.log(`  - Is temporary format: ${newUserId?.startsWith('user-') && newUserId?.includes('-')}`);
+    console.log(`  - Is MongoDB ObjectId: ${/^[0-9a-fA-F]{24}$/.test(newUserId || '')}`);
+    console.log(`  - Full user details:`, event.detail);
+    
+    // If we have a WebSocket connection, authenticate with the new user ID
+    if (window.sendMessageToServer && newUserId) {
+        if (previousUserId !== newUserId) {
+            console.log(`🔄 User ID changed from ${previousUserId || 'none'} to ${newUserId}`);
+        }
+        console.log(`🔐 Sending WebSocket authentication with userId: ${newUserId}`);
+        const authMessage = { type: 'authenticate', userId: newUserId };
+        console.log(`🔐 Auth message being sent:`, authMessage);
+        window.sendMessageToServer(authMessage);
+    } else if (!window.sendMessageToServer && newUserId && !newUserId.startsWith('user-')) {
+        // We have a real user ID but no WebSocket connection yet
+        console.log(`🔌 Real user ID received but no WebSocket connection. Connecting now...`);
+        console.log(`  - window.connectWebSocket exists: ${!!window.connectWebSocket}`);
+        console.log(`  - window.checkConnectionStatus: ${window.checkConnectionStatus ? window.checkConnectionStatus() : 'function not found'}`);
+        if (window.connectWebSocket) {
+            window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
+            // Retry authentication after a short delay to ensure WebSocket is ready
+            setTimeout(() => {
+                if (window.sendMessageToServer && newUserId) {
+                    console.log(`🔐 Retrying WebSocket authentication after connection...`);
+                    window.sendMessageToServer({ type: 'authenticate', userId: newUserId });
+                }
+            }, 500);
+        }
+    } else {
+        console.warn(`⚠️ Cannot authenticate WebSocket: sendMessageToServer=${!!window.sendMessageToServer}, userId=${newUserId}`);
+    }
     
     // Check if user has API keys configured
     if (event.detail?.apiKeysConfigured) {
@@ -159,9 +193,23 @@ function handleAuthLogin(event) {
 }
 
 function handleAuthChecked(event) {
-    console.log("Auth check complete:", event.detail);
+    console.log("🔍 Auth check complete:", event.detail);
+    console.log(`  - Current state.userId: ${state.userId}`);
+    console.log(`  - Is temporary format: ${state.userId?.startsWith('user-') && state.userId?.includes('-')}`);
+    
+    // Check if we should wait for OAuth processing
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasOAuthToken = urlParams.get('token') && urlParams.get('user');
+    
+    if (hasOAuthToken && (!state.userId || state.userId.startsWith('user-'))) {
+        console.log("⏳ OAuth token detected in URL but no real user ID yet. Waiting for auth:login event...");
+        // Don't connect WebSocket yet - wait for auth:login event
+        return;
+    }
+    
     // Now safe to connect WebSocket as we have a user ID (even if default)
     if (window.connectWebSocket) {
+        console.log("🔌 Connecting WebSocket after auth check...");
         window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
     }
 }
@@ -171,6 +219,21 @@ function handleWebSocketConnected(event) {
     if (socket) {
         state.mcpClient = MCPClient.createClient(socket); // Assuming createClient is exported
         console.log("MCP Client initialized.");
+        
+        // Send authentication immediately after WebSocket connects
+        console.log(`🔌 WebSocket connected. Current state.userId: ${state.userId}`);
+        console.log(`  - Is temporary format: ${state.userId?.startsWith('user-') && state.userId?.includes('-')}`);
+        console.log(`  - Is MongoDB ObjectId: ${/^[0-9a-fA-F]{24}$/.test(state.userId || '')}`);
+        
+        if (state.userId && window.sendMessageToServer) {
+            console.log(`🔐 Sending authentication on WebSocket connect with userId: ${state.userId}`);
+            const authMessage = { type: 'authenticate', userId: state.userId };
+            console.log(`🔐 WebSocket connect auth message:`, authMessage);
+            window.sendMessageToServer(authMessage);
+        } else {
+            console.warn(`⚠️ No userId available on WebSocket connect. state.userId: ${state.userId}`);
+        }
+        
         if (state.userId) {
             state.mcpClient.setUserId(state.userId); // Ensure user ID is set
             // Example: Automatically register a default context or fetch pending ops
@@ -365,8 +428,12 @@ function handleWebSocketStateChange(isConnected) {
     } else {
         UIManager.broadcastSystemMessage('Connection established.', 'success');
         // Re-authenticate or send user ID upon reconnection if needed
+        console.log(`🔌 WebSocket connected. Current userId: ${state.userId}`);
         if (state.userId && window.sendMessageToServer) {
+            console.log(`🔐 Sending authentication message with userId: ${state.userId}`);
             window.sendMessageToServer({ type: 'authenticate', userId: state.userId });
+        } else {
+            console.warn(`⚠️ No userId available for authentication. state.userId: ${state.userId}`);
         }
          // Update MCP client with new socket if necessary
         if (state.mcpClient && window.getWebSocket) {

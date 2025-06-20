@@ -101,6 +101,7 @@ window.connectWebSocket = function(onMessage, onStateChange) {
 
         ws.onopen = () => {
             console.log('ConnectionManager: WebSocket connected successfully.');
+            console.log(`ConnectionManager: Current userId from _appState: ${window._appState?.userId}`);
             reconnectAttempts = 0; // Reset attempts on successful connection
             ws.isAlive = true; // For heartbeat
             ws.missedHeartbeats = 0; // Initialize missed heartbeats counter

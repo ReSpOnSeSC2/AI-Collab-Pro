@@ -210,10 +210,19 @@ function sendWsError(ws, message, target = null, isMcpError = false) {
 
 async function handleAuthentication(ws, data) {
     if (data.userId && typeof data.userId === 'string') {
+        const previousUserId = ws.userId;
         ws.userId = data.userId;
         ws.sessionId = ws.connectionId; // Use connectionId as sessionId
 
         console.log(`🔐 Authenticating WebSocket for user: ${ws.userId}`);
+        console.log(`🔍 User ID format check:`);
+        console.log(`  - Is temporary format: ${ws.userId.startsWith('user-') && ws.userId.includes('-')}`);
+        console.log(`  - Is MongoDB ObjectId format: ${/^[0-9a-fA-F]{24}$/.test(ws.userId)}`);
+        console.log(`  - Previous userId: ${previousUserId || 'none'}`);
+        
+        if (previousUserId && previousUserId !== ws.userId) {
+            console.log(`🔄 User ID changed from ${previousUserId} to ${ws.userId}`);
+        }
 
         // Clear any cached API clients for this user to ensure fresh checks
         clearUserClientCache(ws.userId);
