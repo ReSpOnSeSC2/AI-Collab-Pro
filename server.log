@@ -78,3 +78,7 @@ Passport Google OAuth Configuration: {
   callbackURL: 'https://ai-collab-pro.onrender.com/api/auth/google/callback'
 }
 Passport: Authentication strategies initialized
+
+SIGTERM signal received: closing HTTP server
+HTTP server closed
+WebSocket connections terminated

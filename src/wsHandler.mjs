@@ -257,6 +257,15 @@ async function handleAuthentication(ws, data) {
 }
 
 async function handleChatMessage(ws, data) {
+    // Debug logging
+    console.log(`📩 handleChatMessage: ws.userId=${ws.userId}, data.userId=${data.userId}`);
+    
+    // Use userId from data if ws.userId is not set (for backwards compatibility)
+    if (!ws.userId && data.userId) {
+        console.log(`🔄 Using userId from message data: ${data.userId}`);
+        ws.userId = data.userId;
+    }
+    
     if (!ws.userId) { // Require authentication for chat
         return sendWsError(ws, 'Authentication required to chat.');
     }
@@ -289,13 +298,17 @@ async function handleChatMessage(ws, data) {
     const modelsToQuery = [];
     const userId = ws.userId || data.userId; // Get user ID
     
+    console.log(`🔍 Checking models for userId: ${userId}, target: ${target}, models:`, Object.keys(models));
+    
     if (target === 'collab') {
         // Check which models the user has API keys for
         for (const provider of Object.keys(models)) {
             try {
+                console.log(`🔑 Checking API key for provider: ${provider}, userId: ${userId}`);
                 // Check if user has API key for this provider
                 const client = await clientFactory.getClient(userId, provider);
                 if (client) {
+                    console.log(`✅ API key found for ${provider}`);
                     modelsToQuery.push(provider);
                 }
             } catch (error) {
@@ -313,8 +326,17 @@ async function handleChatMessage(ws, data) {
             return sendWsError(ws, `Target AI '${target}' is not available: ${error.message}`);
         }
     }
+    
+    console.log(`📊 Models to query after checking: ${modelsToQuery.length} models:`, modelsToQuery);
 
     if (modelsToQuery.length === 0) {
+        console.error(`❌ No models available for userId: ${userId}`);
+        
+        // Check if this is a temporary user
+        if (userId && userId.startsWith('user-') && userId.includes('-')) {
+            return sendWsError(ws, "No AI models available. You are using a temporary session. Please log in with Google to use your saved API keys, or ensure the server has system API keys configured.");
+        }
+        
         return sendWsError(ws, "No available AI models selected for this request. Please ensure you have configured API keys for the selected models.");
     }
 
