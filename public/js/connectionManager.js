@@ -33,12 +33,22 @@ function getBasePath() {
  * @returns {string} The full WebSocket URL (ws:// or wss://).
  */
 function getWebSocketUrl() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const basePath = getBasePath();
-    // Ensure the path is correct for the server.js WebSocket endpoint
-    const wsPath = '/api/ws'; // Assuming server.js WSS is listening on this path
-    const url = `${protocol}//${host}${basePath}${wsPath}`;
+    // Check if we're in production (frontend on Vercel, backend on Render)
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    let url;
+    if (isProduction) {
+        // In production, use the Render backend URL
+        url = 'wss://ai-collab-pro.onrender.com/api/ws';
+    } else {
+        // In development, use the same host
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const basePath = getBasePath();
+        const wsPath = '/api/ws';
+        url = `${protocol}//${host}${basePath}${wsPath}`;
+    }
+    
     console.log('ConnectionManager: WebSocket URL constructed:', url);
     return url;
 }
@@ -49,10 +59,19 @@ function getWebSocketUrl() {
  * @returns {string} The full fetch URL.
  */
 function getFetchUrl(endpoint) {
-    const basePath = getBasePath();
-    // Ensure endpoint starts with a slash if basePath is empty
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    return `${basePath}${cleanEndpoint}`;
+    // Check if we're in production
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    if (isProduction) {
+        // In production, use the Render backend URL
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        return `https://ai-collab-pro.onrender.com${cleanEndpoint}`;
+    } else {
+        // In development, use relative URLs
+        const basePath = getBasePath();
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        return `${basePath}${cleanEndpoint}`;
+    }
 }
 
 // --- WebSocket Management ---
