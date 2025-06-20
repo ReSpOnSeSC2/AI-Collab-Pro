@@ -137,12 +137,53 @@ function handleAuthLogin(event) {
     const previousUserId = state.userId;
     const newUserId = event.detail?.id || event.detail?._id; // Try both id and _id
     
+    // Check if we're upgrading from temporary to real user
+    const wasTemporary = previousUserId?.startsWith('user-') && previousUserId?.includes('-');
+    const isRealUser = newUserId && !newUserId.startsWith('user-');
+    const isUpgrade = wasTemporary && isRealUser;
+    
     state.userId = newUserId;
     console.log(`🎯 AUTH:LOGIN Event Received!`);
     console.log(`  - User ID: ${state.userId}`);
     console.log(`  - Is temporary format: ${newUserId?.startsWith('user-') && newUserId?.includes('-')}`);
     console.log(`  - Is MongoDB ObjectId: ${/^[0-9a-fA-F]{24}$/.test(newUserId || '')}`);
+    console.log(`  - Is upgrade from temp to real: ${isUpgrade}`);
     console.log(`  - Full user details:`, event.detail);
+    
+    // Handle WebSocket authentication/reconnection
+    if (isUpgrade && window.checkConnectionStatus && window.checkConnectionStatus()) {
+        console.log(`🔄 Upgrading from temporary user to real user. Reconnecting WebSocket...`);
+        
+        // Option 1: Just authenticate with new ID
+        if (window.sendMessageToServer) {
+            console.log(`🔐 Re-authenticating WebSocket with real user ID: ${newUserId}`);
+            window.sendMessageToServer({ type: 'authenticate', userId: newUserId });
+        }
+        
+        // Option 2: If authentication fails, reconnect WebSocket
+        setTimeout(() => {
+            // Check if we still have temporary user error
+            if (state.lastError?.includes('temporary session')) {
+                console.log(`⚠️ Still getting temporary session error. Forcing WebSocket reconnect...`);
+                if (window.getWebSocket) {
+                    const ws = window.getWebSocket();
+                    if (ws) {
+                        ws.close(1000, 'User upgrade - reconnecting');
+                    }
+                }
+                // Reconnect will happen automatically
+            }
+        }, 2000);
+    }
+    // Normal authentication flow for non-upgrade scenarios
+    else
+        setTimeout(() => {
+            if (window.connectWebSocket) {
+                window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
+            }
+        }, 100);
+        return;
+    }
     
     // If we have a WebSocket connection, authenticate with the new user ID
     if (window.sendMessageToServer && newUserId) {
@@ -207,10 +248,42 @@ function handleAuthChecked(event) {
         return;
     }
     
-    // Now safe to connect WebSocket as we have a user ID (even if default)
-    if (window.connectWebSocket) {
-        console.log("🔌 Connecting WebSocket after auth check...");
-        window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
+    // Also check localStorage for OAuth data that might not have triggered auth:login yet
+    const storedToken = localStorage.getItem('ai_collab_token');
+    const storedUser = localStorage.getItem('ai_collab_user');
+    
+    if (storedToken && storedUser && (!state.userId || state.userId.startsWith('user-'))) {
+        try {
+            const userData = JSON.parse(storedUser);
+            if (userData.id || userData._id) {
+                console.log("🔍 Found OAuth user in localStorage during auth:checked. Waiting for auth:login event...");
+                // Give authHandler a moment to process this
+                setTimeout(() => {
+                    // If still no real user ID, force a re-check
+                    if (!state.userId || state.userId.startsWith('user-')) {
+                        console.log("⚠️ Auth:login event didn't fire. Re-initializing auth handler...");
+                        AuthHandler.initialize();
+                    }
+                }, 1000);
+                return;
+            }
+        } catch (e) {
+            console.error("Error parsing stored user during auth:checked:", e);
+        }
+    }
+    
+    // Only connect WebSocket if we have a real user or if we're sure there's no OAuth data
+    const isRealUser = state.userId && !state.userId.startsWith('user-');
+    const noOAuthData = !hasOAuthToken && !storedToken;
+    
+    if (isRealUser || noOAuthData) {
+        if (window.connectWebSocket) {
+            console.log("🔌 Connecting WebSocket after auth check...");
+            console.log(`  - Reason: ${isRealUser ? 'Real user authenticated' : 'No OAuth data found'}`);
+            window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
+        }
+    } else {
+        console.log("⏳ Deferring WebSocket connection until OAuth processing completes");
     }
 }
 
@@ -319,6 +392,8 @@ function handleWebSocketMessage(data) {
             break;
         case 'error':
             UIManager.showError(data.message, data.target);
+            // Track last error for upgrade detection
+            state.lastError = data.message;
             // If error relates to a specific AI, remove typing indicator
             if (data.target && state.currentMessageElements[data.target]) {
                 UIManager.removeTypingIndicator(UIManager.getMessageContainer(data.target));

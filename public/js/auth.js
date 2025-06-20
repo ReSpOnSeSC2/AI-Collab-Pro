@@ -38,6 +38,35 @@ function redirectTo(path) {
 let currentUser = null;
 let authInitialized = false;
 
+// CRITICAL: Process OAuth tokens immediately before DOM loads
+// This ensures auth.js processes OAuth data before authHandler.js runs
+(function checkOAuthTokensImmediately() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUser = urlParams.get('user');
+    
+    if (urlToken && urlUser) {
+        try {
+            const userData = JSON.parse(decodeURIComponent(urlUser));
+            console.log('🔐 [IMMEDIATE] OAuth token found - processing before DOM load');
+            console.log('🔐 [IMMEDIATE] User ID:', userData.id || userData._id);
+            
+            // Set global variables immediately
+            currentUser = userData;
+            window.currentAuthUser = userData;
+            
+            // Store in localStorage immediately
+            localStorage.setItem('ai_collab_token', urlToken);
+            localStorage.setItem('ai_collab_authenticated', 'true');
+            localStorage.setItem('ai_collab_user', JSON.stringify(userData));
+            
+            console.log('🔐 [IMMEDIATE] OAuth data stored successfully');
+        } catch (e) {
+            console.error('🔐 [IMMEDIATE] Error processing OAuth token:', e);
+        }
+    }
+})();
+
 // Initialize Auth
 let authModuleInitialized = false;
 document.addEventListener('DOMContentLoaded', () => {
@@ -60,6 +89,19 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initializeAuth() {
     if (authInitialized) return;
     
+    // If we already have a currentUser from immediate OAuth processing, use it
+    if (currentUser && currentUser.id && !currentUser.id.startsWith('user-')) {
+        console.log('🔐 Using OAuth user already processed:', currentUser);
+        authInitialized = true;
+        
+        // Dispatch auth:login event
+        document.dispatchEvent(new CustomEvent('auth:login', { 
+            detail: currentUser 
+        }));
+        
+        return;
+    }
+    
     // FIRST: Check URL parameters for OAuth redirect tokens
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
@@ -68,7 +110,10 @@ async function initializeAuth() {
     if (urlToken && urlUser) {
         try {
             const userData = JSON.parse(decodeURIComponent(urlUser));
-            console.log('Found auth token in URL, storing and processing...');
+            console.log('🔐 Found auth token in URL, storing and processing...');
+            console.log('  - User ID:', userData.id || userData._id);
+            console.log('  - User email:', userData.email);
+            console.log('  - Is MongoDB ObjectId:', /^[0-9a-fA-F]{24}$/.test(userData.id || userData._id || ''));
             
             // Store token and user data immediately
             localStorage.setItem('ai_collab_token', urlToken);
@@ -79,21 +124,32 @@ async function initializeAuth() {
             
             currentUser = userData;
             
+            // CRITICAL: Set global variable for authHandler.js to find
+            window.currentAuthUser = userData;
+            
+            // Make sure currentUser is available globally BEFORE cleaning URL
+            if (window.AICollabAuth) {
+                console.log('🔐 Setting currentUser in window.AICollabAuth');
+            }
+            
             // Clean URL to remove sensitive data
             const cleanUrl = window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
             
-            // Dispatch auth:login event
-            document.dispatchEvent(new CustomEvent('auth:login', { 
-                detail: userData 
-            }));
+            // Dispatch auth:login event with a small delay to ensure handlers are ready
+            setTimeout(() => {
+                console.log('🔐 Dispatching auth:login event with user:', currentUser);
+                document.dispatchEvent(new CustomEvent('auth:login', { 
+                    detail: currentUser 
+                }));
+            }, 50);
             
             // Mark as initialized and authenticated
             authInitialized = true;
-            console.log('OAuth authentication completed successfully');
+            console.log('✅ OAuth authentication completed successfully');
             return; // Exit early - we're authenticated
         } catch (e) {
-            console.error('Error processing OAuth token from URL:', e);
+            console.error('❌ Error processing OAuth token from URL:', e);
             // Continue with normal auth flow
         }
     }
@@ -766,9 +822,25 @@ function getAuthHeaders() {
 // Export auth methods for global use
 window.AICollabAuth = {
     logout,
-    getCurrentUser: () => currentUser,
-    isAuthenticated: () => !!currentUser,
-    getAuthHeaders // Export for use in other modules
+    getCurrentUser: () => {
+        // Also check localStorage if currentUser is not set
+        if (!currentUser) {
+            const storedUser = localStorage.getItem('ai_collab_user');
+            if (storedUser) {
+                try {
+                    currentUser = JSON.parse(storedUser);
+                    console.log('🔐 Retrieved user from localStorage in getCurrentUser');
+                } catch (e) {
+                    console.error('Error parsing stored user in getCurrentUser:', e);
+                }
+            }
+        }
+        return currentUser;
+    },
+    isAuthenticated: () => !!currentUser || !!localStorage.getItem('ai_collab_token'),
+    getAuthHeaders, // Export for use in other modules
+    // Expose initializeAuth for manual re-initialization if needed
+    reinitialize: initializeAuth
 };
 
 // Make the Google One Tap handler available globally

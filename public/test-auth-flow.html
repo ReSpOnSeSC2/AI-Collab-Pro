@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Flow Test - AI Collaboration Hub</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button.secondary {
+            background: #6c757d;
+        }
+        .button.secondary:hover {
+            background: #545b62;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+        }
+        .log-entry.auth { color: #007bff; }
+        .log-entry.error { color: #dc3545; }
+        .log-entry.success { color: #28a745; }
+        .log-entry.warning { color: #ffc107; }
+        .data-display {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Authentication Flow Test</h1>
+    
+    <div class="container">
+        <h2>Current Authentication State</h2>
+        <div id="auth-status"></div>
+        <div id="user-info" class="data-display"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Test Actions</h2>
+        <button class="button" onclick="simulateOAuthRedirect()">Simulate OAuth Redirect</button>
+        <button class="button" onclick="checkAllSources()">Check All Auth Sources</button>
+        <button class="button" onclick="clearAuth()">Clear Auth Data</button>
+        <button class="button secondary" onclick="clearLogs()">Clear Logs</button>
+        <button class="button secondary" onclick="window.location.reload()">Reload Page</button>
+    </div>
+    
+    <div class="container">
+        <h2>Authentication Events Log</h2>
+        <div id="event-log" class="log"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Console Output</h2>
+        <div id="console-log" class="log"></div>
+    </div>
+
+    <script>
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsoleLog('log', args);
+        };
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsoleLog('error', args);
+        };
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsoleLog('warning', args);
+        };
+        
+        function addToConsoleLog(type, args) {
+            const log = document.getElementById('console-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${type.toUpperCase()}: ${args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+            ).join(' ')}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function addToEventLog(type, message) {
+            const log = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function updateAuthStatus() {
+            const statusDiv = document.getElementById('auth-status');
+            const userDiv = document.getElementById('user-info');
+            
+            // Check all auth sources
+            const sources = checkAllSources(true);
+            
+            // Determine overall status
+            let hasRealUser = false;
+            let userData = null;
+            
+            for (const [source, data] of Object.entries(sources)) {
+                if (data && data.id && !data.id.startsWith('user-')) {
+                    hasRealUser = true;
+                    userData = data;
+                    break;
+                }
+            }
+            
+            if (hasRealUser) {
+                statusDiv.innerHTML = '<div class="status success">✅ Authenticated with Real User</div>';
+                userDiv.innerHTML = `<strong>User Data:</strong><br>${JSON.stringify(userData, null, 2)}`;
+            } else if (Object.values(sources).some(v => v)) {
+                statusDiv.innerHTML = '<div class="status warning">⚠️ Temporary User Session</div>';
+                userDiv.innerHTML = `<strong>Temporary User:</strong><br>${JSON.stringify(Object.values(sources).find(v => v), null, 2)}`;
+            } else {
+                statusDiv.innerHTML = '<div class="status error">❌ Not Authenticated</div>';
+                userDiv.innerHTML = '<em>No user data found</em>';
+            }
+        }
+        
+        function checkAllSources(silent = false) {
+            const sources = {};
+            
+            // 1. Check window.currentAuthUser
+            sources.windowCurrentAuthUser = window.currentAuthUser || null;
+            
+            // 2. Check window.AICollabAuth
+            sources.AICollabAuth = window.AICollabAuth?.getCurrentUser?.() || null;
+            
+            // 3. Check localStorage
+            try {
+                const stored = localStorage.getItem('ai_collab_user');
+                sources.localStorage = stored ? JSON.parse(stored) : null;
+            } catch (e) {
+                sources.localStorage = null;
+            }
+            
+            // 4. Check _appState
+            sources.appState = window._appState?.userId ? { id: window._appState.userId } : null;
+            
+            // 5. Check URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlUser = urlParams.get('user');
+            try {
+                sources.urlParams = urlUser ? JSON.parse(decodeURIComponent(urlUser)) : null;
+            } catch (e) {
+                sources.urlParams = null;
+            }
+            
+            if (!silent) {
+                console.log('All Auth Sources:', sources);
+                addToEventLog('auth', 'Checked all auth sources');
+                updateAuthStatus();
+            }
+            
+            return sources;
+        }
+        
+        function simulateOAuthRedirect() {
+            // Simulate a real MongoDB ObjectId
+            const objectId = '681c2e91c92c867968fc34b0';
+            const userData = {
+                id: objectId,
+                _id: objectId,
+                name: 'Test User',
+                email: 'test@example.com',
+                subscriptionTier: 'free'
+            };
+            const token = 'test-jwt-token-' + Date.now();
+            
+            // Set in all possible places
+            window.currentAuthUser = userData;
+            localStorage.setItem('ai_collab_token', token);
+            localStorage.setItem('ai_collab_user', JSON.stringify(userData));
+            localStorage.setItem('ai_collab_authenticated', 'true');
+            
+            addToEventLog('success', `Simulated OAuth redirect with user ID: ${objectId}`);
+            
+            // Trigger auth events
+            if (window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('auth:login', { detail: userData }));
+            }
+            
+            updateAuthStatus();
+        }
+        
+        function clearAuth() {
+            // Clear all auth data
+            window.currentAuthUser = null;
+            localStorage.removeItem('ai_collab_token');
+            localStorage.removeItem('ai_collab_user');
+            localStorage.removeItem('ai_collab_authenticated');
+            localStorage.removeItem('ai_collab_email');
+            localStorage.removeItem('ai_collab_name');
+            
+            addToEventLog('warning', 'Cleared all authentication data');
+            updateAuthStatus();
+        }
+        
+        function clearLogs() {
+            document.getElementById('event-log').innerHTML = '';
+            document.getElementById('console-log').innerHTML = '';
+            addToEventLog('auth', 'Logs cleared');
+        }
+        
+        // Listen for auth events
+        document.addEventListener('auth:login', (event) => {
+            addToEventLog('success', `AUTH:LOGIN event received - User ID: ${event.detail?.id || 'unknown'}`);
+            updateAuthStatus();
+        });
+        
+        document.addEventListener('auth:checked', (event) => {
+            addToEventLog('auth', `AUTH:CHECKED event received - Authenticated: ${event.detail?.isAuthenticated}`);
+            updateAuthStatus();
+        });
+        
+        // Initial status check
+        setTimeout(() => {
+            addToEventLog('auth', 'Initial auth status check');
+            updateAuthStatus();
+        }, 100);
+    </script>
+    
+    <!-- Load the auth modules to test -->
+    <script type="module">
+        import('./js/authHandler.js').then(module => {
+            console.log('AuthHandler module loaded');
+            window.authHandler = module;
+        });
+    </script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

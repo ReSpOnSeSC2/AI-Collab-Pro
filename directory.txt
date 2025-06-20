@@ -73,8 +73,8 @@
 ./public/js/admin-shared.js
 ./public/js/admin-users.js
 ./public/js/applySavedTheme.js
-./public/js/auth.js
-./public/js/authHandler.js
+./public/js/auth.js - UPDATED: Enhanced OAuth detection and logging
+./public/js/authHandler.js - UPDATED: Fixed race condition with OAuth authentication
 ./public/js/codePreviewManager.js
 ./public/js/collaborationControls.js
 ./public/js/collaborationLimits.js
@@ -93,7 +93,8 @@
 ./public/js/layoutManager.js
 ./public/js/loadingManager.fixed.js
 ./public/js/loadingManager.js
-./public/js/main.js
+./public/js/main.js - UPDATED: Improved auth event handling and WebSocket reconnection
+./public/test-auth-flow.html - NEW: Authentication flow testing page
 ./public/js/mcpClient.js
 ./public/js/modelLoader.js
 ./public/js/sequentialStyleSelector.js
@@ -108,6 +109,7 @@
 ./public/model-comparison.html
 ./public/settings.html
 ./public/signup.html
+./public/test-auth-flow.html
 ./scripts/create-admin.js
 ./scripts/create-admin.mjs
 ./scripts/google-admin.mjs
