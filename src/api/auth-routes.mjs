@@ -470,7 +470,7 @@ router.post('/logout', (req, res) => {
 /**
  * Get Current Session
  */
-router.get('/session', optionalAuth, (req, res) => {
+router.get('/session', optionalAuth, async (req, res) => {
   if (!req.user) {
     return res.json({
       authenticated: false,
@@ -478,16 +478,131 @@ router.get('/session', optionalAuth, (req, res) => {
     });
   }
   
-  // User is authenticated
-  res.json({
-    authenticated: true,
-    user: {
-      id: req.user.userId,
-      name: req.user.name,
-      email: req.user.email,
-      subscriptionTier: req.user.subscriptionTier
+  try {
+    // Get the user's API key status
+    const userId = req.user.userId;
+    console.log(`📍 Session check for user: ${userId}`);
+    
+    // Import the User model to check API keys
+    const { User } = await import('../models/User.mjs');
+    const user = await User.findById(userId);
+    
+    let apiKeysConfigured = {};
+    if (user && user.apiKeys) {
+      // Check which providers have API keys configured
+      const providers = ['openai', 'anthropic', 'google', 'deepseek', 'grok', 'llama'];
+      providers.forEach(provider => {
+        apiKeysConfigured[provider] = user.apiKeys.some(k => k.provider === provider && k.isValid);
+      });
+      
+      // Also add the frontend names for convenience
+      apiKeysConfigured.chatgpt = apiKeysConfigured.openai;
+      apiKeysConfigured.claude = apiKeysConfigured.anthropic;
+      apiKeysConfigured.gemini = apiKeysConfigured.google;
     }
-  });
+    
+    // User is authenticated
+    res.json({
+      authenticated: true,
+      user: {
+        id: req.user.userId,
+        _id: req.user.userId, // Include both formats
+        name: req.user.name,
+        email: req.user.email,
+        subscriptionTier: req.user.subscriptionTier,
+        apiKeysConfigured: apiKeysConfigured
+      }
+    });
+  } catch (error) {
+    console.error('Error in session endpoint:', error);
+    // Still return basic user info even if API key check fails
+    res.json({
+      authenticated: true,
+      user: {
+        id: req.user.userId,
+        _id: req.user.userId,
+        name: req.user.name,
+        email: req.user.email,
+        subscriptionTier: req.user.subscriptionTier
+      }
+    });
+  }
+});
+
+/**
+ * Debug endpoint to check API keys for authenticated user
+ */
+router.get('/debug/api-keys', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    console.log(`🔍 Debug API keys for user: ${userId}`);
+    
+    // Import necessary modules
+    const { User } = await import('../models/User.mjs');
+    const apiKeyService = (await import('../services/apiKeyService.mjs')).default;
+    
+    // Get user from database
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.json({
+        success: false,
+        message: 'User not found in database',
+        userId: userId
+      });
+    }
+    
+    // Check each provider
+    const providers = ['openai', 'anthropic', 'google', 'deepseek', 'grok', 'llama'];
+    const apiKeyStatus = {};
+    
+    for (const provider of providers) {
+      const apiKeyInfo = await apiKeyService.getApiKey(userId, provider);
+      apiKeyStatus[provider] = {
+        hasKey: !!apiKeyInfo,
+        source: apiKeyInfo?.source || 'none',
+        isValid: user.apiKeys?.some(k => k.provider === provider && k.isValid) || false
+      };
+    }
+    
+    // Also check with frontend names
+    const frontendNames = {
+      'claude': 'anthropic',
+      'gemini': 'google',
+      'chatgpt': 'openai'
+    };
+    
+    for (const [frontend, backend] of Object.entries(frontendNames)) {
+      const apiKeyInfo = await apiKeyService.getApiKey(userId, backend);
+      apiKeyStatus[frontend] = {
+        hasKey: !!apiKeyInfo,
+        source: apiKeyInfo?.source || 'none',
+        mapsTo: backend,
+        isValid: user.apiKeys?.some(k => k.provider === backend && k.isValid) || false
+      };
+    }
+    
+    res.json({
+      success: true,
+      userId: userId,
+      userEmail: user.email,
+      apiKeysCount: user.apiKeys?.length || 0,
+      apiKeyStatus: apiKeyStatus,
+      rawApiKeys: user.apiKeys?.map(k => ({
+        provider: k.provider,
+        isValid: k.isValid,
+        keyId: k.keyId,
+        lastValidated: k.lastValidated
+      }))
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking API keys',
+      error: error.message
+    });
+  }
 });
 
 /**

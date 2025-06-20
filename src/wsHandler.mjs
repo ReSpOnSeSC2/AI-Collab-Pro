@@ -6,7 +6,7 @@
 
 import { WebSocket } from 'ws';
 import { clients, availability, getClient } from './lib/ai/index.mjs';
-import clientFactory from './lib/ai/clientFactory.mjs';
+import clientFactory, { clearUserClientCache } from './lib/ai/clientFactory.mjs';
 import { handleCollaborativeDiscussion, setCollaborationStyle, setCollaborationMode, getCollaborationConfig } from './lib/ai/collaboration.mjs';
 import { streamClaudeResponse } from './lib/ai/claude.mjs';
 import { streamGeminiResponse } from './lib/ai/gemini.mjs';
@@ -213,6 +213,11 @@ async function handleAuthentication(ws, data) {
         ws.userId = data.userId;
         ws.sessionId = ws.connectionId; // Use connectionId as sessionId
 
+        console.log(`🔐 Authenticating WebSocket for user: ${ws.userId}`);
+
+        // Clear any cached API clients for this user to ensure fresh checks
+        clearUserClientCache(ws.userId);
+
         // Store mapping
         wsUserSessions.set(ws, { userId: ws.userId, sessionId: ws.sessionId });
 
@@ -247,6 +252,14 @@ async function handleAuthentication(ws, data) {
             });
 
             console.log(`User ${ws.userId} authenticated for WebSocket session ${ws.sessionId}.`);
+            
+            // Check which API keys are available for this user
+            try {
+                const availabilityCheck = await clientFactory.getAvailability(ws.userId);
+                console.log(`🔑 API keys available for user ${ws.userId}:`, availabilityCheck);
+            } catch (checkError) {
+                console.error(`Error checking API availability:`, checkError);
+            }
         } catch (error) {
             console.error(`Error during authentication for userId: ${ws.userId}, sessionId: ${ws.sessionId}:`, error);
             sendWsError(ws, "Internal server error during authentication.");
@@ -277,8 +290,11 @@ async function handleChatMessage(ws, data) {
         models = {},
         target,
         collaborationMode = null,
-        sequentialStyle = null
+        sequentialStyle = null,
+        userId: dataUserId = null
     } = data;
+    
+    console.log(`📦 Chat message data - userId from data: ${dataUserId}, models:`, models);
     const messageText = message || content || '';
 
     if (!target) return sendWsError(ws, "Missing 'target' in chat message.");
@@ -306,6 +322,7 @@ async function handleChatMessage(ws, data) {
             try {
                 console.log(`🔑 Checking API key for provider: ${provider}, userId: ${userId}`);
                 // Check if user has API key for this provider
+                // The clientFactory will normalize the provider name internally
                 const client = await clientFactory.getClient(userId, provider);
                 if (client) {
                     console.log(`✅ API key found for ${provider}`);
@@ -318,6 +335,7 @@ async function handleChatMessage(ws, data) {
     } else {
         // Single model request
         try {
+            // The clientFactory will normalize the provider name internally
             const client = await clientFactory.getClient(userId, target);
             if (client) {
                 modelsToQuery.push(target);

@@ -19,6 +19,17 @@ class AIClientFactory {
    * Get or create an AI client for a specific user and provider
    */
   async getClient(userId, provider) {
+    // Normalize provider names to match database schema
+    const providerMap = {
+      'claude': 'anthropic',
+      'gemini': 'google',
+      'chatgpt': 'openai',
+      'grok': 'grok',
+      'deepseek': 'deepseek',
+      'llama': 'llama'
+    };
+    
+    const normalizedProvider = providerMap[provider] || provider;
     const cacheKey = `${userId || 'system'}-${provider}`;
     
     // Check cache
@@ -27,13 +38,13 @@ class AIClientFactory {
       return cached.client;
     }
 
-    // Get API key
-    const apiKeyInfo = await apiKeyService.getApiKey(userId, provider);
+    // Get API key using normalized provider name for database lookup
+    const apiKeyInfo = await apiKeyService.getApiKey(userId, normalizedProvider);
     if (!apiKeyInfo) {
-      throw new Error(`No API key available for ${provider}`);
+      throw new Error(`No API key available for ${provider} (${normalizedProvider})`);
     }
 
-    // Create client
+    // Create client (createClient will normalize again, but that's OK)
     const client = await this.createClient(provider, apiKeyInfo.key);
     
     // Cache it
@@ -50,7 +61,20 @@ class AIClientFactory {
    * Create a client for a specific provider
    */
   async createClient(provider, apiKey) {
-    switch (provider) {
+    // Normalize provider names to match database schema
+    const providerMap = {
+      'claude': 'anthropic',
+      'gemini': 'google',
+      'chatgpt': 'openai',
+      'grok': 'grok',
+      'deepseek': 'deepseek',
+      'llama': 'llama'
+    };
+    
+    const normalizedProvider = providerMap[provider] || provider;
+    console.log(`🔄 ClientFactory: Mapping provider '${provider}' to '${normalizedProvider}'`);
+    
+    switch (normalizedProvider) {
       case 'anthropic':
         return new Anthropic({ 
           apiKey,
@@ -89,7 +113,7 @@ class AIClientFactory {
         });
 
       default:
-        throw new Error(`Unknown provider: ${provider}`);
+        throw new Error(`Unknown provider: ${normalizedProvider}`);
     }
   }
 
@@ -98,7 +122,18 @@ class AIClientFactory {
    */
   async isProviderAvailable(userId, provider) {
     try {
-      const apiKeyInfo = await apiKeyService.getApiKey(userId, provider);
+      // Normalize provider names to match database schema
+      const providerMap = {
+        'claude': 'anthropic',
+        'gemini': 'google',
+        'chatgpt': 'openai',
+        'grok': 'grok',
+        'deepseek': 'deepseek',
+        'llama': 'llama'
+      };
+      
+      const normalizedProvider = providerMap[provider] || provider;
+      const apiKeyInfo = await apiKeyService.getApiKey(userId, normalizedProvider);
       return apiKeyInfo !== null;
     } catch (error) {
       console.error(`Error checking provider availability for ${provider}:`, error);
@@ -130,19 +165,31 @@ class AIClientFactory {
    */
   clearUserCache(userId) {
     const prefix = `${userId || 'system'}-`;
+    let cleared = 0;
     for (const key of this.clientCache.keys()) {
       if (key.startsWith(prefix)) {
         this.clientCache.delete(key);
+        cleared++;
       }
     }
+    console.log(`🧹 Cleared ${cleared} cached clients for user: ${userId}`);
   }
 
   /**
    * Clear entire cache
    */
   clearCache() {
+    const size = this.clientCache.size;
     this.clientCache.clear();
+    console.log(`🧹 Cleared entire client cache (${size} entries)`);
   }
 }
 
-export default new AIClientFactory();
+const clientFactory = new AIClientFactory();
+
+// Clear cache on authentication to ensure fresh API key checks
+export const clearUserClientCache = (userId) => {
+  clientFactory.clearUserCache(userId);
+};
+
+export default clientFactory;

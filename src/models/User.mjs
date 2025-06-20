@@ -215,11 +215,20 @@ UserSchema.methods.addApiKey = function(provider, apiKey) {
 
 // Get decrypted API key
 UserSchema.methods.getApiKey = function(provider) {
+  console.log(`🔑 User.getApiKey called for provider: ${provider}`);
+  console.log(`🔑 User has ${this.apiKeys ? this.apiKeys.length : 0} API keys stored`);
+  
+  if (this.apiKeys) {
+    console.log(`🔑 Stored API key providers:`, this.apiKeys.map(k => k.provider));
+  }
+  
   const apiKeyEntry = this.apiKeys.find(k => k.provider === provider);
   if (!apiKeyEntry) {
+    console.log(`❌ No API key found for provider: ${provider}`);
     return null;
   }
   
+  console.log(`✅ Found API key entry for ${provider}, decrypting...`);
   return this.decryptApiKey(apiKeyEntry.encryptedKey);
 };
 

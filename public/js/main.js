@@ -136,6 +136,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 function handleAuthLogin(event) {
     state.userId = event.detail?.id;
     console.log(`User authenticated/identified: ${state.userId}`);
+    console.log(`User details:`, event.detail);
+    
+    // Check if user has API keys configured
+    if (event.detail?.apiKeysConfigured) {
+        const configuredKeys = Object.entries(event.detail.apiKeysConfigured)
+            .filter(([provider, configured]) => configured)
+            .map(([provider]) => provider);
+        console.log(`✅ User has API keys configured for: ${configuredKeys.join(', ')}`);
+    }
+    
     // Potentially trigger actions requiring user ID, like fetching MCP operations
     if (state.mcpClient && state.userId) {
         state.mcpClient.setUserId(state.userId); // Assuming MCP client has a method to set user ID
@@ -258,6 +268,7 @@ function handleWebSocketMessage(data) {
             break;
         case 'authentication_success':
             console.log("Server confirmed authentication for:", data.userId);
+            console.log("Full authentication response:", data);
             // Process context information if available
             ContextManager.processAuthResponse(data);
             break;

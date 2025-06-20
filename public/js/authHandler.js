@@ -46,12 +46,15 @@ async function checkAuthStatus() {
         if (data && data.user && data.user.id) { // Check for user and id
             currentUser = {
                 id: data.user.id,
+                _id: data.user._id || data.user.id, // Include MongoDB ID
                 name: data.user.name || 'Authenticated User',
                 email: data.user.email, // Optional
                 image: data.user.image, // Optional
-                subscriptionTier: data.user.subscriptionTier || 'free' // Default tier if missing
+                subscriptionTier: data.user.subscriptionTier || 'free', // Default tier if missing
+                apiKeysConfigured: data.user.apiKeysConfigured || {} // API key status
             };
             console.log("Auth Handler: User authenticated from session:", currentUser.id);
+            console.log("Auth Handler: API keys configured:", currentUser.apiKeysConfigured);
             dispatchLogin(currentUser);
         } else {
             // Simulate a default "logged in" user for standalone mode

@@ -25,6 +25,7 @@ class ApiKeyService {
         } else {
           // Try to find user in database
           try {
+            console.log(`🔍 Looking up user in database with ID: ${userId} (type: ${typeof userId}, length: ${userId.length})`);
             const user = await User.findById(userId);
             if (user) {
               console.log(`✅ User found: ${user.email || user.name || 'Unknown'}`);
