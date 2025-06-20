@@ -354,12 +354,12 @@ function handleWebSocketStateChange(isConnected) {
     } else {
         UIManager.broadcastSystemMessage('Connection established.', 'success');
         // Re-authenticate or send user ID upon reconnection if needed
-        if (state.userId) {
-            ConnectionManager.sendMessageToServer({ type: 'authenticate', userId: state.userId });
+        if (state.userId && window.sendMessageToServer) {
+            window.sendMessageToServer({ type: 'authenticate', userId: state.userId });
         }
          // Update MCP client with new socket if necessary
-        if (state.mcpClient && ConnectionManager.getWebSocket()) {
-            state.mcpClient.updateWebsocket(ConnectionManager.getWebSocket());
+        if (state.mcpClient && window.getWebSocket) {
+            state.mcpClient.updateWebsocket(window.getWebSocket());
         }
     }
 }
@@ -395,7 +395,7 @@ function handleSendMessage(messageText) {
             // Show the loading screen with the active AI systems
             const abortSignal = LoadingManager.show(activeAISystems, () => {
                 // This callback is invoked when user clicks the cancel button
-                ConnectionManager.sendMessageToServer({
+                window.sendMessageToServer({
                     type: 'cancel_collaboration',
                     userId: state.userId,
                     models: activeAISystems
@@ -474,7 +474,7 @@ function handleSendMessage(messageText) {
         sequentialStyle: sequentialStyle // Add sequential style option if applicable
     };
 
-    const success = ConnectionManager.sendMessageToServer(payload);
+    const success = window.sendMessageToServer(payload);
 
     if (success) {
         UIManager.clearMessageInput();
@@ -492,7 +492,7 @@ function handleSendMessage(messageText) {
 function handleCliCommand(command) {
     if (!command) return;
     UIManager.addCliCommandToOutput(command); // Show command in output
-    ConnectionManager.sendMessageToServer({
+    window.sendMessageToServer({
         type: 'command',
         command: command,
         userId: state.userId // Include user ID
@@ -518,7 +518,7 @@ function handleFileUpload(files) {
     UIManager.updateFileListUI(state.uploadedFiles, handleRemoveFile); // Show uploading state
 
     // Use ConnectionManager or a dedicated API module for fetch
-    ConnectionManager.uploadFiles(formData)
+    window.uploadFiles(formData)
         .then(uploadedFilesData => {
             // Update state with server paths and mark as not uploading
             state.uploadedFiles = state.uploadedFiles.map(localFile => {
@@ -552,7 +552,7 @@ function handleCollabModeChange(newMode) {
     if (state.collaboration.mode !== newMode) {
         state.collaboration.mode = newMode;
         console.log(`Collaboration mode changed to: ${newMode}`);
-        ConnectionManager.sendMessageToServer({ type: 'set_collab_mode', mode: newMode });
+        window.sendMessageToServer({ type: 'set_collab_mode', mode: newMode });
         // Using individual mode turns off enhanced collab toggle
         const isCollaborative = newMode !== 'individual';
     }
@@ -589,7 +589,7 @@ function handleModelSelection(provider, modelId) {
         UIManager.showModelChangeNotification(provider, modelName);
         
         // Optionally notify server of model change
-        ConnectionManager.sendMessageToServer({ 
+        window.sendMessageToServer({ 
             type: 'model_selection', 
             provider: provider, 
             modelId: modelId 
@@ -626,9 +626,9 @@ window._app = {
     getState: () => ({ ...state }), // Return a copy
     sendMessage: handleSendMessage,
     sendCliCommand: handleCliCommand,
-    checkConnection: () => ConnectionManager.checkConnectionStatus(),
-    reconnect: () => ConnectionManager.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange),
-    checkApi: () => ConnectionManager.checkApiStatus(),
+    checkConnection: () => window.checkConnectionStatus && window.checkConnectionStatus(),
+    reconnect: () => window.connectWebSocket && window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange),
+    checkApi: () => window.checkApiStatus && window.checkApiStatus(),
     getMcpClient: () => state.mcpClient,
     showCodePreview: (code, title) => CodePreviewManager.showCodePreview(code, title),
 };

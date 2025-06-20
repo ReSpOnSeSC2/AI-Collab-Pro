@@ -436,6 +436,14 @@ async function checkApiStatus() {
 window.checkApiStatus = checkApiStatus;
 
 /**
+ * Checks if the WebSocket connection is active.
+ * @returns {boolean} True if connected, false otherwise.
+ */
+window.checkConnectionStatus = function() {
+    return ws && ws.readyState === WebSocket.OPEN;
+};
+
+/**
  * Uploads files to the server.
  * @param {FormData} formData - The FormData object containing files.
  * @returns {Promise<Array<object>>} A promise resolving with the data of uploaded files.
