@@ -6,6 +6,7 @@
 
 import { clients, availability, agentClients } from './index.mjs';
 import { getClient } from './index.mjs';
+import clientFactory from './clientFactory.mjs';
 import { DEFAULT_CLAUDE_MODEL } from './claude.mjs';
 import { DEFAULT_GEMINI_MODEL } from './gemini.mjs';
 import { publishEvent, subscribeToChannel } from '../messaging/redis.mjs';
@@ -16,6 +17,27 @@ import { estimateCost, trackUsage } from './costControl.mjs';
 const DEFAULT_TIMEOUT_SECONDS = 600; // 10 minutes - for complex prompts that can take 5-10 minutes
 const DEFAULT_COST_CAP_DOLLARS = 1.0;
 const DEFAULT_MODE = 'individual';
+
+// Helper function to check agent availability dynamically
+async function isAgentAvailable(agent, userId) {
+  try {
+    const client = await clientFactory.getClient(userId, agent);
+    return client !== null;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Helper to get available agents from a list
+async function getAvailableAgents(agents, userId) {
+  const availableAgents = [];
+  for (const agent of agents) {
+    if (await isAgentAvailable(agent, userId)) {
+      availableAgents.push(agent);
+    }
+  }
+  return availableAgents;
+}
 
 // Collaboration configuration
 const collaborationConfig = {
@@ -88,16 +110,26 @@ async function originalRunCollab(options) {
   var maxSeconds = options.maxSeconds || DEFAULT_TIMEOUT_SECONDS;
   var sessionId = options.sessionId || 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
   var ignoreFailingModels = options.ignoreFailingModels || false; // NEW: Flag to continue if some models fail
+  var userId = options.userId || null; // User ID for checking user-provided API keys
   
   // Validate and sanitize inputs
   if (!prompt || typeof prompt !== 'string') {
     throw new Error("Valid prompt is required");
   }
   
-  // Filter out unavailable agents
-  var availableAgents = agents.filter(function(agent) {
-    return availability[agent];
-  });
+  // Filter out unavailable agents - check both system and user API keys
+  var availableAgents = [];
+  for (const agent of agents) {
+    try {
+      // Check if API key is available (user or system)
+      const client = await clientFactory.getClient(userId, agent);
+      if (client) {
+        availableAgents.push(agent);
+      }
+    } catch (error) {
+      console.log(`Agent ${agent} not available: ${error.message}`);
+    }
+  }
   
   if (availableAgents.length === 0) {
     throw new Error("No available agents to collaborate");
@@ -264,7 +296,8 @@ async function originalRunCollab(options) {
           availableAgents, 
           redisChannel, 
           timeoutController.signal, 
-          costTracker
+          costTracker,
+          options
         );
         break;
       case 'expert_panel':
@@ -273,7 +306,8 @@ async function originalRunCollab(options) {
           availableAgents, 
           redisChannel, 
           timeoutController.signal, 
-          costTracker
+          costTracker,
+          options
         );
         break;
       case 'scenario_analysis':
@@ -282,7 +316,8 @@ async function originalRunCollab(options) {
           availableAgents, 
           redisChannel, 
           timeoutController.signal, 
-          costTracker
+          costTracker,
+          options
         );
         break;
       default:
@@ -292,7 +327,8 @@ async function originalRunCollab(options) {
           availableAgents, 
           redisChannel, 
           timeoutController.signal, 
-          costTracker
+          costTracker,
+          options
         );
     }
     
@@ -355,14 +391,15 @@ async function executeRoundTableCollaboration(prompt, agents, redisChannel, abor
     }
     console.log(`🔄 Starting Round Table collaboration with ${agents.length} agents: ${agents.join(', ')}`);
     console.log(`🧠 Available clients:`, Object.keys(clients).filter(k => clients[k]).join(', '));
-    console.log(`🟢 Agent availability:`, JSON.stringify(availability));
     
     // Get options
     const ignoreFailingModels = options.ignoreFailingModels || false;
     const models = options.models || {};
+    const userId = options.userId || null;
     
-    // Check if we have enough available agents
-    const availableAgentCount = agents.filter(agent => availability[agent]).length;
+    // Check agent availability dynamically
+    const availableAgents = await getAvailableAgents(agents, userId);
+    const availableAgentCount = availableAgents.length;
     console.log(`📊 Available agent count: ${availableAgentCount}/${agents.length}`);
     console.log(`⚙️ Round Table settings: ignoreFailingModels=${ignoreFailingModels}`);
     console.log(`📝 Round Table limits: prompt=5000 chars, draft=2000 words`);
@@ -385,7 +422,7 @@ async function executeRoundTableCollaboration(prompt, agents, redisChannel, abor
     const agent = agents[i];
     
     // Skip unavailable agents
-    if (!availability[agent]) {
+    if (!(await isAgentAvailable(agent, userId))) {
       console.warn(`⚠️ Agent ${agent} is not available, skipping...`);
       initialDrafts.push({
         agent: agent,
@@ -665,9 +702,10 @@ async function executeRoundTableCollaboration(prompt, agents, redisChannel, abor
  * Finds the agent with the highest token limit based on model type
  * @param {Array<string>} agents List of available agent names 
  * @param {Object} models Models object with agent names as keys
- * @returns {string} The agent name with the highest token limit
+ * @param {string} userId User ID for checking API keys
+ * @returns {Promise<string>} The agent name with the highest token limit
  */
-function getAgentWithHighestTokenLimit(agents, models = {}) {
+async function getAgentWithHighestTokenLimit(agents, models = {}, userId = null) {
   // Define token limits for different models
   const MAX_TOKEN_LIMITS = {
     'claude-3-5-sonnet': 64000,
@@ -690,9 +728,9 @@ function getAgentWithHighestTokenLimit(agents, models = {}) {
   let highestAgent = agents[0]; // Default to first agent
   let highestLimit = 0;
 
-  agents.forEach(agent => {
+  for (const agent of agents) {
     // Skip unavailable agents
-    if (!availability[agent]) return;
+    if (!(await isAgentAvailable(agent, userId))) continue;
     
     // Get the model ID for this agent
     const modelId = models[agent] && models[agent][0] || '';
@@ -728,7 +766,7 @@ function getAgentWithHighestTokenLimit(agents, models = {}) {
       highestLimit = tokenLimit;
       highestAgent = agent;
     }
-  });
+  }
   
   console.log(`🔍 Selected ${highestAgent} for summarization with estimated ${highestLimit} token limit`);
   return highestAgent;
@@ -744,14 +782,24 @@ function getAgentWithHighestTokenLimit(agents, models = {}) {
   // Use the agent with the highest token limit for summarization instead of the lead agent
   let summarizerAgent = null;
   try {
-    summarizerAgent = getAgentWithHighestTokenLimit(agents.filter(agent => {
+    const availableNonErrorAgents = [];
+    for (const agent of agents) {
       // Only use agents that are available and didn't error out
-      return availability[agent] && !initialDrafts.find(draft => draft.agent === agent && draft.error);
-    }), options.models);
+      if ((await isAgentAvailable(agent, userId)) && !initialDrafts.find(draft => draft.agent === agent && draft.error)) {
+        availableNonErrorAgents.push(agent);
+      }
+    }
+    summarizerAgent = await getAgentWithHighestTokenLimit(availableNonErrorAgents, options.models, userId);
   } catch (err) {
     console.error("Error getting agent with highest token limit:", err);
     // Fallback to first available agent
-    summarizerAgent = agents.find(agent => availability[agent] && !initialDrafts.find(draft => draft.agent === agent && draft.error)) || agents[0];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !initialDrafts.find(draft => draft.agent === agent && draft.error)) {
+        summarizerAgent = agent;
+        break;
+      }
+    }
+    if (!summarizerAgent) summarizerAgent = agents[0];
   }
   
   console.log(`👑 Using ${summarizerAgent} for final summarization (highest token limit)`);
@@ -872,6 +920,8 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
   if (agents.length < 2) {
     throw new Error("Sequential critique chain requires at least 2 agents");
   }
+  
+  const userId = options.userId || null;
   
   publishEvent(redisChannel, {
     type: 'phase_start',
@@ -1025,13 +1075,23 @@ async function executeSequentialCritiqueChain(prompt, agents, redisChannel, abor
   // This ensures we can handle the largest context for summarization
   var summarizerAgent = null;
   try {
-    summarizerAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-      availability[agent] && !chain.find(item => item.agent === agent && item.error)
-    ), options.models);
+    const availableNonErrorAgents = [];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !chain.find(item => item.agent === agent && item.error)) {
+        availableNonErrorAgents.push(agent);
+      }
+    }
+    summarizerAgent = await getAgentWithHighestTokenLimit(availableNonErrorAgents, options.models, userId);
   } catch (err) {
     console.error("Error getting agent with highest token limit:", err);
     // Fallback to first available agent
-    summarizerAgent = agents.find(agent => availability[agent] && !chain.find(item => item.agent === agent && item.error)) || agents[0];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !chain.find(item => item.agent === agent && item.error)) {
+        summarizerAgent = agent;
+        break;
+      }
+    }
+    if (!summarizerAgent) summarizerAgent = agents[0];
   }
   
   console.log(`👑 Using ${summarizerAgent} for final sequential chain summarization (highest token limit)`);
@@ -1117,6 +1177,7 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
   }
   
   console.log(`Starting validated consensus mode with ${agents.length} agents`);
+  const userId = options.userId || null;
   
   // Assign roles: first 2 agents as co-drafters, rest as verifiers
   var drafterAgents = agents.slice(0, 2);
@@ -1393,13 +1454,24 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
     // Use the agent with the highest token limit for rewriting
     var rewriterAgent = null;
     try {
-      rewriterAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-        availability[agent] && !verifierAgents.find(verifier => verifier === agent)
-      ), options.models);
+      const availableNonVerifierAgents = [];
+      for (const agent of agents) {
+        if ((await isAgentAvailable(agent, userId)) && !verifierAgents.find(verifier => verifier === agent)) {
+          availableNonVerifierAgents.push(agent);
+        }
+      }
+      rewriterAgent = await getAgentWithHighestTokenLimit(availableNonVerifierAgents
+, options.models, userId);
     } catch (err) {
       console.error("Error getting agent with highest token limit:", err);
       // Fallback to first available agent
-      rewriterAgent = agents.find(agent => availability[agent] && !verifierAgents.includes(agent)) || agents[0];
+      for (const agent of agents) {
+        if ((await isAgentAvailable(agent, userId)) && !verifierAgents.includes(agent)) {
+          rewriterAgent = agent;
+          break;
+        }
+      }
+      if (!rewriterAgent) rewriterAgent = agents[0];
     }
     
     console.log(`👑 Using ${rewriterAgent} for rewriting (highest token limit)`);
@@ -1520,6 +1592,8 @@ async function executeValidatedConsensus(prompt, agents, redisChannel, abortSign
  * Maximize creativity and novel idea generation
  */
 async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
+  
   // Phase A: Solo Ideation
   publishEvent(redisChannel, {
     type: 'phase_start',
@@ -1752,13 +1826,23 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
   // Use the agent with the highest token limit for amplification
   var amplifierAgent = null;
   try {
-    amplifierAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-      availability[agent] && !megaIdeas.find(idea => idea.agent === agent && idea.error)
-    ), options.models);
+    const availableNonErrorAgents = [];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !megaIdeas.find(idea => idea.agent === agent && idea.error)) {
+        availableNonErrorAgents.push(agent);
+      }
+    }
+    amplifierAgent = await getAgentWithHighestTokenLimit(availableNonErrorAgents, options.models, userId);
   } catch (err) {
     console.error("Error getting agent with highest token limit:", err);
     // Fallback to first available agent
-    amplifierAgent = agents.find(agent => availability[agent] && !megaIdeas.find(idea => idea.agent === agent && idea.error)) || agents[0];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !megaIdeas.find(idea => idea.agent === agent && idea.error)) {
+        amplifierAgent = agent;
+        break;
+      }
+    }
+    if (!amplifierAgent) amplifierAgent = agents[0];
   }
   
   console.log(`👑 Using ${amplifierAgent} for idea amplification (highest token limit)`);
@@ -1836,6 +1920,8 @@ async function executeCreativeBrainstormSwarm(prompt, agents, redisChannel, abor
  * Balance creativity with safety and factual grounding
  */
 async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
+  
   // Turn 1: Creative Ideation (borrowing from creative_brainstorm_swarm)
   publishEvent(redisChannel, {
     type: 'phase_start',
@@ -1996,13 +2082,23 @@ async function executeHybridGuardedBraintrust(prompt, agents, redisChannel, abor
   // Use the agent with the highest token limit for final elaboration
   var elaboratorAgent = null;
   try {
-    elaboratorAgent = getAgentWithHighestTokenLimit(agents.filter(agent => 
-      availability[agent] && !validValidations.find(validation => validation.agent === agent && validation.error)
-    ), options.models);
+    const availableNonErrorAgents = [];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !validValidations.find(validation => validation.agent === agent && validation.error)) {
+        availableNonErrorAgents.push(agent);
+      }
+    }
+    elaboratorAgent = await getAgentWithHighestTokenLimit(availableNonErrorAgents, options.models, userId);
   } catch (err) {
     console.error("Error getting agent with highest token limit:", err);
     // Fallback to first available agent
-    elaboratorAgent = agents.find(agent => availability[agent] && !validValidations.find(validation => validation.agent === agent && validation.error)) || agents[0];
+    for (const agent of agents) {
+      if ((await isAgentAvailable(agent, userId)) && !validValidations.find(validation => validation.agent === agent && validation.error)) {
+        elaboratorAgent = agent;
+        break;
+      }
+    }
+    if (!elaboratorAgent) elaboratorAgent = agents[0];
   }
   
   console.log(`👑 Using ${elaboratorAgent} for final elaboration (highest token limit)`);
@@ -2471,7 +2567,9 @@ function determineMostReliableAgent(agents, chain) {
  * Individual Responses (No Collaboration)
  * Each AI responds independently
  */
-async function executeIndividualResponses(prompt, agents, redisChannel, abortSignal, costTracker) {
+async function executeIndividualResponses(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
+  
   // Get individual responses from each agent
   var responses = [];
   
@@ -2485,7 +2583,7 @@ async function executeIndividualResponses(prompt, agents, redisChannel, abortSig
     var agent = agents[i];
     
     // Skip unavailable agents
-    if (!availability[agent]) continue;
+    if (!(await isAgentAvailable(agent, userId))) continue;
     
     try {
       // Publish event that agent is thinking
@@ -2568,6 +2666,7 @@ async function executeIndividualResponses(prompt, agents, redisChannel, abortSig
  * Enterprise software development workflow
  */
 async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
   // Need at least 3 agents for this mode
   if (agents.length < 3) {
     throw new Error("Code Architect mode requires at least 3 agents");
@@ -2911,7 +3010,8 @@ async function executeCodeArchitect(prompt, agents, redisChannel, abortSignal, c
  * Adversarial Debate Mode
  * Structured debate with pro/con analysis
  */
-async function executeAdversarialDebate(prompt, agents, redisChannel, abortSignal, costTracker) {
+async function executeAdversarialDebate(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
   // Need at least 2 agents for this mode
   if (agents.length < 2) {
     throw new Error("Adversarial Debate mode requires at least 2 agents");
@@ -3133,7 +3233,8 @@ async function executeAdversarialDebate(prompt, agents, redisChannel, abortSigna
  * Expert Panel Mode
  * Simulates diverse domain experts
  */
-async function executeExpertPanel(prompt, agents, redisChannel, abortSignal, costTracker) {
+async function executeExpertPanel(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
   // Need at least 3 agents for this mode
   if (agents.length < 3) {
     throw new Error("Expert Panel mode works best with at least 3 agents");
@@ -3356,6 +3457,7 @@ async function executeExpertPanel(prompt, agents, redisChannel, abortSignal, cos
  * Strategic foresight methodology
  */
 async function executeScenarioAnalysis(prompt, agents, redisChannel, abortSignal, costTracker, options = {}) {
+  const userId = options.userId || null;
   // Need at least 3 agents for this mode
   if (agents.length < 3) {
     throw new Error("Scenario Analysis mode works best with at least 3 agents");
@@ -3671,7 +3773,8 @@ export async function handleCollaborativeDiscussion(options) {
   console.log(`🚀 Starting collaborative discussion with options:`, JSON.stringify({
     mode: options.mode,
     agents: options.agents,
-    prompt_length: options.prompt?.length || 0
+    prompt_length: options.prompt?.length || 0,
+    userId: options.userId || 'system'
   }));
   
   // Apply the current collaboration style to the options
@@ -3689,8 +3792,22 @@ export async function handleCollaborativeDiscussion(options) {
   var agents = options.agents || collaborationConfig.collaborationOrder;
   console.log(`🤖 Using agents: ${agents.join(', ')}`);
   
-  // Filter out unavailable agents
-  const availableAgents = agents.filter(agent => availability[agent]);
+  // Get user ID for API key checking
+  var userId = options.userId || null;
+  
+  // Filter out unavailable agents - check both system and user API keys
+  var availableAgents = [];
+  for (const agent of agents) {
+    try {
+      // Check if API key is available (user or system)
+      const client = await clientFactory.getClient(userId, agent);
+      if (client) {
+        availableAgents.push(agent);
+      }
+    } catch (error) {
+      console.log(`Agent ${agent} not available: ${error.message}`);
+    }
+  }
   console.log(`📊 Available agents: ${availableAgents.length}/${agents.length}`);
   
   if (availableAgents.length === 0) {
@@ -3728,6 +3845,7 @@ export async function handleCollaborativeDiscussion(options) {
     agents: availableAgents, // Use only available agents
     styleDirective: styleDirective,
     onModelStatusChange: onModelStatusChange,
+    userId: userId, // Pass user ID for API key checking
     // IMPORTANT: Make sure clients are explicitly passed (imported at the top of this file)
     clients: clients 
   };

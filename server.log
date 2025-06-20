@@ -1,0 +1,80 @@
+
+> ai-collaboration-hub-refactored@8.0.0 start
+> node src/server.mjs
+
+⚠️ AI Client: ANTHROPIC_API_KEY is missing or seems invalid. Related AI features disabled.
+⚠️ AI Client: GEMINI_API_KEY is missing or seems invalid. Related AI features disabled.
+⚠️ AI Client: OPENAI_API_KEY is missing or seems invalid. Related AI features disabled.
+⚠️ AI Client: XAI_API_KEY is missing or seems invalid. Related AI features disabled.
+⚠️ AI Client: DEEPSEEK_API_KEY is missing or seems invalid. Related AI features disabled.
+⚠️ AI Client: LLAMA_API_KEY is missing or seems invalid. Related AI features disabled.
+🔍 Validating AI client integrity...
+📊 0 of 6 AI clients are available
+❌ CRITICAL ERROR: No AI clients are available. Please check your API keys!
+⚠️ anthropic client not available - skipping validation
+⚠️ gemini client not available - skipping validation
+⚠️ openai client not available - skipping validation
+⚠️ grok client not available - skipping validation
+⚠️ deepseek client not available - skipping validation
+⚠️ llama client not available - skipping validation
+AI Clients Initialized: ❌ Invalid
+Availability status: {
+  claude: false,
+  gemini: false,
+  chatgpt: false,
+  grok: false,
+  deepseek: false,
+  llama: false
+}
+CLI Handler: Default execution path set to \\wsl$\Ubuntu\home\jay1988stud
+Auth Routes: Connecting to MongoDB...
+Google OAuth Configuration: {
+  NODE_ENV: undefined,
+  isProduction: false,
+  baseUrl: 'https://ai-collab-pro.onrender.com',
+  GOOGLE_CALLBACK_URL: 'https://ai-collab-pro.onrender.com/api/auth/google/callback'
+}
+Connecting to MongoDB...
+Environment Configuration: {
+  NODE_ENV: undefined,
+  BACKEND_URL: 'https://ai-collab-pro.onrender.com',
+  FRONTEND_URL: 'https://ai-collab-pro.vercel.app',
+  PORT: '3001',
+  MONGODB_URI: 'Set',
+  GOOGLE_CLIENT_ID: 'Set'
+}
+CORS Configuration: {
+  NODE_ENV: undefined,
+  ALLOWED_ORIGINS: [
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'https://ai-collab-pro.vercel.app',
+    'https://ai-collab-pro.onrender.com'
+  ]
+}
+Passport: Connecting to MongoDB...
+Proxying /next-app requests to http://localhost:3002
+WebSocket Handler: Initializing...
+WebSocket Handler: Initialized and listening for connections.
+🚀 AI Collaboration Hub Server v8.0.1 running on http://localhost:3001
+📂 Serving static files from: /home/jay1988stud/AI-Collab/public
+📂 Uploads directory: /home/jay1988stud/AI-Collab/uploads
+🔧 Admin routes enabled (demo mode - auth disabled)
+Responses directory ensured at: /home/jay1988stud/AI-Collab/responses
+Upload directory ensured at: /home/jay1988stud/AI-Collab/uploads
+Auth Routes: Connected to MongoDB successfully
+Connected to MongoDB for authentication
+Connected to MongoDB
+Cost control database initialized
+MongoDB connection verified with a test query
+Passport: Connected to MongoDB successfully
+Passport Google OAuth Configuration: {
+  NODE_ENV: undefined,
+  BACKEND_URL: 'https://ai-collab-pro.onrender.com',
+  RENDER: undefined,
+  isProduction: false,
+  isRender: undefined,
+  baseUrl: 'https://ai-collab-pro.onrender.com',
+  callbackURL: 'https://ai-collab-pro.onrender.com/api/auth/google/callback'
+}
+Passport: Authentication strategies initialized

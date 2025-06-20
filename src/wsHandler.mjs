@@ -6,6 +6,7 @@
 
 import { WebSocket } from 'ws';
 import { clients, availability, getClient } from './lib/ai/index.mjs';
+import clientFactory from './lib/ai/clientFactory.mjs';
 import { handleCollaborativeDiscussion, setCollaborationStyle, setCollaborationMode, getCollaborationConfig } from './lib/ai/collaboration.mjs';
 import { streamClaudeResponse } from './lib/ai/claude.mjs';
 import { streamGeminiResponse } from './lib/ai/gemini.mjs';
@@ -286,16 +287,35 @@ async function handleChatMessage(ws, data) {
 
     // Determine which models to query based on target and availability
     const modelsToQuery = [];
+    const userId = ws.userId || data.userId; // Get user ID
+    
     if (target === 'collab') {
-        modelsToQuery.push(...Object.keys(models).filter(id => availability[id]));
-    } else if (availability[target]) {
-        modelsToQuery.push(target);
+        // Check which models the user has API keys for
+        for (const provider of Object.keys(models)) {
+            try {
+                // Check if user has API key for this provider
+                const client = await clientFactory.getClient(userId, provider);
+                if (client) {
+                    modelsToQuery.push(provider);
+                }
+            } catch (error) {
+                console.log(`No API key available for ${provider}: ${error.message}`);
+            }
+        }
     } else {
-        return sendWsError(ws, `Target AI '${target}' is not available or supported.`);
+        // Single model request
+        try {
+            const client = await clientFactory.getClient(userId, target);
+            if (client) {
+                modelsToQuery.push(target);
+            }
+        } catch (error) {
+            return sendWsError(ws, `Target AI '${target}' is not available: ${error.message}`);
+        }
     }
 
     if (modelsToQuery.length === 0) {
-        return sendWsError(ws, "No available AI models selected for this request.");
+        return sendWsError(ws, "No available AI models selected for this request. Please ensure you have configured API keys for the selected models.");
     }
 
     // --- Prepare context (including files and conversation history) ---
@@ -601,6 +621,7 @@ async function handleChatMessage(ws, data) {
                 agents: modelsToQuery,
                 models: models,
                 sessionId: collaborationSessionId, // Pass session ID to collaboration
+                userId: userId, // Pass user ID for dynamic API key checking
                 ignoreFailingModels: true, // Continue even if some models fail
                 skipSynthesisIfAllFailed: true, // Skip synthesis phase if all models fail
                 continueWithAvailableModels: true, // Continue with available models when some timeout
