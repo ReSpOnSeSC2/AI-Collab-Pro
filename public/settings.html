@@ -138,6 +138,9 @@
                     <div id="api-keys-tab" class="tab-pane">
                         <h2 class="section-title">API Keys</h2>
                         
+                        <!-- Message Container for notifications -->
+                        <div id="message-container"></div>
+                        
                         <!-- Provider Status -->
                         <div class="settings-section">
                             <h3 class="section-subtitle">Provider Status</h3>
@@ -186,6 +189,20 @@
                                     <button type="button" class="btn btn-secondary" onclick="validateApiKey()" style="border: 1px solid #6c757d;">Validate Only</button>
                                 </div>
                             </form>
+                            
+                            <!-- Security Preview -->
+                            <div id="security-preview" class="security-preview mt-3" style="display: none;">
+                                <h4>Security Preview</h4>
+                                <div class="preview-item">
+                                    <strong>Original:</strong> <span id="preview-original"></span>
+                                </div>
+                                <div class="preview-item">
+                                    <strong>Encrypted:</strong> <span id="preview-encrypted"></span>
+                                </div>
+                                <div class="preview-item">
+                                    <strong>Stored ID:</strong> <span id="preview-id"></span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Saved API Keys -->

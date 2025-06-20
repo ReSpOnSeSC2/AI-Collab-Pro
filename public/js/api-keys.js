@@ -342,6 +342,12 @@ function showSecurityPreview(apiKey) {
     const encryptedEl = document.getElementById('preview-encrypted');
     const idEl = document.getElementById('preview-id');
     
+    // Check if elements exist
+    if (!preview || !originalEl || !encryptedEl || !idEl) {
+        console.warn('Security preview elements not found');
+        return;
+    }
+    
     // Show masked version of original key
     const maskedKey = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4);
     originalEl.textContent = maskedKey;
@@ -452,6 +458,8 @@ function initializeApiKeys() {
     if (!window.apiKeysManager) {
         window.apiKeysManager = new ApiKeysManager();
     }
+    // Also assign to global scope for inline event handlers
+    apiKeysManager = window.apiKeysManager;
 }
 
 // For standalone page, initialize on DOM ready

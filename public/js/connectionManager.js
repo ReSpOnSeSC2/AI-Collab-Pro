@@ -448,11 +448,9 @@ const sendMessageToServer = window.sendMessageToServer;
 const uploadFiles = window.uploadFiles;
 const getWebSocket = window.getWebSocket;
 
-// Export functions for ES6 module usage
-export {
-    connectWebSocket,
-    sendMessageToServer,
-    checkApiStatus,
-    uploadFiles,
-    getWebSocket
-};
+// Make functions globally available (not using ES6 modules)
+window.connectWebSocket = connectWebSocket;
+window.sendMessageToServer = sendMessageToServer;
+window.checkApiStatus = checkApiStatus;
+window.uploadFiles = uploadFiles;
+window.getWebSocket = getWebSocket;
