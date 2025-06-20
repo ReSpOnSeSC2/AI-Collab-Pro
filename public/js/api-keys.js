@@ -119,7 +119,7 @@ class ApiKeysManager {
                 
                 // Add helpful hints based on the error
                 if (errorMessage.includes('Invalid API key')) {
-                    errorMessage += '. Please check: 1) The key is correct and complete, 2) The key hasn't been revoked, 3) You selected the correct provider';
+                    errorMessage += '. Please check: 1) The key is correct and complete, 2) The key has not been revoked, 3) You selected the correct provider';
                 }
                 
                 this.showMessage(errorMessage, 'error');
