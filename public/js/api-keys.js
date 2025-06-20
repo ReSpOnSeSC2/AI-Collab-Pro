@@ -67,6 +67,12 @@ class ApiKeysManager {
 
             const data = await response.json();
 
+            if (!response.ok) {
+                console.error('API response not OK:', response.status, data);
+                this.showMessage(data.error || data.message || `HTTP ${response.status}: Failed to save API key`, 'error');
+                return;
+            }
+
             if (data.success) {
                 this.showMessage(data.message, 'success');
                 e.target.reset();
@@ -79,7 +85,7 @@ class ApiKeysManager {
             }
         } catch (error) {
             console.error('Error saving API key:', error);
-            this.showMessage('An error occurred while saving the API key', 'error');
+            this.showMessage(`Network error: ${error.message}`, 'error');
         }
     }
 
@@ -91,8 +97,15 @@ class ApiKeysManager {
 
             const data = await response.json();
             
+            if (!response.ok) {
+                console.error('Provider status response not OK:', response.status, data);
+                return;
+            }
+            
             if (data.success) {
                 this.renderProviderStatus(data.data);
+            } else {
+                console.error('Provider status failed:', data);
             }
         } catch (error) {
             console.error('Error loading provider status:', error);
@@ -137,8 +150,15 @@ class ApiKeysManager {
 
             const data = await response.json();
             
+            if (!response.ok) {
+                console.error('Saved keys response not OK:', response.status, data);
+                return;
+            }
+            
             if (data.success) {
                 this.renderSavedKeys(data.data);
+            } else {
+                console.error('Loading saved keys failed:', data);
             }
         } catch (error) {
             console.error('Error loading saved keys:', error);
