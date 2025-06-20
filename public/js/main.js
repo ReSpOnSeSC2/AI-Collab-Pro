@@ -122,9 +122,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         UIManager.setupMobileColumnActivation(state.isMobile);
 
         // Initial API status check
-        ConnectionManager.checkApiStatus().catch(err => {
-            UIManager.showError(`Failed to check API status: ${err.message}`);
-        });
+        if (window.checkApiStatus) {
+            window.checkApiStatus().catch(err => {
+                UIManager.showError(`Failed to check API status: ${err.message}`);
+            });
+        }
 
         console.log("AI Hub App Initialization Complete (Post Layout).");
     });
@@ -149,7 +151,9 @@ function handleAuthLogin(event) {
 function handleAuthChecked(event) {
     console.log("Auth check complete:", event.detail);
     // Now safe to connect WebSocket as we have a user ID (even if default)
-    ConnectionManager.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
+    if (window.connectWebSocket) {
+        window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
+    }
 }
 
 function handleWebSocketConnected(event) {

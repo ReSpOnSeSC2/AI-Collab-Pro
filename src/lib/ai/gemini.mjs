@@ -7,7 +7,7 @@
 import { clients, availability } from './index.mjs'; // Import shared client and availability
 import { HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06'; // Default to the preview model instead of experimental
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro'; // Latest stable Gemini 2.5 Pro model
 const SAFETY_SETTINGS = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },

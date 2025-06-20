@@ -327,7 +327,8 @@ async function validateAnthropicKey(apiKey) {
 async function validateGoogleKey(apiKey) {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use gemini-2.5-pro which is the latest model
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
     
     // Try to generate a minimal response
     const result = await model.generateContent({
@@ -342,6 +343,26 @@ async function validateGoogleKey(apiKey) {
   } catch (error) {
     if (error.message?.includes('API_KEY_INVALID')) {
       return { isValid: false, error: 'Invalid API key' };
+    }
+    // Check for other common errors
+    if (error.message?.includes('is not found')) {
+      // Try with another model name
+      try {
+        const genAI2 = new GoogleGenerativeAI(apiKey);
+        const model2 = genAI2.getGenerativeModel({ model: 'gemini-1.0-pro' });
+        const result2 = await model2.generateContent({
+          contents: [{ role: 'user', parts: [{ text: 'Hi' }] }],
+          generationConfig: { maxOutputTokens: 1 }
+        });
+        return {
+          isValid: true,
+          message: 'Valid Google API key'
+        };
+      } catch (error2) {
+        if (error2.message?.includes('API_KEY_INVALID')) {
+          return { isValid: false, error: 'Invalid API key' };
+        }
+      }
     }
     throw error;
   }
