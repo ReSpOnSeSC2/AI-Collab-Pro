@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Keys Test - AI Collaboration Hub</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button.success {
+            background: #28a745;
+        }
+        .button.success:hover {
+            background: #218838;
+        }
+        .provider-test {
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+        .provider-test h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .result {
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Keys Diagnostic Test</h1>
+    
+    <div class="container">
+        <h2>Authentication Status</h2>
+        <div id="auth-status"></div>
+        <button class="button" onclick="checkAuth()">Refresh Auth Status</button>
+    </div>
+    
+    <div class="container">
+        <h2>API Keys Status</h2>
+        <div id="api-keys-status"></div>
+        <button class="button" onclick="checkApiKeys()">Check All API Keys</button>
+        <button class="button success" onclick="window.location.href='/settings.html'">Go to Settings</button>
+    </div>
+    
+    <div class="container">
+        <h2>Individual Provider Tests</h2>
+        <div id="provider-tests">
+            <div class="provider-test">
+                <h3>Claude (Anthropic)</h3>
+                <button class="button" onclick="testProvider('claude', 'anthropic')">Test Claude</button>
+                <div class="result" id="claude-result"></div>
+            </div>
+            <div class="provider-test">
+                <h3>ChatGPT (OpenAI)</h3>
+                <button class="button" onclick="testProvider('chatgpt', 'openai')">Test ChatGPT</button>
+                <div class="result" id="chatgpt-result"></div>
+            </div>
+            <div class="provider-test">
+                <h3>Gemini (Google)</h3>
+                <button class="button" onclick="testProvider('gemini', 'google')">Test Gemini</button>
+                <div class="result" id="gemini-result"></div>
+            </div>
+            <div class="provider-test">
+                <h3>Grok</h3>
+                <button class="button" onclick="testProvider('grok', 'grok')">Test Grok</button>
+                <div class="result" id="grok-result"></div>
+            </div>
+            <div class="provider-test">
+                <h3>DeepSeek</h3>
+                <button class="button" onclick="testProvider('deepseek', 'deepseek')">Test DeepSeek</button>
+                <div class="result" id="deepseek-result"></div>
+            </div>
+            <div class="provider-test">
+                <h3>Llama</h3>
+                <button class="button" onclick="testProvider('llama', 'llama')">Test Llama</button>
+                <div class="result" id="llama-result"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>WebSocket Test</h2>
+        <button class="button" onclick="testWebSocket()">Test WebSocket API Key Check</button>
+        <div class="result" id="websocket-result"></div>
+    </div>
+
+    <script>
+        async function checkAuth() {
+            const statusDiv = document.getElementById('auth-status');
+            statusDiv.innerHTML = '<div class="loading">Checking authentication...</div>';
+            
+            try {
+                const response = await fetch('/api/auth/session');
+                const data = await response.json();
+                
+                if (data.authenticated && data.user) {
+                    statusDiv.innerHTML = `
+                        <div class="status success">
+                            ✅ Authenticated as: ${data.user.email || data.user.name || 'User'}
+                            <br>User ID: ${data.user.id || data.user._id}
+                            <br>Type: ${data.user.id?.startsWith('user-') ? 'Temporary' : 'Permanent'}
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">❌ Not authenticated</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function checkApiKeys() {
+            const statusDiv = document.getElementById('api-keys-status');
+            statusDiv.innerHTML = '<div class="loading">Checking API keys...</div>';
+            
+            try {
+                const response = await fetch('/api/api-keys');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const keys = data.data;
+                    let html = '<div class="status success">API Keys Found:</div>';
+                    html += '<ul>';
+                    keys.forEach(key => {
+                        html += `<li>${key.provider}: ${key.isValid ? '✅ Valid' : '❌ Invalid'} (Last validated: ${new Date(key.lastValidated).toLocaleString()})</li>`;
+                    });
+                    html += '</ul>';
+                    statusDiv.innerHTML = html;
+                } else {
+                    statusDiv.innerHTML = '<div class="status warning">No API keys configured</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testProvider(agent, provider) {
+            const resultDiv = document.getElementById(`${agent}-result`);
+            resultDiv.innerHTML = '<div class="loading">Testing...</div>';
+            
+            try {
+                // Test with agent name
+                const agentResponse = await fetch(`/api/api-keys/debug/${agent}`);
+                const agentData = await agentResponse.json();
+                
+                // Test with provider name
+                const providerResponse = await fetch(`/api/api-keys/debug/${provider}`);
+                const providerData = await providerResponse.json();
+                
+                let html = `Testing ${agent} (${provider}):\n\n`;
+                html += `Agent name test (${agent}):\n`;
+                html += JSON.stringify(agentData.debug, null, 2);
+                html += `\n\nProvider name test (${provider}):\n`;
+                html += JSON.stringify(providerData.debug, null, 2);
+                
+                resultDiv.textContent = html;
+                
+                // Color code based on results
+                if (agentData.debug?.clientCreated || providerData.debug?.clientCreated) {
+                    resultDiv.style.borderLeft = '4px solid #28a745';
+                } else {
+                    resultDiv.style.borderLeft = '4px solid #dc3545';
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.style.borderLeft = '4px solid #dc3545';
+            }
+        }
+        
+        async function testWebSocket() {
+            const resultDiv = document.getElementById('websocket-result');
+            resultDiv.innerHTML = '<div class="loading">Connecting to WebSocket...</div>';
+            
+            try {
+                // Get WebSocket URL
+                const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+                const wsUrl = isProduction 
+                    ? 'wss://ai-collab-pro.onrender.com/api/ws'
+                    : `ws://${window.location.host}/api/ws`;
+                
+                const ws = new WebSocket(wsUrl);
+                let results = '';
+                
+                ws.onopen = () => {
+                    results += 'WebSocket connected\n';
+                    
+                    // Send test collaboration message
+                    const testMessage = {
+                        type: 'chat',
+                        target: 'collab',
+                        message: 'Test message',
+                        models: {
+                            claude: ['claude-3-opus-20240229'],
+                            chatgpt: ['gpt-4'],
+                            gemini: ['gemini-pro']
+                        },
+                        collaborationMode: 'individual',
+                        test: true // Flag to indicate this is a test
+                    };
+                    
+                    results += `Sending test message: ${JSON.stringify(testMessage, null, 2)}\n\n`;
+                    ws.send(JSON.stringify(testMessage));
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    results += `Received: ${JSON.stringify(data, null, 2)}\n\n`;
+                    resultDiv.textContent = results;
+                };
+                
+                ws.onerror = (error) => {
+                    results += `WebSocket error: ${error}\n`;
+                    resultDiv.textContent = results;
+                };
+                
+                ws.onclose = () => {
+                    results += 'WebSocket closed\n';
+                    resultDiv.textContent = results;
+                };
+                
+                // Close after 10 seconds
+                setTimeout(() => ws.close(), 10000);
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Check auth status on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            checkApiKeys();
+        });
+    </script>
+</body>
+</html>

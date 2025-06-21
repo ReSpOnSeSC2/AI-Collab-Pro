@@ -94,6 +94,11 @@ router.post('/', authenticateUser, async (req, res) => {
     // Add or update the API key
     await user.addApiKey(provider, apiKey);
 
+    // Clear the client cache for this user to ensure new key is used
+    const { clearUserClientCache } = await import('../lib/ai/clientFactory.mjs');
+    clearUserClientCache(req.user.userId);
+    console.log(`🔄 Cleared client cache for user ${req.user.userId} after saving ${provider} API key`);
+
     res.json({
       success: true,
       message: 'API key saved successfully',
@@ -117,6 +122,57 @@ router.post('/', authenticateUser, async (req, res) => {
  * Delete an API key
  * DELETE /api/api-keys/:provider
  */
+/**
+ * Debug endpoint to check API key retrieval
+ * GET /api/api-keys/debug/:provider
+ */
+router.get('/debug/:provider', authenticateUser, async (req, res) => {
+  try {
+    const { provider } = req.params;
+    const userId = req.user.userId;
+    
+    console.log(`🔍 DEBUG: API key check for:`);
+    console.log(`  - userId: ${userId}`);
+    console.log(`  - provider: ${provider}`);
+    
+    // Import necessary modules
+    const apiKeyService = (await import('../services/apiKeyService.mjs')).default;
+    const clientFactory = (await import('../lib/ai/clientFactory.mjs')).default;
+    
+    // Check using apiKeyService
+    const apiKeyInfo = await apiKeyService.getApiKey(userId, provider);
+    console.log(`🔍 ApiKeyService result:`, apiKeyInfo);
+    
+    // Try to create a client
+    let clientResult = null;
+    let clientError = null;
+    try {
+      const client = await clientFactory.getClient(userId, provider);
+      clientResult = client ? 'Client created successfully' : 'No client returned';
+    } catch (error) {
+      clientError = error.message;
+    }
+    
+    res.json({
+      success: true,
+      debug: {
+        userId,
+        provider,
+        apiKeyFound: !!apiKeyInfo,
+        apiKeySource: apiKeyInfo?.source || 'none',
+        clientCreated: !!clientResult && !clientError,
+        clientError
+      }
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 router.delete('/:provider', authenticateUser, async (req, res) => {
   try {
     const { provider } = req.params;
@@ -133,6 +189,11 @@ router.delete('/:provider', authenticateUser, async (req, res) => {
     // Remove the API key
     user.apiKeys = user.apiKeys.filter(key => key.provider !== provider);
     await user.save();
+
+    // Clear the client cache for this user
+    const { clearUserClientCache } = await import('../lib/ai/clientFactory.mjs');
+    clearUserClientCache(req.user.userId);
+    console.log(`🔄 Cleared client cache for user ${req.user.userId} after deleting ${provider} API key`);
 
     res.json({
       success: true,

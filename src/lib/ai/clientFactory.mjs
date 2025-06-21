@@ -19,6 +19,10 @@ class AIClientFactory {
    * Get or create an AI client for a specific user and provider
    */
   async getClient(userId, provider) {
+    console.log(`🏭 ClientFactory.getClient called:`);
+    console.log(`  - userId: ${userId}`);
+    console.log(`  - provider (input): ${provider}`);
+    
     // Normalize provider names to match database schema
     const providerMap = {
       'claude': 'anthropic',
@@ -30,19 +34,26 @@ class AIClientFactory {
     };
     
     const normalizedProvider = providerMap[provider] || provider;
+    console.log(`  - provider (normalized): ${normalizedProvider}`);
+    
     const cacheKey = `${userId || 'system'}-${provider}`;
     
     // Check cache
     const cached = this.clientCache.get(cacheKey);
     if (cached && cached.timestamp > Date.now() - this.cacheTimeout) {
+      console.log(`  ✅ Found cached client for ${cacheKey} (source: ${cached.source})`);
       return cached.client;
     }
 
     // Get API key using normalized provider name for database lookup
+    console.log(`  🔍 Looking up API key for normalized provider: ${normalizedProvider}`);
     const apiKeyInfo = await apiKeyService.getApiKey(userId, normalizedProvider);
     if (!apiKeyInfo) {
+      console.log(`  ❌ No API key found for ${provider} (normalized: ${normalizedProvider})`);
       throw new Error(`No API key available for ${provider} (${normalizedProvider})`);
     }
+
+    console.log(`  ✅ Found API key (source: ${apiKeyInfo.source})`);
 
     // Create client (createClient will normalize again, but that's OK)
     const client = await this.createClient(provider, apiKeyInfo.key);
@@ -53,6 +64,7 @@ class AIClientFactory {
       timestamp: Date.now(),
       source: apiKeyInfo.source
     });
+    console.log(`  💾 Cached client for ${cacheKey}`);
 
     return client;
   }

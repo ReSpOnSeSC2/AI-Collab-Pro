@@ -337,37 +337,25 @@ async function handleChatMessage(ws, data) {
     
     if (target === 'collab') {
         // Check which models the user has API keys for
-        // Extract unique providers from model IDs
-        const providers = new Set();
-        for (const modelId of Object.keys(models)) {
-            // Extract provider name from model ID
-            let provider = modelId;
-            if (modelId.startsWith('claude-')) provider = 'claude';
-            else if (modelId.startsWith('gpt-') || modelId.startsWith('chatgpt-')) provider = 'chatgpt';
-            else if (modelId.startsWith('gemini-')) provider = 'gemini';
-            else if (modelId.startsWith('grok-')) provider = 'grok';
-            else if (modelId.startsWith('deepseek-')) provider = 'deepseek';
-            else if (modelId.startsWith('llama-') || modelId.startsWith('meta-llama')) provider = 'llama';
-            else provider = modelId.split('-')[0]; // Fallback
-            
-            providers.add(provider);
-        }
+        // The frontend sends provider names as keys (claude, gemini, chatgpt, etc.)
+        const providers = Object.keys(models);
+        console.log(`🔍 Providers from frontend:`, providers);
         
-        console.log(`🔍 Extracted providers from model IDs:`, Array.from(providers));
-        
-        // Check API keys for each unique provider
+        // Check API keys for each provider
         for (const provider of providers) {
             try {
                 console.log(`🔑 Checking API key for provider: ${provider}, userId: ${userId}`);
-                // Check if user has API key for this provider
-                // The clientFactory will normalize the provider name internally
+                
+                // The clientFactory will handle provider name normalization internally
                 const client = await clientFactory.getClient(userId, provider);
                 if (client) {
                     console.log(`✅ API key found for ${provider}`);
                     modelsToQuery.push(provider);
+                } else {
+                    console.log(`❌ No client returned for ${provider}`);
                 }
             } catch (error) {
-                console.log(`No API key available for ${provider}: ${error.message}`);
+                console.log(`❌ No API key available for ${provider}: ${error.message}`);
             }
         }
     } else {

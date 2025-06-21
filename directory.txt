@@ -110,6 +110,7 @@
 ./public/settings.html
 ./public/signup.html
 ./public/test-auth-flow.html
+./public/test-api-keys.html
 ./scripts/create-admin.js
 ./scripts/create-admin.mjs
 ./scripts/google-admin.mjs

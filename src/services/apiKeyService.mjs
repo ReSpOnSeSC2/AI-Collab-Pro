@@ -12,7 +12,11 @@ class ApiKeyService {
    */
   async getApiKey(userId, provider) {
     try {
-      console.log(`🔍 ApiKeyService.getApiKey: userId=${userId}, provider=${provider}`);
+      console.log(`🔍 ApiKeyService.getApiKey called:`);
+      console.log(`  - userId: ${userId}`);
+      console.log(`  - provider: ${provider}`);
+      console.log(`  - userId type: ${typeof userId}`);
+      console.log(`  - userId format: ${userId ? (userId.startsWith('user-') ? 'temporary' : 'permanent') : 'none'}`);
       
       // First, try to get user's API key
       if (userId) {
@@ -25,30 +29,42 @@ class ApiKeyService {
         } else {
           // Try to find user in database
           try {
-            console.log(`🔍 Looking up user in database with ID: ${userId} (type: ${typeof userId}, length: ${userId.length})`);
+            console.log(`🔍 Looking up user in database with ID: ${userId}`);
+            console.log(`  - MongoDB ObjectId format: ${/^[0-9a-fA-F]{24}$/.test(userId)}`);
+            
             const user = await User.findById(userId);
             if (user) {
-              console.log(`✅ User found: ${user.email || user.name || 'Unknown'}`);
+              console.log(`✅ User found in database:`);
+              console.log(`  - Email: ${user.email || 'N/A'}`);
+              console.log(`  - Name: ${user.name || 'N/A'}`);
+              console.log(`  - API keys count: ${user.apiKeys ? user.apiKeys.length : 0}`);
+              
+              if (user.apiKeys && user.apiKeys.length > 0) {
+                console.log(`  - Stored providers: ${user.apiKeys.map(k => k.provider).join(', ')}`);
+              }
+              
               const userApiKey = user.getApiKey(provider);
               if (userApiKey) {
-                console.log(`✅ User API key found for ${provider}`);
+                console.log(`✅ User API key found for provider: ${provider}`);
                 return {
                   key: userApiKey,
                   source: 'user',
                   userId: userId
                 };
               } else {
-                console.log(`❌ No user API key for ${provider}`);
+                console.log(`❌ No user API key for provider: ${provider}`);
               }
             } else {
-              console.log(`❌ User not found in database: ${userId}`);
+              console.log(`❌ User not found in database with ID: ${userId}`);
             }
           } catch (dbError) {
-            console.log(`⚠️ Database error looking up user: ${dbError.message}`);
+            console.log(`⚠️ Database error looking up user:`);
+            console.log(`  - Error: ${dbError.message}`);
+            console.log(`  - Error name: ${dbError.name}`);
           }
         }
       } else {
-        console.log(`⚠️ No userId provided`);
+        console.log(`⚠️ No userId provided to getApiKey`);
       }
 
       // Fall back to system API key
