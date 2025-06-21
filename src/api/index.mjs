@@ -310,6 +310,54 @@ router.get('/debug/mongo-status', (req, res) => {
     }
 });
 
+// Debug route for testing encryption/decryption
+router.get('/debug/test-encryption', async (req, res) => {
+    try {
+        const crypto = await import('crypto');
+        const encKey = process.env.API_KEY_ENCRYPTION_KEY;
+        
+        if (!encKey) {
+            return res.json({ error: 'API_KEY_ENCRYPTION_KEY not set' });
+        }
+        
+        // Test encryption/decryption
+        const testString = 'test-api-key-12345';
+        const algorithm = 'aes-256-gcm';
+        const key = crypto.createHash('sha256').update(encKey).digest();
+        const iv = crypto.randomBytes(16);
+        
+        // Encrypt
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        let encrypted = cipher.update(testString, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        const authTag = cipher.getAuthTag();
+        
+        // Decrypt
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        decipher.setAuthTag(authTag);
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        res.json({
+            encryptionKeySet: true,
+            encryptionKeyLength: encKey.length,
+            testEncryption: {
+                original: testString,
+                encrypted: encrypted.substring(0, 20) + '...',
+                decrypted: decrypted,
+                success: testString === decrypted
+            },
+            message: 'Encryption/decryption is working correctly'
+        });
+    } catch (error) {
+        res.json({
+            error: 'Encryption test failed',
+            message: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Debug route for environment variables
 router.get('/debug/env', (req, res) => {
     res.json({

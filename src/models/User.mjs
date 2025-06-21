@@ -242,6 +242,20 @@ UserSchema.methods.getApiKey = function(provider) {
   }
   
   console.log(`✅ Found API key entry for ${provider}, decrypting...`);
+  
+  // Check if encryption key is available
+  try {
+    const encKey = process.env.API_KEY_ENCRYPTION_KEY;
+    if (!encKey) {
+      console.error(`❌ API_KEY_ENCRYPTION_KEY not set in environment`);
+      return null;
+    }
+    console.log(`✅ Encryption key is set (length: ${encKey.length})`);
+  } catch (error) {
+    console.error(`❌ Error checking encryption key: ${error.message}`);
+    return null;
+  }
+  
   const decryptedKey = this.decryptApiKey(apiKeyEntry.encryptedKey);
   console.log(`🔑 Decryption result: ${decryptedKey ? 'Success' : 'Failed'}`);
   return decryptedKey;

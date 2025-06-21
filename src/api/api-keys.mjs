@@ -139,9 +139,24 @@ router.get('/debug/:provider', authenticateUser, async (req, res) => {
     const apiKeyService = (await import('../services/apiKeyService.mjs')).default;
     const clientFactory = (await import('../lib/ai/clientFactory.mjs')).default;
     
+    // Get user document
+    const user = await User.findById(userId);
+    const storedKey = user?.apiKeys?.find(k => k.provider === provider);
+    
     // Check using apiKeyService
     const apiKeyInfo = await apiKeyService.getApiKey(userId, provider);
     console.log(`🔍 ApiKeyService result:`, apiKeyInfo);
+    
+    // Try to decrypt the key directly
+    let decryptedKey = null;
+    let decryptError = null;
+    if (user && storedKey) {
+      try {
+        decryptedKey = user.getApiKey(provider);
+      } catch (error) {
+        decryptError = error.message;
+      }
+    }
     
     // Try to create a client
     let clientResult = null;
@@ -153,15 +168,57 @@ router.get('/debug/:provider', authenticateUser, async (req, res) => {
       clientError = error.message;
     }
     
+    // Try to validate the key if we have it
+    let validationResult = null;
+    if (decryptedKey) {
+      try {
+        switch (provider) {
+          case 'openai':
+            validationResult = await validateOpenAIKey(decryptedKey);
+            break;
+          case 'anthropic':
+            validationResult = await validateAnthropicKey(decryptedKey);
+            break;
+          case 'google':
+            validationResult = await validateGoogleKey(decryptedKey);
+            break;
+          case 'deepseek':
+            validationResult = await validateOpenAICompatibleKey(decryptedKey, 'https://api.deepseek.com/v1');
+            break;
+          case 'grok':
+            validationResult = await validateOpenAICompatibleKey(decryptedKey, 'https://api.x.ai/v1');
+            break;
+          case 'llama':
+            validationResult = { isValid: true, message: 'Llama validation not implemented' };
+            break;
+        }
+      } catch (error) {
+        validationResult = { isValid: false, error: error.message };
+      }
+    }
+    
     res.json({
       success: true,
       debug: {
         userId,
         provider,
+        storedKey: storedKey ? {
+          exists: true,
+          keyId: storedKey.keyId,
+          isValid: storedKey.isValid,
+          hasEncryptedKey: !!storedKey.encryptedKey
+        } : null,
         apiKeyFound: !!apiKeyInfo,
         apiKeySource: apiKeyInfo?.source || 'none',
+        decryption: {
+          attempted: !!storedKey,
+          success: !!decryptedKey,
+          error: decryptError,
+          keyLength: decryptedKey ? decryptedKey.length : 0
+        },
         clientCreated: !!clientResult && !clientError,
-        clientError
+        clientError,
+        validation: validationResult
       }
     });
   } catch (error) {
