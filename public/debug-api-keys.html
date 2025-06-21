@@ -171,8 +171,18 @@
                 return;
             }
 
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}`;
+            // Check if we're in production (frontend on Vercel, backend on Render)
+            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            
+            let wsUrl;
+            if (isProduction) {
+                // In production, use the Render backend URL
+                wsUrl = 'wss://ai-collab-pro.onrender.com/api/ws';
+            } else {
+                // In development, use the same host
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                wsUrl = `${protocol}//${window.location.host}/api/ws`;
+            }
             
             log(`Connecting to WebSocket at ${wsUrl}...`);
             ws = new WebSocket(wsUrl);
