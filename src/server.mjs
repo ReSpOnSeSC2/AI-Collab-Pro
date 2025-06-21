@@ -53,26 +53,40 @@ const NEXT_APP_URL = process.env.NEXT_APP_URL || 'http://localhost:3002'; // For
 // --- MongoDB Connection ---
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-collab';
 
+console.log('Attempting MongoDB connection...');
+console.log('MongoDB URI format:', MONGO_URI ? MONGO_URI.substring(0, 30) + '...' : 'NOT SET');
+console.log('Node environment:', process.env.NODE_ENV);
+
 // Connect to MongoDB with options for MongoDB Atlas
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+  serverSelectionTimeoutMS: 10000, // Timeout after 10s
   socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
 })
   .then(() => {
-    console.log('Connected to MongoDB');
-    console.log('MongoDB URI format check:', MONGO_URI.substring(0, 30) + '...');
+    console.log('✅ Connected to MongoDB successfully');
     console.log('Database name:', mongoose.connection.name);
+    console.log('Host:', mongoose.connection.host);
+    console.log('Port:', mongoose.connection.port);
     // Store the database connection for use in routes
     app.locals.db = mongoose.connection.db;
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
-    console.error('MongoDB URI exists:', !!MONGO_URI);
+    console.error('❌ MongoDB connection failed');
     console.error('Error name:', err.name);
     console.error('Error message:', err.message);
-    // Don't exit the process, but log the error clearly
+    if (err.reason) {
+      console.error('Error reason:', err.reason);
+    }
+    // Log more details about the connection error
+    if (err.name === 'MongooseServerSelectionError') {
+      console.error('This usually means MongoDB Atlas is unreachable. Check:');
+      console.error('1. MongoDB URI is correct');
+      console.error('2. IP whitelist includes Render IPs or 0.0.0.0/0');
+      console.error('3. Database user has correct permissions');
+      console.error('4. Cluster is not paused/terminated');
+    }
   });
 
 // --- Express App Setup ---

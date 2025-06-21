@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import mongoose from 'mongoose'; // Import mongoose at the top level
 import statusRouter from './status.mjs';
 import configRouter from './config.mjs';
 import uploadRouter from './upload.mjs';
@@ -43,7 +44,7 @@ router.use('/api-keys', apiKeysRouter); // Handles /api/api-keys/* - API key man
 // Debug route for database connection test
 router.get('/debug/db-test', async (req, res) => {
     try {
-        const mongoose = await import('mongoose');
+        // Use the top-level imported mongoose
         const User = (await import('../models/User.mjs')).default;
         
         // Check if mongoose is even imported properly
@@ -119,7 +120,7 @@ router.get('/debug/api-keys/:userId', async (req, res) => {
         const { userId } = req.params;
         const apiKeyService = await import('../services/apiKeyService.mjs');
         const User = (await import('../models/User.mjs')).default;
-        const mongoose = await import('mongoose');
+        // Use the top-level imported mongoose
         
         console.log(`🔍 Debug API keys endpoint called for userId: ${userId}`);
         
@@ -235,12 +236,56 @@ router.get('/debug/api-keys/:userId', async (req, res) => {
     }
 });
 
-// Simple MongoDB connection check
-router.get('/debug/mongo-status', async (req, res) => {
+// Test MongoDB connection directly
+router.get('/debug/test-mongo-connection', async (req, res) => {
     try {
-        const mongoose = await import('mongoose');
+        const { MongoClient } = await import('mongodb');
+        const uri = process.env.MONGODB_URI;
         
-        // Get connection state
+        if (!uri) {
+            return res.json({ error: 'MONGODB_URI not set in environment' });
+        }
+        
+        const client = new MongoClient(uri, {
+            serverSelectionTimeoutMS: 5000,
+            connectTimeoutMS: 5000
+        });
+        
+        const startTime = Date.now();
+        
+        try {
+            await client.connect();
+            const admin = client.db().admin();
+            const result = await admin.ping();
+            
+            await client.close();
+            
+            res.json({
+                success: true,
+                pingResult: result,
+                connectionTime: Date.now() - startTime,
+                message: 'Successfully connected to MongoDB'
+            });
+        } catch (connectError) {
+            res.json({
+                success: false,
+                error: connectError.message,
+                errorName: connectError.name,
+                connectionTime: Date.now() - startTime
+            });
+        }
+    } catch (error) {
+        res.json({
+            error: 'Failed to test connection',
+            message: error.message
+        });
+    }
+});
+
+// Simple MongoDB connection check
+router.get('/debug/mongo-status', (req, res) => {
+    try {
+        // Use the imported mongoose instance
         const states = ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'];
         const state = mongoose.connection ? mongoose.connection.readyState : -1;
         
@@ -250,6 +295,11 @@ router.get('/debug/mongo-status', async (req, res) => {
             connectionState: state,
             connectionStateDesc: states[state] || 'unknown',
             mongoUriSet: !!process.env.MONGODB_URI,
+            connectionProperties: mongoose.connection ? {
+                host: mongoose.connection.host || 'not set',
+                port: mongoose.connection.port || 'not set',
+                name: mongoose.connection.name || 'not set'
+            } : null,
             error: null
         });
     } catch (error) {
