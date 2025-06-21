@@ -15,6 +15,28 @@ export async function getOrCreateConversation(userId, sessionId) {
   try {
     console.log(`getOrCreateConversation called for userId: ${userId}, sessionId: ${sessionId}`);
     
+    // Check if MongoDB connection is ready
+    const mongoose = (await import('mongoose')).default;
+    if (mongoose.connection.readyState !== 1) {
+      console.error(`MongoDB connection not ready. State: ${mongoose.connection.readyState}`);
+      // Return a fallback conversation object without database persistence
+      return {
+        _id: 'fallback-' + Date.now(),
+        userId,
+        sessionId,
+        contextMode: 'none',
+        messages: [],
+        summary: '',
+        contextSize: 0,
+        maxContextSize: 32000,
+        save: async () => {
+          console.log('Fallback conversation - save() called but no database available');
+          return Promise.resolve();
+        },
+        markModified: () => {}
+      };
+    }
+    
     let conversation = await Conversation.findOne({ userId, sessionId });
     
     if (!conversation) {
@@ -37,6 +59,18 @@ export async function getOrCreateConversation(userId, sessionId) {
     return conversation;
   } catch (error) {
     console.error('Error in getOrCreateConversation:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      codeName: error.codeName
+    });
+    
+    // Add more specific error information
+    if (error.name === 'MongooseServerSelectionError') {
+      error.message = 'Unable to connect to database. Please check MongoDB connection.';
+    }
+    
     throw error;
   }
 }

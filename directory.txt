@@ -1,46 +1,39 @@
 ./CHANGELOG-synthesis-fix.md
 ./CONTEXT_MANAGEMENT_IMPLEMENTATION.md
-./DEPLOYMENT.md - NEW: Comprehensive deployment guide
-./QUICKSTART.md - NEW: Quick start guide for users
-./New Text Document.txt
+./DEPLOYMENT.md
+./GOOGLE_OAUTH_SETUP.md
+./QUICKSTART.md
 ./README.improvements.md
-./directory.txt
-./render.yaml - NEW: Render deployment configuration
-./vercel.json - NEW: Vercel deployment configuration
 ./docs/API_Reference.md
 ./docs/Architecture.md
 ./docs/CLI.md
 ./docs/Collaboration_Modes.md
 ./docs/Demo.md
 ./docs/Development_Guide.md
+./docs/METRICS_AND_API_KEYS.md
 ./docs/SECURITY.md
 ./docs/User_Guide.md
 ./docs/Voting_System.md
 ./docs/context-management.md
 ./docs/prd.md
-./docs/prompts.txt
-./docs/METRICS_AND_API_KEYS.md
 ./install-collab-improvements.mjs
 ./package-lock.json
-./package.json - UPDATED: Added cors dependency
-./prompts.txt
-./.env.example - UPDATED: Production-ready template
-./public/New Text Document.txt
-./public/api-keys.html - UPDATED: Added preview and test mode
-./public/metrics-dashboard.html
-./public/security.html - NEW: Security and trust page
+./package.json
 ./public/_footer.html
 ./public/_footer_enhanced.html
 ./public/_header.html
 ./public/admin-activity.html
 ./public/admin-analytics.html
+./public/admin-apikeys.html
 ./public/admin-conversations.html
 ./public/admin-dashboard.html
 ./public/admin-feedback.html
 ./public/admin-models.html
 ./public/admin-settings.html
+./public/admin-user-metrics.html
 ./public/admin-users.html
 ./public/admin-voting.html
+./public/api-keys.html
 ./public/config/model-loader.js
 ./public/config/models-chatgpt.json
 ./public/config/models-claude.json
@@ -48,41 +41,44 @@
 ./public/config/models-gemini.json
 ./public/config/models-grok.json
 ./public/config/models-llama.json
-./public/css/New Text Document.txt
 ./public/css/admin-shared.css
+./public/css/api-keys.css
 ./public/css/context-manager.css
+./public/css/cost-tracker.css
 ./public/css/emergency-fix.css
 ./public/css/feedback-system.css
 ./public/css/files-folders.css
+./public/css/footer.css
 ./public/css/loading-progress.css
 ./public/css/main.css
-./public/css/sequential-style.css
-./public/css/voting.css
-./public/css/cost-tracker.css
-./public/css/page-header.css
-./public/css/settings.css
-./public/css/footer.css
-./public/css/api-keys.css
 ./public/css/metrics-dashboard.css
+./public/css/page-header.css
+./public/css/sequential-style.css
+./public/css/settings.css
+./public/css/voting.css
+./public/debug-api-keys.html
 ./public/debug.html
-./public/debug-api-keys.html - NEW: API Keys debugging tool
 ./public/hub.html
 ./public/index.html
 ./public/index.js
-./public/js/New Text Document.txt
+./public/js/admin-apikeys.js
 ./public/js/admin-conversations.js
 ./public/js/admin-shared.js
+./public/js/admin-user-metrics.js
 ./public/js/admin-users.js
+./public/js/api-key-indicator.js
+./public/js/api-keys.js
 ./public/js/applySavedTheme.js
-./public/js/auth.js - UPDATED: Enhanced OAuth detection and logging
-./public/js/authHandler.js - UPDATED: Fixed race condition with OAuth authentication
+./public/js/auth.js
+./public/js/authHandler.js
 ./public/js/codePreviewManager.js
 ./public/js/collaborationControls.js
 ./public/js/collaborationLimits.js
+./public/js/common.js
 ./public/js/connectionManager.js
 ./public/js/contextManager.js
-./public/js/costTracker.js
 ./public/js/contextWindow.js
+./public/js/costTracker.js
 ./public/js/debug-fix.js
 ./public/js/debugUtils.js
 ./public/js/feedback-system.js
@@ -94,9 +90,9 @@
 ./public/js/layoutManager.js
 ./public/js/loadingManager.fixed.js
 ./public/js/loadingManager.js
-./public/js/main.js - UPDATED: Improved auth event handling and WebSocket reconnection
-./public/test-auth-flow.html - NEW: Authentication flow testing page
+./public/js/main.js
 ./public/js/mcpClient.js
+./public/js/metrics-dashboard.js
 ./public/js/modelLoader.js
 ./public/js/sequentialStyleSelector.js
 ./public/js/service-worker-fixer.js
@@ -104,16 +100,17 @@
 ./public/js/truncationUtils.js
 ./public/js/uiManager.js
 ./public/js/votingManager.js
-./public/js/api-keys.js
-./public/js/api-key-indicator.js - NEW: API key status indicator for hub
-./public/js/metrics-dashboard.js
 ./public/login.html
+./public/metrics-dashboard.html
 ./public/model-comparison.html
+./public/security.html
 ./public/settings.html
 ./public/signup.html
-./public/test-auth-flow.html
+./public/test-api-key-flow.html
 ./public/test-api-keys.html
-./public/test-api-key-flow.html - NEW: Comprehensive API key flow testing
+./public/test-auth-flow.html
+./public/test-db-connection.html
+./public/test-mongodb-fallback.html
 ./scripts/create-admin.js
 ./scripts/create-admin.mjs
 ./scripts/google-admin.mjs
@@ -121,9 +118,9 @@
 ./scripts/seed-test-data.js
 ./scripts/update-user-tier.js
 ./setup-test.js
-./src/New Text Document.txt
-./src/api/New Text Document.txt
+./src/api/admin-metrics.mjs
 ./src/api/admin.mjs
+./src/api/api-keys.mjs
 ./src/api/auth-routes.mjs
 ./src/api/auth.mjs
 ./src/api/collaboration.mjs
@@ -132,22 +129,22 @@
 ./src/api/feedback.mjs
 ./src/api/index.mjs
 ./src/api/mcp.mjs
+./src/api/metrics.mjs
 ./src/api/responses.mjs
-./src/api/status.mjs - UPDATED: Added database connection test endpoint
+./src/api/status.mjs
 ./src/api/upload.mjs
 ./src/api/votes.mjs
-./src/api/metrics.mjs
-./src/api/api-keys.mjs
 ./src/config/passport.mjs
-./src/directory.txt
-./src/lib/ai/New Text Document.txt
 ./src/lib/ai/agent-response.mjs
 ./src/lib/ai/claude.mjs
+./src/lib/ai/clientFactory.mjs
 ./src/lib/ai/collab-exports.mjs
 ./src/lib/ai/collaboration-improvements.mjs
 ./src/lib/ai/collaboration-options.mjs
+./src/lib/ai/collaboration-with-metrics.mjs
 ./src/lib/ai/collaboration.mjs
 ./src/lib/ai/collaboration.original.mjs
+./src/lib/ai/costControl.mjs
 ./src/lib/ai/enhanced-collab-integration.mjs
 ./src/lib/ai/enhanced-error-handling.mjs
 ./src/lib/ai/gemini.mjs
@@ -159,30 +156,26 @@
 ./src/lib/ai/sequential-style-options.mjs
 ./src/lib/ai/small-team-collaboration.mjs
 ./src/lib/ai/truncation-utils.mjs
-./src/lib/ai/costControl.mjs
-./src/lib/ai/clientFactory.mjs
-./src/lib/ai/collaboration-with-metrics.mjs
 ./src/lib/billing/costControl.mjs
 ./src/lib/cliHandler.mjs
 ./src/lib/contextManager.mjs
-./src/lib/mcp/New Text Document.txt
 ./src/lib/mcp/index.mjs
 ./src/lib/messaging/redis.mjs
 ./src/lib/security/promptGuard.mjs
 ./src/models/Conversation.mjs
-./src/models/Vote.mjs
 ./src/models/Metrics.mjs
 ./src/models/User.mjs
-./src/server.mjs - UPDATED: Improved MongoDB connection options and error handling
+./src/models/Vote.mjs
+./src/server.mjs
+./src/services/apiKeyService.mjs
 ./src/services/conversationService.mjs
-./src/services/voteService.mjs
 ./src/services/metricsService.mjs
-./src/services/apiKeyService.mjs - UPDATED: Better database connection handling and timeout protection
-./src/wsHandler.mjs - UPDATED: Improved error messages for API key issues
+./src/services/voteService.mjs
+./src/wsHandler.mjs
+./test-api-keys.js
 ./test-websocket-server.js
 ./tools/test-context.mjs
 ./validate-websocket-implementation.js
 ./validate-websocket-implementation.mjs
+./vercel.json
 ./websocket-heartbeat-test.html
-./test-api-keys.js - NEW: API key debugging test script
-./public/test-db-connection.html - NEW: Database connection and API key testing page

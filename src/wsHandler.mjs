@@ -5,6 +5,7 @@
  */
 
 import { WebSocket } from 'ws';
+import mongoose from 'mongoose';
 import { clients, availability, getClient } from './lib/ai/index.mjs';
 import clientFactory, { clearUserClientCache } from './lib/ai/clientFactory.mjs';
 import { handleCollaborativeDiscussion, setCollaborationStyle, setCollaborationMode, getCollaborationConfig } from './lib/ai/collaboration.mjs';
@@ -234,6 +235,79 @@ async function handleAuthentication(ws, data) {
         wsUserSessions.set(ws, { userId: ws.userId, sessionId: ws.sessionId });
 
         try {
+            // Check MongoDB connection state first
+            const mongoState = mongoose.connection.readyState;
+            console.log(`🔍 MongoDB connection state: ${mongoState} (0=disconnected, 1=connected, 2=connecting, 3=disconnecting)`);
+            
+            if (mongoState !== 1) {
+                console.error(`❌ MongoDB is not connected. State: ${mongoState}`);
+                console.log(`🔄 Using fallback authentication without database context...`);
+                
+                // Check API keys availability even without database
+                let apiKeyStatus = {};
+                let providers = [];
+                
+                try {
+                    // Import mongoose to check connection
+                    console.log(`🔑 Checking API keys availability for user ${ws.userId}...`);
+                    
+                    // Get available providers from environment variables
+                    const envProviders = {
+                        'anthropic': process.env.ANTHROPIC_API_KEY,
+                        'google': process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+                        'openai': process.env.OPENAI_API_KEY,
+                        'grok': process.env.XAI_API_KEY || process.env.GROK_API_KEY,
+                        'deepseek': process.env.DEEPSEEK_API_KEY,
+                        'llama': process.env.LLAMA_API_KEY
+                    };
+                    
+                    providers = Object.entries(envProviders)
+                        .filter(([provider, key]) => key && key.trim() !== '')
+                        .map(([provider]) => provider);
+                    
+                    console.log(`✅ Available providers from environment: ${providers.join(', ')}`);
+                    
+                    // Map to frontend names
+                    const providerMapping = {
+                        'anthropic': 'claude',
+                        'google': 'gemini',
+                        'openai': 'chatgpt',
+                        'grok': 'grok',
+                        'deepseek': 'deepseek',
+                        'llama': 'llama'
+                    };
+                    
+                    providers.forEach(provider => {
+                        const frontendName = providerMapping[provider] || provider;
+                        apiKeyStatus[frontendName] = true;
+                    });
+                    
+                } catch (checkError) {
+                    console.error(`Error checking API availability:`, checkError);
+                }
+                
+                // Authenticate without context when database is unavailable
+                sendWsMessage(ws, {
+                    type: 'authentication_success',
+                    userId: ws.userId,
+                    sessionId: ws.sessionId,
+                    contextInfo: {
+                        id: 'no-db-fallback',
+                        messageCount: 0,
+                        contextSize: 0,
+                        maxContextSize: 32000,
+                        percentUsed: 0,
+                        isNearLimit: false,
+                        warning: 'Database unavailable - running without context'
+                    },
+                    apiKeys: apiKeyStatus
+                });
+                
+                console.log(`✅ Fallback authentication sent for user ${ws.userId} with API keys:`, apiKeyStatus);
+                
+                return;
+            }
+            
             // Initialize a context for this session
             console.log(`🔍 Attempting to get/create context for userId: ${ws.userId}, sessionId: ${ws.sessionId}`);
             
@@ -248,7 +322,10 @@ async function handleAuthentication(ws, data) {
                 console.error(`  - Stack:`, contextError.stack);
                 
                 // Check if it's a MongoDB connection error
-                if (contextError.name === 'MongooseError' || contextError.message.includes('buffering timed out')) {
+                if (contextError.name === 'MongooseError' || 
+                    contextError.message.includes('buffering timed out') ||
+                    contextError.message.includes('MongooseServerSelectionError') ||
+                    contextError.message.includes('connect ECONNREFUSED')) {
                     sendWsError(ws, "Database connection error. Please try again later.");
                 } else {
                     sendWsError(ws, "Internal server error: Could not initialize session context.");
@@ -479,11 +556,17 @@ async function handleChatMessage(ws, data) {
     let historyContext = '';
     if (ws.sessionId) {
       try {
-        historyContext = await getFormattedContextHistory(ws.userId, ws.sessionId);
+        // Check MongoDB connection state before trying to get context
+        const mongoose = await import('mongoose');
+        if (mongoose.connection.readyState === 1) {
+          historyContext = await getFormattedContextHistory(ws.userId, ws.sessionId);
 
-        // Update target models in the context
-        if (modelsToQuery.length > 0) {
-          await updateTargetModels(ws.userId, ws.sessionId, modelsToQuery);
+          // Update target models in the context
+          if (modelsToQuery.length > 0) {
+            await updateTargetModels(ws.userId, ws.sessionId, modelsToQuery);
+          }
+        } else {
+          console.log('⚠️ MongoDB not connected - proceeding without context history');
         }
       } catch (error) {
         console.error(`Error retrieving context history: ${error.message}`);
@@ -506,20 +589,23 @@ async function handleChatMessage(ws, data) {
         // Store the complete response in the context
         if (ws.sessionId && latestResponses[aiTarget]) {
             try {
-                const contextResponse = latestResponses[aiTarget];
+                // Check MongoDB connection state before trying to save context
+                const mongoose = await import('mongoose');
+                if (mongoose.connection.readyState === 1) {
+                    const contextResponse = latestResponses[aiTarget];
 
-                // Add response to conversation context
-                const result = await addResponseToContext(ws.userId, ws.sessionId, aiTarget, contextResponse);
+                    // Add response to conversation context
+                    const result = await addResponseToContext(ws.userId, ws.sessionId, aiTarget, contextResponse);
 
-                // Check if we need to notify about context limits
-                if (result.isNearLimit) {
-                    // Notify the client that context is near limit
-                    sendWsMessage(ws, {
-                        type: 'context_warning',
-                        percentUsed: result.percentUsed,
-                        contextSize: result.contextSize,
-                        maxSize: result.maxContextSize
-                    });
+                    // Check if we need to notify about context limits
+                    if (result.isNearLimit) {
+                        // Notify the client that context is near limit
+                        sendWsMessage(ws, {
+                            type: 'context_warning',
+                            percentUsed: result.percentUsed,
+                            contextSize: result.contextSize,
+                            maxSize: result.maxContextSize
+                        });
                 }
                 
                 // Track token usage and cost

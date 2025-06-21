@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Fallback Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #2d5a2d;
+            border: 1px solid #4caf50;
+        }
+        .error {
+            background-color: #5a2d2d;
+            border: 1px solid #f44336;
+        }
+        .warning {
+            background-color: #5a5a2d;
+            border: 1px solid #ff9800;
+        }
+        .info {
+            background-color: #2d4a5a;
+            border: 1px solid #2196f3;
+        }
+        button {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #logs {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4caf50;
+        }
+        .log-error {
+            border-left-color: #f44336;
+        }
+        .log-warning {
+            border-left-color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <h1>MongoDB Fallback Authentication Test</h1>
+    
+    <div id="connectionStatus" class="status info">
+        WebSocket: Not connected
+    </div>
+    
+    <div id="authStatus" class="status info">
+        Authentication: Not attempted
+    </div>
+    
+    <div id="dbStatus" class="status info">
+        Database: Unknown
+    </div>
+    
+    <div id="apiKeyStatus" class="status info">
+        API Keys: Not checked
+    </div>
+    
+    <div>
+        <button onclick="connectWebSocket()">Connect WebSocket</button>
+        <button onclick="authenticate()">Authenticate</button>
+        <button onclick="testChat()">Test Chat</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <h2>Logs</h2>
+    <div id="logs"></div>
+    
+    <script>
+        let ws = null;
+        let isAuthenticated = false;
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            if (type === 'error') entry.className += ' log-error';
+            if (type === 'warning') entry.className += ' log-warning';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('WebSocket already connected', 'warning');
+                return;
+            }
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            log(`Connecting to ${wsUrl}...`);
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                log('WebSocket connected successfully', 'success');
+                updateStatus('connectionStatus', 'WebSocket: Connected', 'success');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log(`Received: ${JSON.stringify(data)}`, 'info');
+                
+                switch (data.type) {
+                    case 'authentication_success':
+                        isAuthenticated = true;
+                        updateStatus('authStatus', 'Authentication: Success', 'success');
+                        
+                        if (data.contextInfo) {
+                            if (data.contextInfo.warning) {
+                                updateStatus('dbStatus', `Database: ${data.contextInfo.warning}`, 'warning');
+                            } else {
+                                updateStatus('dbStatus', 'Database: Connected', 'success');
+                            }
+                        }
+                        
+                        if (data.apiKeys) {
+                            const available = Object.entries(data.apiKeys)
+                                .filter(([_, v]) => v)
+                                .map(([k, _]) => k);
+                            updateStatus('apiKeyStatus', 
+                                `API Keys: ${available.length > 0 ? available.join(', ') : 'None available'}`,
+                                available.length > 0 ? 'success' : 'warning');
+                        }
+                        break;
+                        
+                    case 'database_status':
+                        updateStatus('dbStatus', 
+                            `Database: ${data.connected ? 'Connected' : data.message}`,
+                            data.connected ? 'success' : 'warning');
+                        break;
+                        
+                    case 'error':
+                        log(`Error: ${data.message}`, 'error');
+                        break;
+                        
+                    case 'response':
+                        log(`AI Response (${data.target}): ${data.content || '[streaming...]'}`);
+                        break;
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log(`WebSocket error: ${error}`, 'error');
+                updateStatus('connectionStatus', 'WebSocket: Error', 'error');
+            };
+            
+            ws.onclose = (event) => {
+                log(`WebSocket closed: ${event.code} - ${event.reason}`, 'warning');
+                updateStatus('connectionStatus', 'WebSocket: Disconnected', 'error');
+                isAuthenticated = false;
+            };
+        }
+        
+        function authenticate() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+            
+            // Get user ID from localStorage or generate temporary one
+            let userId = localStorage.getItem('userId');
+            if (!userId) {
+                userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                localStorage.setItem('userId', userId);
+                log(`Generated temporary user ID: ${userId}`);
+            } else {
+                log(`Using existing user ID: ${userId}`);
+            }
+            
+            log('Sending authentication message...');
+            ws.send(JSON.stringify({
+                type: 'authenticate',
+                userId: userId
+            }));
+        }
+        
+        function testChat() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+            
+            if (!isAuthenticated) {
+                log('Not authenticated yet', 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'chat',
+                message: 'Hello, can you hear me? This is a test message.',
+                target: 'collab',
+                models: {
+                    claude: true,
+                    gemini: true,
+                    chatgpt: true
+                },
+                userId: localStorage.getItem('userId')
+            };
+            
+            log(`Sending chat message: ${JSON.stringify(message)}`);
+            ws.send(JSON.stringify(message));
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs cleared');
+        }
+        
+        // Auto-connect on load
+        window.onload = () => {
+            log('Page loaded, attempting WebSocket connection...');
+            connectWebSocket();
+        };
+    </script>
+</body>
+</html>

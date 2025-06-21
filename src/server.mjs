@@ -25,6 +25,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 
 import { initializePassport } from './config/passport.mjs';
+import { WebSocketServer } from 'ws';
 import initializeWebSocketHandler from './wsHandler.mjs';
 import apiRouter from './api/index.mjs';
 import { initializeUploads } from './api/upload.mjs'; // Import initialization function
@@ -80,6 +81,13 @@ mongoose.connect(MONGO_URI, {
     console.log('Connection state:', mongoose.connection.readyState);
     // Store the database connection for use in routes
     app.locals.db = mongoose.connection.db;
+    
+    // Initialize WebSocket server after MongoDB connection is established
+    if (!wss) {
+      wss = new WebSocketServer({ server });
+      initializeWebSocketHandler(wss);
+      console.log('✅ WebSocket server initialized after MongoDB connection');
+    }
   })
   .catch(err => {
     console.error('❌ MongoDB connection failed');
@@ -101,6 +109,12 @@ mongoose.connect(MONGO_URI, {
 // Add connection event listeners for better monitoring
 mongoose.connection.on('connected', () => {
   console.log('📊 Mongoose connected to MongoDB');
+  // Re-initialize WebSocket server if it was closed due to MongoDB disconnection
+  if (!wss && server && server.listening) {
+    wss = new WebSocketServer({ server });
+    initializeWebSocketHandler(wss);
+    console.log('✅ WebSocket server re-initialized after MongoDB reconnection');
+  }
 });
 
 mongoose.connection.on('error', (err) => {
@@ -109,6 +123,41 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
   console.log('📊 Mongoose disconnected from MongoDB');
+  console.log('⚠️ Keeping WebSocket server running in degraded mode without database');
+  // Instead of closing WebSocket server, notify clients but keep running
+  if (wss) {
+    wss.clients.forEach((ws) => {
+      // Send a warning but don't close the connection
+      if (ws.readyState === 1) { // WebSocket.OPEN
+        ws.send(JSON.stringify({
+          type: 'database_status',
+          connected: false,
+          message: 'Database connection lost - running in limited mode'
+        }));
+      }
+    });
+  }
+  
+  // Attempt to reconnect after a delay
+  setTimeout(() => {
+    console.log('🔄 Attempting to reconnect to MongoDB...');
+    mongoose.connect(MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      dbName: 'ai_collab',
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      retryWrites: true,
+      retryReads: true,
+      heartbeatFrequencyMS: 10000,
+      keepAlive: true,
+      keepAliveInitialDelay: 300000
+    }).catch(err => {
+      console.error('❌ MongoDB reconnection failed:', err.message);
+    });
+  }, 5000); // Try to reconnect after 5 seconds
 });
 
 // Graceful shutdown
@@ -288,8 +337,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api', apiRouter); // Mount all API routes under /api
 
 // --- WebSocket Server Setup ---
-const wss = new WebSocketServer({ server });
-initializeWebSocketHandler(wss); // Initialize WebSocket logic
+// We'll initialize WebSocket server after MongoDB connection is established
+let wss;
 
 // --- File Uploads Initialization ---
 initializeUploads(uploadsPath); // Ensure uploads directory exists
