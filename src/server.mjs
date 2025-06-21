@@ -63,13 +63,21 @@ mongoose.connect(MONGO_URI, {
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 10000, // Timeout after 10s
   socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-  dbName: 'ai_collab' // Explicitly set the database name
+  dbName: 'ai_collab', // Explicitly set the database name
+  maxPoolSize: 10, // Maximum number of sockets the MongoDB driver will keep open
+  minPoolSize: 2, // Minimum number of sockets the MongoDB driver will keep open
+  retryWrites: true, // Retry on retryable write errors
+  retryReads: true, // Retry on retryable read errors
+  heartbeatFrequencyMS: 10000, // How often to check the connection
+  keepAlive: true,
+  keepAliveInitialDelay: 300000 // Start keepalive after 5 minutes
 })
   .then(() => {
     console.log('✅ Connected to MongoDB successfully');
     console.log('Database name:', mongoose.connection.name);
     console.log('Host:', mongoose.connection.host);
     console.log('Port:', mongoose.connection.port);
+    console.log('Connection state:', mongoose.connection.readyState);
     // Store the database connection for use in routes
     app.locals.db = mongoose.connection.db;
   })
@@ -89,6 +97,26 @@ mongoose.connect(MONGO_URI, {
       console.error('4. Cluster is not paused/terminated');
     }
   });
+
+// Add connection event listeners for better monitoring
+mongoose.connection.on('connected', () => {
+  console.log('📊 Mongoose connected to MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('📊 Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('📊 Mongoose disconnected from MongoDB');
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  console.log('📊 Mongoose connection closed through app termination');
+  process.exit(0);
+});
 
 // --- Express App Setup ---
 const app = express();

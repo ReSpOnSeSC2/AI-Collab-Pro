@@ -131,7 +131,7 @@
 ./src/api/index.mjs
 ./src/api/mcp.mjs
 ./src/api/responses.mjs
-./src/api/status.mjs
+./src/api/status.mjs - UPDATED: Added database connection test endpoint
 ./src/api/upload.mjs
 ./src/api/votes.mjs
 ./src/api/metrics.mjs
@@ -171,15 +171,16 @@
 ./src/models/Vote.mjs
 ./src/models/Metrics.mjs
 ./src/models/User.mjs
-./src/server.mjs
+./src/server.mjs - UPDATED: Improved MongoDB connection options and error handling
 ./src/services/conversationService.mjs
 ./src/services/voteService.mjs
 ./src/services/metricsService.mjs
-./src/services/apiKeyService.mjs
-./src/wsHandler.mjs
+./src/services/apiKeyService.mjs - UPDATED: Better database connection handling and timeout protection
+./src/wsHandler.mjs - UPDATED: Improved error messages for API key issues
 ./test-websocket-server.js
 ./tools/test-context.mjs
 ./validate-websocket-implementation.js
 ./validate-websocket-implementation.mjs
 ./websocket-heartbeat-test.html
 ./test-api-keys.js - NEW: API key debugging test script
+./public/test-db-connection.html - NEW: Database connection and API key testing page

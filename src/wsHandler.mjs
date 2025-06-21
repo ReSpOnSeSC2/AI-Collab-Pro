@@ -387,25 +387,34 @@ async function handleChatMessage(ws, data) {
         console.error(`  - Providers extracted:`, Array.from(providers || []));
         console.error(`  - User ID format: ${userId && userId.startsWith('user-') && userId.includes('-') ? 'temporary' : 'permanent'}`);
         
+        // Check database connection state
+        const mongoose = await import('mongoose');
+        const connectionState = mongoose.connection.readyState;
+        console.error(`  - MongoDB connection state: ${connectionState} (${['disconnected', 'connected', 'connecting', 'disconnecting'][connectionState]})`);
+        
         // Check if this is a temporary user
         if (userId && userId.startsWith('user-') && userId.includes('-')) {
-            return sendWsError(ws, "No AI models available. You are using a temporary session. Please log in with Google to use your saved API keys, or ensure the server has system API keys configured.");
+            return sendWsError(ws, "No AI models available. You are using a temporary session. Please log in with Google to use your saved API keys.");
         }
         
         // For authenticated users, provide more specific guidance
         const requestedProviders = Array.from(providers || []).join(', ');
         
-        // Check if this is likely a database connection issue
-        if (userId && /^[0-9a-fA-F]{24}$/.test(userId)) {
-            console.error(`❌ Valid MongoDB ObjectId but no API keys found. This may indicate:`);
-            console.error(`  - Database connection issues`);
-            console.error(`  - User document not found`);
-            console.error(`  - API keys not properly stored`);
-            
-            return sendWsError(ws, `Unable to retrieve API keys. This may be a database connection issue. Please try refreshing the page or contact support. Debug info: userId=${userId}, providers=${requestedProviders}`);
+        // Check if database is disconnected
+        if (connectionState !== 1) {
+            return sendWsError(ws, `Database connection issue detected. The server cannot access your stored API keys. Please try refreshing the page in a moment. If the issue persists, contact support.`);
         }
         
-        return sendWsError(ws, `No valid AI clients available for the requested models. Please check your API keys in Settings for: ${requestedProviders || 'the selected models'}.`);
+        // Check if this is likely a database query issue
+        if (userId && /^[0-9a-fA-F]{24}$/.test(userId)) {
+            console.error(`❌ Valid MongoDB ObjectId but no API keys found. This may indicate:`);
+            console.error(`  - No API keys configured for these providers`);
+            console.error(`  - API keys may need to be re-entered in Settings`);
+            
+            return sendWsError(ws, `No API keys found for the requested models (${requestedProviders}). Please go to Settings and ensure your API keys are configured for: ${requestedProviders}.`);
+        }
+        
+        return sendWsError(ws, `No valid AI clients available. Please configure your API keys in Settings for: ${requestedProviders || 'the selected models'}.`);
     }
 
     // --- Prepare context (including files and conversation history) ---

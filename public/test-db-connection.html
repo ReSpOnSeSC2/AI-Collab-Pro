@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Connection Test - AI Collaboration Hub</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-result.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .test-result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .test-button {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            opacity: 0.9;
+        }
+        .test-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .user-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: var(--bg-primary);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Database Connection Test</h1>
+        <p>This page helps diagnose database connection and API key issues.</p>
+        
+        <div class="user-info" id="userInfo">
+            <strong>Current User:</strong> <span id="currentUser">Loading...</span>
+        </div>
+        
+        <div>
+            <button class="test-button" id="testDbBtn" onclick="testDatabase()">
+                Test Database Connection
+            </button>
+            <button class="test-button" id="testApiBtn" onclick="testApiStatus()">
+                Test API Status
+            </button>
+            <button class="test-button" id="testWsBtn" onclick="testWebSocket()">
+                Test WebSocket
+            </button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Get current user info
+        async function getCurrentUser() {
+            const userSpan = document.getElementById('currentUser');
+            try {
+                const authData = localStorage.getItem('ai_collab_user');
+                if (authData) {
+                    const user = JSON.parse(authData);
+                    const userId = user.id || user._id || 'Unknown';
+                    const isTemp = userId.startsWith('user-') && userId.includes('-');
+                    userSpan.innerHTML = `
+                        ${user.email || 'Not logged in'} 
+                        <br>ID: ${userId}
+                        <br>Type: ${isTemp ? 'Temporary' : 'Permanent'}
+                    `;
+                    return userId;
+                } else {
+                    userSpan.textContent = 'Not authenticated';
+                    return null;
+                }
+            } catch (error) {
+                userSpan.textContent = 'Error reading auth data';
+                return null;
+            }
+        }
+
+        // Test database connection
+        async function testDatabase() {
+            const btn = document.getElementById('testDbBtn');
+            const resultsDiv = document.getElementById('results');
+            
+            btn.disabled = true;
+            btn.innerHTML = 'Testing... <span class="loading"></span>';
+            
+            try {
+                const userId = await getCurrentUser();
+                const url = userId ? `/api/test/db-connection?userId=${userId}` : '/api/test/db-connection';
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                let resultClass = 'info';
+                let resultText = 'Database Connection Test Results:\n\n';
+                
+                // Database status
+                if (data.database.connected) {
+                    resultClass = 'success';
+                    resultText += `✅ Database Connected\n`;
+                    resultText += `  - Host: ${data.database.host}\n`;
+                    resultText += `  - Port: ${data.database.port}\n`;
+                    resultText += `  - Database: ${data.database.name}\n`;
+                    resultText += `  - Total Users: ${data.database.userCount}\n`;
+                } else {
+                    resultClass = 'error';
+                    resultText += `❌ Database Disconnected\n`;
+                    resultText += `  - State: ${data.database.state}\n`;
+                }
+                
+                // Encryption key status
+                resultText += `\n${data.encryptionKey.configured ? '✅' : '❌'} API Key Encryption\n`;
+                resultText += `  - Configured: ${data.encryptionKey.configured}\n`;
+                if (data.encryptionKey.configured) {
+                    resultText += `  - Key Length: ${data.encryptionKey.length}\n`;
+                }
+                
+                // User lookup results
+                if (data.userLookup) {
+                    resultText += `\nUser Lookup Results:\n`;
+                    if (data.userLookup.found) {
+                        resultText += `  ✅ User Found\n`;
+                        resultText += `  - Email: ${data.userLookup.email}\n`;
+                        resultText += `  - Name: ${data.userLookup.name}\n`;
+                        resultText += `  - API Keys: ${data.userLookup.apiKeysCount}\n`;
+                        if (data.userLookup.providers.length > 0) {
+                            resultText += `  - Providers: ${data.userLookup.providers.join(', ')}\n`;
+                        }
+                    } else if (data.userLookup.format === 'temporary') {
+                        resultText += `  ⚠️ ${data.userLookup.message}\n`;
+                        resultClass = 'warning';
+                    } else if (data.userLookup.error) {
+                        resultText += `  ❌ Error: ${data.userLookup.error}\n`;
+                        resultClass = 'error';
+                    } else {
+                        resultText += `  ❌ ${data.userLookup.message}\n`;
+                        if (data.database.connected) {
+                            resultClass = 'warning';
+                        }
+                    }
+                }
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${resultClass}`;
+                resultDiv.textContent = resultText;
+                resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+                
+            } catch (error) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test Database Connection';
+            }
+        }
+
+        // Test API status
+        async function testApiStatus() {
+            const btn = document.getElementById('testApiBtn');
+            const resultsDiv = document.getElementById('results');
+            
+            btn.disabled = true;
+            btn.innerHTML = 'Testing... <span class="loading"></span>';
+            
+            try {
+                const response = await fetch('/api/check-api-status');
+                const data = await response.json();
+                
+                let resultText = 'API Status Test Results:\n\n';
+                resultText += `Server Version: ${data.server.version}\n`;
+                resultText += `Server Uptime: ${Math.floor(data.server.uptime / 60)} minutes\n\n`;
+                resultText += 'System API Keys (Environment):\n';
+                
+                let anyAvailable = false;
+                for (const [provider, available] of Object.entries(data.ai_status)) {
+                    resultText += `  ${available ? '✅' : '❌'} ${provider}\n`;
+                    if (available) anyAvailable = true;
+                }
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${anyAvailable ? 'success' : 'warning'}`;
+                resultDiv.textContent = resultText;
+                resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+                
+            } catch (error) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test API Status';
+            }
+        }
+
+        // Test WebSocket connection
+        async function testWebSocket() {
+            const btn = document.getElementById('testWsBtn');
+            const resultsDiv = document.getElementById('results');
+            
+            btn.disabled = true;
+            btn.innerHTML = 'Testing... <span class="loading"></span>';
+            
+            let resultText = 'WebSocket Test Results:\n\n';
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'test-result info';
+            
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}`;
+                
+                resultText += `Connecting to: ${wsUrl}\n`;
+                
+                const ws = new WebSocket(wsUrl);
+                
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        ws.close();
+                        reject(new Error('Connection timeout'));
+                    }, 5000);
+                    
+                    ws.onopen = () => {
+                        clearTimeout(timeout);
+                        resultText += '✅ WebSocket connected\n';
+                        
+                        // Test authentication
+                        const userId = localStorage.getItem('ai_collab_user');
+                        if (userId) {
+                            const user = JSON.parse(userId);
+                            ws.send(JSON.stringify({
+                                type: 'authenticate',
+                                userId: user.id || user._id
+                            }));
+                            resultText += '📤 Sent authentication message\n';
+                        }
+                        
+                        // Test ping
+                        ws.send(JSON.stringify({ type: 'ping' }));
+                        resultText += '📤 Sent ping message\n';
+                    };
+                    
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            resultText += `📥 Received: ${data.type}\n`;
+                            
+                            if (data.type === 'authentication_success') {
+                                resultText += '✅ Authentication successful\n';
+                                resultDiv.className = 'test-result success';
+                            } else if (data.type === 'error') {
+                                resultText += `❌ Error: ${data.message}\n`;
+                                resultDiv.className = 'test-result error';
+                            }
+                        } catch (e) {
+                            resultText += `📥 Received non-JSON message\n`;
+                        }
+                    };
+                    
+                    ws.onerror = (error) => {
+                        clearTimeout(timeout);
+                        resultText += `❌ WebSocket error\n`;
+                        reject(error);
+                    };
+                    
+                    ws.onclose = () => {
+                        resultText += '🔌 WebSocket closed\n';
+                        resolve();
+                    };
+                    
+                    // Close after 3 seconds
+                    setTimeout(() => {
+                        ws.close();
+                        resolve();
+                    }, 3000);
+                });
+                
+            } catch (error) {
+                resultText += `❌ Error: ${error.message}\n`;
+                resultDiv.className = 'test-result error';
+            } finally {
+                resultDiv.textContent = resultText;
+                resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+                btn.disabled = false;
+                btn.textContent = 'Test WebSocket';
+            }
+        }
+
+        // Initialize on load
+        getCurrentUser();
+    </script>
+</body>
+</html>
