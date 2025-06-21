@@ -219,11 +219,18 @@ async function initializeAuth() {
         if (data && data.authenticated && data.user) {
             currentUser = data.user;
             console.log('User already authenticated from server:', currentUser.email);
+            console.log('  - User ID:', currentUser.id || currentUser._id);
+            console.log('  - Is MongoDB ObjectId:', /^[0-9a-fA-F]{24}$/.test(currentUser.id || currentUser._id || ''));
             
             // Store authentication state for future use
             localStorage.setItem('ai_collab_authenticated', 'true');
             if (currentUser.email) localStorage.setItem('ai_collab_email', currentUser.email);
             if (currentUser.name) localStorage.setItem('ai_collab_name', currentUser.name);
+            
+            // Dispatch auth:login event for authenticated users
+            document.dispatchEvent(new CustomEvent('auth:login', { 
+                detail: currentUser 
+            }));
             
             // If we're on an auth page, redirect to the main app
             if (isAuthPage()) {

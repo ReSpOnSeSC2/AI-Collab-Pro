@@ -176,17 +176,7 @@ function handleAuthLogin(event) {
         }, 2000);
     }
     // Normal authentication flow for non-upgrade scenarios
-    else
-        setTimeout(() => {
-            if (window.connectWebSocket) {
-                window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
-            }
-        }, 100);
-        return;
-    }
-    
-    // If we have a WebSocket connection, authenticate with the new user ID
-    if (window.sendMessageToServer && newUserId) {
+    else if (window.sendMessageToServer && newUserId) {
         if (previousUserId !== newUserId) {
             console.log(`🔄 User ID changed from ${previousUserId || 'none'} to ${newUserId}`);
         }
