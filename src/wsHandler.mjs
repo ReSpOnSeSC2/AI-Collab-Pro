@@ -335,6 +335,7 @@ async function handleChatMessage(ws, data) {
     // Determine which models to query based on target and availability
     const modelsToQuery = [];
     const userId = ws.userId || data.userId; // Get user ID
+    let providers = []; // Declare providers at a higher scope to avoid reference errors
     
     console.log(`🔍 Checking models for userId: ${userId}, target: ${target}, models:`, Object.keys(models));
     
@@ -345,7 +346,7 @@ async function handleChatMessage(ws, data) {
     if (target === 'collab') {
         // Check which models the user has API keys for
         // The frontend sends provider names as keys (claude, gemini, chatgpt, etc.)
-        const providers = Object.keys(models);
+        providers = Object.keys(models);
         console.log(`🔍 Providers from frontend:`, providers);
         
         // Check API keys for each provider
