@@ -512,4 +512,204 @@ async function validateOpenAICompatibleKey(apiKey, baseURL) {
   }
 }
 
+/**
+ * Comprehensive API key test endpoint
+ * GET /api/api-keys/test-complete/:provider
+ */
+router.get('/test-complete/:provider', authenticateUser, async (req, res) => {
+  try {
+    const { provider } = req.params;
+    const userId = req.user.userId;
+    
+    console.log(`\n🔍 COMPREHENSIVE API KEY TEST`);
+    console.log(`============================`);
+    console.log(`Provider: ${provider}`);
+    console.log(`User ID: ${userId}`);
+    
+    const results = {
+      provider,
+      userId,
+      timestamp: new Date().toISOString(),
+      steps: {}
+    };
+    
+    // Step 1: Check user exists
+    console.log(`\n1️⃣ Checking user exists...`);
+    const user = await User.findById(userId);
+    results.steps.userExists = {
+      success: !!user,
+      email: user?.email,
+      apiKeysCount: user?.apiKeys?.length || 0
+    };
+    console.log(`User found: ${!!user}`);
+    
+    if (!user) {
+      return res.json({ success: false, results, error: 'User not found' });
+    }
+    
+    // Step 2: Check stored API key
+    console.log(`\n2️⃣ Checking stored API key...`);
+    const storedKey = user.apiKeys.find(k => k.provider === provider);
+    results.steps.storedKey = {
+      exists: !!storedKey,
+      keyId: storedKey?.keyId,
+      isValid: storedKey?.isValid,
+      hasEncryptedKey: !!storedKey?.encryptedKey,
+      encryptedKeyLength: storedKey?.encryptedKey?.length || 0
+    };
+    console.log(`Stored key found: ${!!storedKey}`);
+    
+    if (!storedKey) {
+      return res.json({ success: false, results, error: 'No API key stored for provider' });
+    }
+    
+    // Step 3: Test decryption
+    console.log(`\n3️⃣ Testing decryption...`);
+    let decryptedKey = null;
+    try {
+      decryptedKey = user.getApiKey(provider);
+      results.steps.decryption = {
+        success: !!decryptedKey,
+        keyLength: decryptedKey?.length || 0,
+        keyPreview: decryptedKey ? `${decryptedKey.substring(0, 6)}...${decryptedKey.slice(-4)}` : null
+      };
+      console.log(`Decryption success: ${!!decryptedKey}`);
+    } catch (error) {
+      results.steps.decryption = {
+        success: false,
+        error: error.message
+      };
+      console.log(`Decryption error: ${error.message}`);
+      return res.json({ success: false, results, error: 'Decryption failed' });
+    }
+    
+    // Step 4: Test API key service
+    console.log(`\n4️⃣ Testing API key service...`);
+    const apiKeyService = (await import('../services/apiKeyService.mjs')).default;
+    const apiKeyInfo = await apiKeyService.getApiKey(userId, provider);
+    results.steps.apiKeyService = {
+      success: !!apiKeyInfo,
+      source: apiKeyInfo?.source,
+      keyFound: !!apiKeyInfo?.key
+    };
+    console.log(`API key service result: ${!!apiKeyInfo}`);
+    
+    // Step 5: Test client factory
+    console.log(`\n5️⃣ Testing client factory...`);
+    const clientFactory = (await import('../lib/ai/clientFactory.mjs')).default;
+    let client = null;
+    try {
+      // Clear cache first
+      clientFactory.clearUserCache(userId);
+      client = await clientFactory.getClient(userId, provider);
+      results.steps.clientFactory = {
+        success: !!client,
+        clientType: client?.constructor?.name
+      };
+      console.log(`Client created: ${!!client}`);
+    } catch (error) {
+      results.steps.clientFactory = {
+        success: false,
+        error: error.message
+      };
+      console.log(`Client factory error: ${error.message}`);
+    }
+    
+    // Step 6: Test actual API call
+    console.log(`\n6️⃣ Testing actual API call...`);
+    if (decryptedKey) {
+      try {
+        let apiTestResult = null;
+        switch (provider) {
+          case 'openai':
+            apiTestResult = await validateOpenAIKey(decryptedKey);
+            break;
+          case 'anthropic':
+            apiTestResult = await validateAnthropicKey(decryptedKey);
+            break;
+          case 'google':
+            apiTestResult = await validateGoogleKey(decryptedKey);
+            break;
+          case 'deepseek':
+            apiTestResult = await validateOpenAICompatibleKey(decryptedKey, 'https://api.deepseek.com/v1');
+            break;
+          case 'grok':
+            apiTestResult = await validateOpenAICompatibleKey(decryptedKey, 'https://api.x.ai/v1');
+            break;
+          case 'llama':
+            apiTestResult = { isValid: true, message: 'Llama validation not implemented' };
+            break;
+        }
+        
+        results.steps.apiCall = {
+          success: apiTestResult?.isValid || false,
+          message: apiTestResult?.message || apiTestResult?.error,
+          details: apiTestResult
+        };
+        console.log(`API call success: ${apiTestResult?.isValid}`);
+      } catch (error) {
+        results.steps.apiCall = {
+          success: false,
+          error: error.message,
+          stack: error.stack
+        };
+        console.log(`API call error: ${error.message}`);
+      }
+    }
+    
+    // Step 7: Test with frontend provider names
+    console.log(`\n7️⃣ Testing frontend provider names...`);
+    const frontendProviderMap = {
+      'openai': 'chatgpt',
+      'anthropic': 'claude',
+      'google': 'gemini'
+    };
+    
+    if (frontendProviderMap[provider]) {
+      const frontendName = frontendProviderMap[provider];
+      try {
+        const frontendClient = await clientFactory.getClient(userId, frontendName);
+        results.steps.frontendName = {
+          tested: frontendName,
+          success: !!frontendClient
+        };
+        console.log(`Frontend name '${frontendName}' works: ${!!frontendClient}`);
+      } catch (error) {
+        results.steps.frontendName = {
+          tested: frontendName,
+          success: false,
+          error: error.message
+        };
+        console.log(`Frontend name '${frontendName}' failed: ${error.message}`);
+      }
+    }
+    
+    // Determine overall success
+    const success = results.steps.apiCall?.success || false;
+    
+    console.log(`\n✅ Test complete. Overall success: ${success}`);
+    console.log(`============================\n`);
+    
+    res.json({
+      success,
+      results,
+      summary: {
+        userFound: results.steps.userExists.success,
+        keyStored: results.steps.storedKey.exists,
+        decryptionWorks: results.steps.decryption.success,
+        clientCreated: results.steps.clientFactory.success,
+        apiCallWorks: results.steps.apiCall?.success || false
+      }
+    });
+    
+  } catch (error) {
+    console.error('\n❌ Test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 export default router;

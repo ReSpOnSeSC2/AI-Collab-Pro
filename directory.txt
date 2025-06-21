@@ -105,6 +105,7 @@
 ./public/js/uiManager.js
 ./public/js/votingManager.js
 ./public/js/api-keys.js
+./public/js/api-key-indicator.js - NEW: API key status indicator for hub
 ./public/js/metrics-dashboard.js
 ./public/login.html
 ./public/model-comparison.html
@@ -112,6 +113,7 @@
 ./public/signup.html
 ./public/test-auth-flow.html
 ./public/test-api-keys.html
+./public/test-api-key-flow.html - NEW: Comprehensive API key flow testing
 ./scripts/create-admin.js
 ./scripts/create-admin.mjs
 ./scripts/google-admin.mjs
