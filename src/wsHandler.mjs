@@ -606,10 +606,10 @@ async function handleChatMessage(ws, data) {
                             contextSize: result.contextSize,
                             maxSize: result.maxContextSize
                         });
-                }
+                    }
                 
-                // Track token usage and cost
-                if (ws.userId && modelUsed) {
+                    // Track token usage and cost
+                    if (ws.userId && modelUsed) {
                     // Estimate token counts (rough approximation)
                     const inputTokens = Math.ceil((fullPrompt || '').length / 4);
                     const outputTokens = Math.ceil(contextResponse.length / 4);
@@ -639,6 +639,9 @@ async function handleChatMessage(ws, data) {
                             });
                         }
                     }
+                }
+                } else {
+                    console.log('⚠️ MongoDB not connected - skipping context save');
                 }
             } catch (error) {
                 console.error(`Error storing response in context: ${error.message}`);
