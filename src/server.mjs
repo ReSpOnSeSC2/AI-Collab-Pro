@@ -63,6 +63,7 @@ mongoose.connect(MONGO_URI, {
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 10000, // Timeout after 10s
   socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+  dbName: 'ai_collab' // Explicitly set the database name
 })
   .then(() => {
     console.log('✅ Connected to MongoDB successfully');
