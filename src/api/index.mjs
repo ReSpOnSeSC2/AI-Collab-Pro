@@ -282,6 +282,71 @@ router.get('/debug/test-mongo-connection', async (req, res) => {
     }
 });
 
+// Test MongoDB models
+router.get('/debug/test-models', async (req, res) => {
+    try {
+        const User = (await import('../models/User.mjs')).default;
+        const Conversation = (await import('../models/Conversation.mjs')).default;
+        
+        const results = {
+            mongodb: {
+                connected: mongoose.connection.readyState === 1,
+                state: mongoose.connection.readyState
+            },
+            models: {}
+        };
+        
+        // Test User model
+        try {
+            const userCount = await User.countDocuments();
+            results.models.User = {
+                success: true,
+                count: userCount
+            };
+        } catch (error) {
+            results.models.User = {
+                success: false,
+                error: error.message
+            };
+        }
+        
+        // Test Conversation model
+        try {
+            const convCount = await Conversation.countDocuments();
+            results.models.Conversation = {
+                success: true,
+                count: convCount
+            };
+            
+            // Try to create a test conversation
+            const testConv = new Conversation({
+                userId: 'test-user',
+                sessionId: 'test-session',
+                messages: []
+            });
+            
+            // Validate without saving
+            await testConv.validate();
+            results.models.ConversationValidation = {
+                success: true,
+                message: 'Model validation passed'
+            };
+        } catch (error) {
+            results.models.Conversation = {
+                success: false,
+                error: error.message
+            };
+        }
+        
+        res.json(results);
+    } catch (error) {
+        res.status(500).json({
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Simple MongoDB connection check
 router.get('/debug/mongo-status', (req, res) => {
     try {

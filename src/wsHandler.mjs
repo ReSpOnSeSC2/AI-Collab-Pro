@@ -235,12 +235,31 @@ async function handleAuthentication(ws, data) {
 
         try {
             // Initialize a context for this session
-            const context = await getOrCreateContext(ws.userId, ws.sessionId);
+            console.log(`🔍 Attempting to get/create context for userId: ${ws.userId}, sessionId: ${ws.sessionId}`);
+            
+            let context;
+            try {
+                context = await getOrCreateContext(ws.userId, ws.sessionId);
+                console.log(`✅ Context retrieved/created successfully`);
+            } catch (contextError) {
+                console.error(`❌ Error creating/retrieving context:`, contextError);
+                console.error(`  - Error name: ${contextError.name}`);
+                console.error(`  - Error message: ${contextError.message}`);
+                console.error(`  - Stack:`, contextError.stack);
+                
+                // Check if it's a MongoDB connection error
+                if (contextError.name === 'MongooseError' || contextError.message.includes('buffering timed out')) {
+                    sendWsError(ws, "Database connection error. Please try again later.");
+                } else {
+                    sendWsError(ws, "Internal server error: Could not initialize session context.");
+                }
+                return;
+            }
 
             // Defensive check: Ensure context and context.messages are defined
             if (!context || !context.messages) {
                 console.error(`Failed to retrieve or initialize context properly for userId: ${ws.userId}, sessionId: ${ws.sessionId}. Context:`, context);
-                sendWsError(ws, "Internal server error: Could not initialize session context.");
+                sendWsError(ws, "Internal server error: Invalid context structure.");
                 return;
             }
 
@@ -274,7 +293,42 @@ async function handleAuthentication(ws, data) {
             }
         } catch (error) {
             console.error(`Error during authentication for userId: ${ws.userId}, sessionId: ${ws.sessionId}:`, error);
-            sendWsError(ws, "Internal server error during authentication.");
+            console.error(`Error details:`, {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+            
+            // Try to authenticate without context as a fallback
+            console.log(`🔄 Attempting authentication without context...`);
+            try {
+                sendWsMessage(ws, {
+                    type: 'authentication_success',
+                    userId: ws.userId,
+                    sessionId: ws.sessionId,
+                    contextInfo: {
+                        id: 'fallback',
+                        messageCount: 0,
+                        contextSize: 0,
+                        maxContextSize: 32000,
+                        percentUsed: 0,
+                        isNearLimit: false,
+                        error: 'Context unavailable'
+                    }
+                });
+                console.log(`✅ Fallback authentication successful`);
+                
+                // Still try to check API keys
+                try {
+                    const availabilityCheck = await clientFactory.getAvailability(ws.userId);
+                    console.log(`🔑 API keys available for user ${ws.userId}:`, availabilityCheck);
+                } catch (checkError) {
+                    console.error(`Error checking API availability:`, checkError);
+                }
+            } catch (fallbackError) {
+                console.error(`❌ Fallback authentication also failed:`, fallbackError);
+                sendWsError(ws, "Internal server error during authentication.");
+            }
         }
     } else {
         sendWsError(ws, "User ID missing or invalid for authentication.");
