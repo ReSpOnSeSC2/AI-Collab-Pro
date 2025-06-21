@@ -46,14 +46,26 @@ router.get('/debug/db-test', async (req, res) => {
         const mongoose = await import('mongoose');
         const User = (await import('../models/User.mjs')).default;
         
+        // Check if mongoose is even imported properly
+        if (!mongoose || !mongoose.connection) {
+            return res.json({
+                error: 'Mongoose not initialized',
+                mongooseExists: !!mongoose,
+                connectionExists: !!(mongoose && mongoose.connection),
+                mongoUri: process.env.MONGODB_URI ? 'Set (hidden)' : 'Not set',
+                nodeEnv: process.env.NODE_ENV
+            });
+        }
+        
         const dbInfo = {
             connected: mongoose.connection.readyState === 1,
             state: mongoose.connection.readyState,
             stateDesc: ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'][mongoose.connection.readyState] || 'unknown',
-            host: mongoose.connection.host,
-            port: mongoose.connection.port,
-            db: mongoose.connection.name,
-            collections: []
+            host: mongoose.connection.host || 'not connected',
+            port: mongoose.connection.port || 'not connected',
+            db: mongoose.connection.name || 'not connected',
+            collections: [],
+            mongoUri: process.env.MONGODB_URI ? 'Set (hidden)' : 'Not set'
         };
         
         // Try to list collections
@@ -111,13 +123,26 @@ router.get('/debug/api-keys/:userId', async (req, res) => {
         
         console.log(`🔍 Debug API keys endpoint called for userId: ${userId}`);
         
+        // Check if mongoose is initialized
+        if (!mongoose || !mongoose.connection) {
+            return res.json({
+                error: 'Mongoose not initialized',
+                mongooseExists: !!mongoose,
+                connectionExists: !!(mongoose && mongoose.connection),
+                mongoUri: process.env.MONGODB_URI ? 'Set (hidden)' : 'Not set',
+                nodeEnv: process.env.NODE_ENV,
+                userId
+            });
+        }
+        
         // Check MongoDB connection
         const mongoStatus = {
             connected: mongoose.connection.readyState === 1,
             state: mongoose.connection.readyState,
-            host: mongoose.connection.host,
-            port: mongoose.connection.port,
-            db: mongoose.connection.name
+            host: mongoose.connection.host || 'not connected',
+            port: mongoose.connection.port || 'not connected',
+            db: mongoose.connection.name || 'not connected',
+            mongoUri: process.env.MONGODB_URI ? 'Set (hidden)' : 'Not set'
         };
         
         // Try to find the user
@@ -208,6 +233,53 @@ router.get('/debug/api-keys/:userId', async (req, res) => {
         console.error('Debug endpoint error:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Simple MongoDB connection check
+router.get('/debug/mongo-status', async (req, res) => {
+    try {
+        const mongoose = await import('mongoose');
+        
+        // Get connection state
+        const states = ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'];
+        const state = mongoose.connection ? mongoose.connection.readyState : -1;
+        
+        res.json({
+            mongooseLoaded: !!mongoose,
+            connectionExists: !!(mongoose && mongoose.connection),
+            connectionState: state,
+            connectionStateDesc: states[state] || 'unknown',
+            mongoUriSet: !!process.env.MONGODB_URI,
+            error: null
+        });
+    } catch (error) {
+        res.json({
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
+// Debug route for environment variables
+router.get('/debug/env', (req, res) => {
+    res.json({
+        nodeEnv: process.env.NODE_ENV,
+        mongodbUri: process.env.MONGODB_URI ? 'Set' : 'Not set',
+        backendUrl: process.env.BACKEND_URL,
+        frontendUrl: process.env.FRONTEND_URL,
+        port: process.env.PORT,
+        googleClientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set',
+        apiKeyEncryption: process.env.API_KEY_ENCRYPTION_KEY ? 'Set' : 'Not set',
+        systemApiKeys: {
+            openai: process.env.OPENAI_API_KEY ? 'Set' : 'Not set',
+            anthropic: process.env.ANTHROPIC_API_KEY ? 'Set' : 'Not set',
+            gemini: process.env.GEMINI_API_KEY ? 'Set' : 'Not set',
+            grok: process.env.GROK_API_KEY ? 'Set' : 'Not set',
+            deepseek: process.env.DEEPSEEK_API_KEY ? 'Set' : 'Not set',
+            llama: process.env.LLAMA_API_KEY ? 'Set' : 'Not set'
+        },
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Optional: Add a root API route for discovery
