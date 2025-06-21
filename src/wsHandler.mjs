@@ -236,7 +236,13 @@ async function handleAuthentication(ws, data) {
 
         try {
             // Check MongoDB connection state first
-            const mongoState = mongoose.connection.readyState;
+            let mongoState = 0;
+            try {
+                mongoState = mongoose.connection ? mongoose.connection.readyState : 0;
+            } catch (e) {
+                console.error('Error getting MongoDB state:', e.message);
+                mongoState = 0;
+            }
             console.log(`🔍 MongoDB connection state: ${mongoState} (0=disconnected, 1=connected, 2=connecting, 3=disconnecting)`);
             
             if (mongoState !== 1) {
@@ -519,9 +525,17 @@ async function handleChatMessage(ws, data) {
         console.error(`  - User ID format: ${userId && userId.startsWith('user-') && userId.includes('-') ? 'temporary' : 'permanent'}`);
         
         // Check database connection state
-        const mongoose = await import('mongoose');
-        const connectionState = mongoose.connection.readyState;
-        console.error(`  - MongoDB connection state: ${connectionState} (${['disconnected', 'connected', 'connecting', 'disconnecting'][connectionState]})`);
+        let connectionState = 0; // Default to disconnected
+        try {
+            if (mongoose && mongoose.connection) {
+                connectionState = mongoose.connection.readyState;
+                console.error(`  - MongoDB connection state: ${connectionState} (${['disconnected', 'connected', 'connecting', 'disconnecting'][connectionState]})`);
+            } else {
+                console.error(`  - MongoDB connection object not available`);
+            }
+        } catch (mongooseError) {
+            console.error(`  - Error checking MongoDB state: ${mongooseError.message}`);
+        }
         
         // Check if this is a temporary user
         if (userId && userId.startsWith('user-') && userId.includes('-')) {
@@ -557,8 +571,7 @@ async function handleChatMessage(ws, data) {
     if (ws.sessionId) {
       try {
         // Check MongoDB connection state before trying to get context
-        const mongoose = await import('mongoose');
-        if (mongoose.connection.readyState === 1) {
+        if (mongoose && mongoose.connection && mongoose.connection.readyState === 1) {
           historyContext = await getFormattedContextHistory(ws.userId, ws.sessionId);
 
           // Update target models in the context
@@ -590,8 +603,7 @@ async function handleChatMessage(ws, data) {
         if (ws.sessionId && latestResponses[aiTarget]) {
             try {
                 // Check MongoDB connection state before trying to save context
-                const mongoose = await import('mongoose');
-                if (mongoose.connection.readyState === 1) {
+                if (mongoose && mongoose.connection && mongoose.connection.readyState === 1) {
                     const contextResponse = latestResponses[aiTarget];
 
                     // Add response to conversation context
