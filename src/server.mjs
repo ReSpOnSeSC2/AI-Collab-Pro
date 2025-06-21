@@ -25,7 +25,6 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 
 import { initializePassport } from './config/passport.mjs';
-import { WebSocketServer } from 'ws';
 import initializeWebSocketHandler from './wsHandler.mjs';
 import apiRouter from './api/index.mjs';
 import { initializeUploads } from './api/upload.mjs'; // Import initialization function
