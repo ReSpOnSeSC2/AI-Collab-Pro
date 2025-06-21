@@ -68,9 +68,8 @@ mongoose.connect(MONGO_URI, {
   minPoolSize: 2, // Minimum number of sockets the MongoDB driver will keep open
   retryWrites: true, // Retry on retryable write errors
   retryReads: true, // Retry on retryable read errors
-  heartbeatFrequencyMS: 10000, // How often to check the connection
-  keepAlive: true,
-  keepAliveInitialDelay: 300000 // Start keepalive after 5 minutes
+  heartbeatFrequencyMS: 10000 // How often to check the connection
+  // Removed keepAlive and keepAliveInitialDelay as they're not supported in newer MongoDB drivers
 })
   .then(() => {
     console.log('✅ Connected to MongoDB successfully');
@@ -150,9 +149,8 @@ mongoose.connection.on('disconnected', () => {
       minPoolSize: 2,
       retryWrites: true,
       retryReads: true,
-      heartbeatFrequencyMS: 10000,
-      keepAlive: true,
-      keepAliveInitialDelay: 300000
+      heartbeatFrequencyMS: 10000
+      // Removed keepAlive options for compatibility
     }).catch(err => {
       console.error('❌ MongoDB reconnection failed:', err.message);
     });
