@@ -82,7 +82,7 @@ mongoose.connect(MONGO_URI, {
     
     // Initialize WebSocket server after MongoDB connection is established
     if (!wss) {
-      wss = new WebSocketServer({ server });
+      wss = new WebSocketServer({ noServer: true }); // Use noServer to handle upgrade manually
       initializeWebSocketHandler(wss);
       console.log('✅ WebSocket server initialized after MongoDB connection');
     }
@@ -109,7 +109,7 @@ mongoose.connection.on('connected', () => {
   console.log('📊 Mongoose connected to MongoDB');
   // Re-initialize WebSocket server if it was closed due to MongoDB disconnection
   if (!wss && server && server.listening) {
-    wss = new WebSocketServer({ server });
+    wss = new WebSocketServer({ noServer: true }); // Use noServer to handle upgrade manually
     initializeWebSocketHandler(wss);
     console.log('✅ WebSocket server re-initialized after MongoDB reconnection');
   }
@@ -336,6 +336,27 @@ app.use('/api', apiRouter); // Mount all API routes under /api
 // --- WebSocket Server Setup ---
 // We'll initialize WebSocket server after MongoDB connection is established
 let wss;
+
+// Handle WebSocket upgrade requests specifically for /api/ws path
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+  
+  console.log(`WebSocket upgrade request for path: ${pathname}`);
+  
+  if (pathname === '/api/ws') {
+    if (wss) {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } else {
+      console.error('WebSocket server not initialized yet');
+      socket.destroy();
+    }
+  } else {
+    console.log(`Rejecting WebSocket connection for path: ${pathname}`);
+    socket.destroy();
+  }
+});
 
 // --- File Uploads Initialization ---
 initializeUploads(uploadsPath); // Ensure uploads directory exists

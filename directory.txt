@@ -113,6 +113,7 @@
 ./public/test-mongodb-fallback.html
 ./public/ws-test-simple.html
 ./public/websocket-backend-test.html
+./public/ws-path-test.html
 ./scripts/create-admin.js
 ./scripts/create-admin.mjs
 ./scripts/google-admin.mjs

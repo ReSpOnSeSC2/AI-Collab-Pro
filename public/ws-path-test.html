@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Path Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .failed { background-color: #f8d7da; color: #721c24; }
+        .pending { background-color: #e7e7e7; color: #666; }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .log {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Path Discovery Test</h1>
+    <p>Testing different WebSocket paths to find the correct endpoint...</p>
+    
+    <button onclick="testAllPaths()">Test All Paths</button>
+    <button onclick="clearAll()">Clear Results</button>
+    
+    <div id="tests"></div>
+    
+    <script>
+        const BACKEND_HOST = 'ai-collab-pro.onrender.com';
+        const paths = [
+            '/api/ws',
+            '/ws',
+            '/',
+            '/websocket',
+            '/socket',
+            '/api/websocket',
+            '/api',
+            ''
+        ];
+        
+        function createTestCard(path) {
+            const fullUrl = `wss://${BACKEND_HOST}${path}`;
+            const cardId = `test-${path.replace(/\//g, '-') || 'root'}`;
+            
+            return `
+                <div class="test-card" id="${cardId}">
+                    <h3>Path: <code>${path || '(root)'}</code></h3>
+                    <div>URL: <code>${fullUrl}</code></div>
+                    <div class="status pending" id="${cardId}-status">Not tested</div>
+                    <div class="log" id="${cardId}-log"></div>
+                </div>
+            `;
+        }
+        
+        function log(cardId, message) {
+            const logEl = document.getElementById(`${cardId}-log`);
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateStatus(cardId, status, className) {
+            const statusEl = document.getElementById(`${cardId}-status`);
+            statusEl.textContent = status;
+            statusEl.className = `status ${className}`;
+        }
+        
+        async function testPath(path) {
+            const fullUrl = `wss://${BACKEND_HOST}${path}`;
+            const cardId = `test-${path.replace(/\//g, '-') || 'root'}`;
+            
+            updateStatus(cardId, 'Connecting...', 'connecting');
+            log(cardId, `Attempting connection to ${fullUrl}`);
+            
+            return new Promise((resolve) => {
+                let ws;
+                const timeout = setTimeout(() => {
+                    if (ws && ws.readyState === WebSocket.CONNECTING) {
+                        ws.close();
+                    }
+                    updateStatus(cardId, 'Timeout (5s)', 'failed');
+                    log(cardId, 'Connection timeout after 5 seconds');
+                    resolve({ path, success: false, error: 'timeout' });
+                }, 5000);
+                
+                try {
+                    ws = new WebSocket(fullUrl);
+                    
+                    ws.onopen = () => {
+                        clearTimeout(timeout);
+                        updateStatus(cardId, '✅ Connected!', 'connected');
+                        log(cardId, 'WebSocket connected successfully!');
+                        
+                        // Try sending a test message
+                        try {
+                            ws.send(JSON.stringify({ type: 'ping' }));
+                            log(cardId, 'Sent test ping message');
+                        } catch (e) {
+                            log(cardId, `Error sending message: ${e.message}`);
+                        }
+                        
+                        // Keep connection open for a moment to check stability
+                        setTimeout(() => {
+                            ws.close();
+                            resolve({ path, success: true });
+                        }, 1000);
+                    };
+                    
+                    ws.onerror = (error) => {
+                        clearTimeout(timeout);
+                        updateStatus(cardId, '❌ Connection failed', 'failed');
+                        log(cardId, 'WebSocket error occurred');
+                        resolve({ path, success: false, error: 'error' });
+                    };
+                    
+                    ws.onclose = (event) => {
+                        clearTimeout(timeout);
+                        if (event.code !== 1000) { // 1000 is normal closure
+                            updateStatus(cardId, `❌ Closed (Code: ${event.code})`, 'failed');
+                            log(cardId, `Connection closed - Code: ${event.code}, Reason: ${event.reason || 'none'}`);
+                            resolve({ path, success: false, error: `close-${event.code}` });
+                        }
+                    };
+                    
+                    ws.onmessage = (event) => {
+                        log(cardId, `Received message: ${event.data}`);
+                    };
+                    
+                } catch (error) {
+                    clearTimeout(timeout);
+                    updateStatus(cardId, '❌ Failed to create WebSocket', 'failed');
+                    log(cardId, `Error: ${error.message}`);
+                    resolve({ path, success: false, error: error.message });
+                }
+            });
+        }
+        
+        async function testAllPaths() {
+            const testsDiv = document.getElementById('tests');
+            testsDiv.innerHTML = paths.map(path => createTestCard(path)).join('');
+            
+            console.log('Starting WebSocket path tests...');
+            const results = [];
+            
+            for (const path of paths) {
+                const result = await testPath(path);
+                results.push(result);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
+            }
+            
+            // Summary
+            const successful = results.filter(r => r.success);
+            console.log('Test complete. Results:', results);
+            
+            if (successful.length > 0) {
+                alert(`Found ${successful.length} working path(s): ${successful.map(r => r.path).join(', ')}`);
+            } else {
+                alert('No working WebSocket paths found. Check browser console for details.');
+            }
+        }
+        
+        function clearAll() {
+            document.getElementById('tests').innerHTML = '';
+        }
+        
+        // Initialize
+        window.onload = () => {
+            console.log(`WebSocket Path Test - Backend: ${BACKEND_HOST}`);
+            console.log('Click "Test All Paths" to start');
+        };
+    </script>
+</body>
+</html>
