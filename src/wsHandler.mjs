@@ -286,11 +286,21 @@ async function handleChatMessage(ws, data) {
     if (!ws.userId && data.userId) {
         console.log(`🔄 Using userId from message data: ${data.userId}`);
         ws.userId = data.userId;
+        
+        // Also clear the cache for this user to ensure fresh API key checks
+        clearUserClientCache(data.userId);
     }
     
     if (!ws.userId) { // Require authentication for chat
         return sendWsError(ws, 'Authentication required to chat.');
     }
+    
+    // Additional debugging for user ID format
+    console.log(`🔍 User ID validation:`);
+    console.log(`  - ws.userId: ${ws.userId}`);
+    console.log(`  - data.userId: ${data.userId}`);
+    console.log(`  - Is temporary format: ${ws.userId.startsWith('user-') && ws.userId.includes('-')}`);
+    console.log(`  - Is MongoDB ObjectId: ${/^[0-9a-fA-F]{24}$/.test(ws.userId)}`)
 
     const {
         message,
@@ -327,7 +337,26 @@ async function handleChatMessage(ws, data) {
     
     if (target === 'collab') {
         // Check which models the user has API keys for
-        for (const provider of Object.keys(models)) {
+        // Extract unique providers from model IDs
+        const providers = new Set();
+        for (const modelId of Object.keys(models)) {
+            // Extract provider name from model ID
+            let provider = modelId;
+            if (modelId.startsWith('claude-')) provider = 'claude';
+            else if (modelId.startsWith('gpt-') || modelId.startsWith('chatgpt-')) provider = 'chatgpt';
+            else if (modelId.startsWith('gemini-')) provider = 'gemini';
+            else if (modelId.startsWith('grok-')) provider = 'grok';
+            else if (modelId.startsWith('deepseek-')) provider = 'deepseek';
+            else if (modelId.startsWith('llama-') || modelId.startsWith('meta-llama')) provider = 'llama';
+            else provider = modelId.split('-')[0]; // Fallback
+            
+            providers.add(provider);
+        }
+        
+        console.log(`🔍 Extracted providers from model IDs:`, Array.from(providers));
+        
+        // Check API keys for each unique provider
+        for (const provider of providers) {
             try {
                 console.log(`🔑 Checking API key for provider: ${provider}, userId: ${userId}`);
                 // Check if user has API key for this provider
@@ -358,13 +387,18 @@ async function handleChatMessage(ws, data) {
 
     if (modelsToQuery.length === 0) {
         console.error(`❌ No models available for userId: ${userId}`);
+        console.error(`  - Models requested:`, Object.keys(models));
+        console.error(`  - Providers extracted:`, Array.from(providers || []));
+        console.error(`  - User ID format: ${userId && userId.startsWith('user-') && userId.includes('-') ? 'temporary' : 'permanent'}`);
         
         // Check if this is a temporary user
         if (userId && userId.startsWith('user-') && userId.includes('-')) {
             return sendWsError(ws, "No AI models available. You are using a temporary session. Please log in with Google to use your saved API keys, or ensure the server has system API keys configured.");
         }
         
-        return sendWsError(ws, "No available AI models selected for this request. Please ensure you have configured API keys for the selected models.");
+        // For authenticated users, provide more specific guidance
+        const requestedProviders = Array.from(providers || []).join(', ');
+        return sendWsError(ws, `No valid AI clients available for the requested models. Please check your API keys in Settings for: ${requestedProviders || 'the selected models'}.`);
     }
 
     // --- Prepare context (including files and conversation history) ---

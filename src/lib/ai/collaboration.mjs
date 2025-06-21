@@ -3837,6 +3837,22 @@ export async function handleCollaborativeDiscussion(options) {
     });
   }
   
+  // Build user-specific clients object
+  const userClients = {};
+  for (const agent of availableAgents) {
+    try {
+      const client = await clientFactory.getClient(userId, agent);
+      if (client) {
+        userClients[agent] = client;
+        console.log(`✅ Added client for ${agent} to userClients`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to get client for ${agent}:`, error.message);
+    }
+  }
+  
+  console.log(`🔑 Built user-specific clients for agents: ${Object.keys(userClients).join(', ')}`);
+  
   // Create the enhanced options
   var enhancedOptions = {
     ...options,
@@ -3846,12 +3862,12 @@ export async function handleCollaborativeDiscussion(options) {
     styleDirective: styleDirective,
     onModelStatusChange: onModelStatusChange,
     userId: userId, // Pass user ID for API key checking
-    // IMPORTANT: Make sure clients are explicitly passed (imported at the top of this file)
-    clients: clients 
+    // Use user-specific clients instead of static imports
+    clients: userClients 
   };
   
   // Debug log the clients object to ensure it's properly constructed
-  console.log(`🧠 Available clients:`, Object.keys(clients).filter(k => clients[k]).join(', '));
+  console.log(`🧠 Available user clients:`, Object.keys(userClients).filter(k => userClients[k]).join(', '));
   
   // Map 'collaborative' mode to 'individual' for backward compatibility
   if (mode === 'collaborative') {
