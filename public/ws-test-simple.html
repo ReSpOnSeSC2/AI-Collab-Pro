@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        #status {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .connecting {
+            background-color: #ff9800;
+            color: white;
+        }
+        button {
+            background-color: #008CBA;
+            color: white;
+            padding: 14px 20px;
+            margin: 8px 0;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #007399;
+        }
+        #log {
+            background-color: white;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+        }
+        .log-error {
+            color: red;
+        }
+        .log-success {
+            color: green;
+        }
+        .log-info {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple WebSocket Test</h1>
+    <div id="status" class="disconnected">Disconnected</div>
+    
+    <button onclick="testConnection()">Test WebSocket Connection</button>
+    <button onclick="clearLog()">Clear Log</button>
+    
+    <h3>Connection Log:</h3>
+    <div id="log"></div>
+    
+    <script>
+        const BACKEND_URL = 'wss://ai-collab-pro.onrender.com/api/ws';
+        let ws = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(status, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = status;
+            statusDiv.className = className;
+        }
+        
+        function testConnection() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected!', 'info');
+                return;
+            }
+            
+            log(`Connecting to: ${BACKEND_URL}`, 'info');
+            updateStatus('Connecting...', 'connecting');
+            
+            try {
+                ws = new WebSocket(BACKEND_URL);
+                
+                ws.onopen = () => {
+                    log('✅ WebSocket connected successfully!', 'success');
+                    updateStatus('Connected', 'connected');
+                    
+                    // Send authentication message
+                    const authMessage = {
+                        type: 'authenticate',
+                        userId: 'test-user-' + Date.now()
+                    };
+                    ws.send(JSON.stringify(authMessage));
+                    log('Sent authentication message', 'info');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received: ${JSON.stringify(data, null, 2)}`, 'success');
+                    } catch (e) {
+                        log(`Received (raw): ${event.data}`, 'info');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    log(`❌ WebSocket error occurred`, 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = (event) => {
+                    log(`WebSocket closed - Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`, 'error');
+                    updateStatus('Disconnected', 'disconnected');
+                    ws = null;
+                };
+                
+            } catch (error) {
+                log(`Failed to create WebSocket: ${error.message}`, 'error');
+                updateStatus('Error', 'disconnected');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+        
+        // Test on page load
+        window.onload = () => {
+            log('Page loaded - Click "Test WebSocket Connection" to start', 'info');
+            log(`Backend URL: ${BACKEND_URL}`, 'info');
+            log(`Current page URL: ${window.location.href}`, 'info');
+        };
+    </script>
+</body>
+</html>

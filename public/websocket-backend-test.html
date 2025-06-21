@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Backend WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .info-box {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #444;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #2d5a2d;
+            border: 1px solid #4caf50;
+        }
+        .error {
+            background-color: #5a2d2d;
+            border: 1px solid #f44336;
+        }
+        .warning {
+            background-color: #5a5a2d;
+            border: 1px solid #ff9800;
+        }
+        .info {
+            background-color: #2d4a5a;
+            border: 1px solid #2196f3;
+        }
+        button {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #logs {
+            background-color: #0d0d0d;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #333;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4caf50;
+        }
+        .log-error {
+            border-left-color: #f44336;
+            color: #ff6b6b;
+        }
+        .log-warning {
+            border-left-color: #ff9800;
+            color: #ffd93d;
+        }
+        .log-success {
+            color: #6bcf7f;
+        }
+        .url-display {
+            background-color: #0d0d0d;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 5px 0;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct Backend WebSocket Test</h1>
+    
+    <div class="info-box">
+        <strong>This test connects directly to the Render backend WebSocket server.</strong>
+        <div class="url-display">wss://ai-collab-pro.onrender.com/api/ws</div>
+    </div>
+    
+    <div id="connectionStatus" class="status info">
+        WebSocket: Not connected
+    </div>
+    
+    <div id="authStatus" class="status info">
+        Authentication: Not attempted
+    </div>
+    
+    <div>
+        <button onclick="connectDirectly()">Connect to Backend</button>
+        <button onclick="authenticate()">Authenticate</button>
+        <button onclick="sendTestMessage()">Send Test Message</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <h2>Connection Logs</h2>
+    <div id="logs"></div>
+    
+    <script>
+        // DIRECT BACKEND URL - NO VARIABLES, NO CONDITIONS
+        const BACKEND_WS_URL = 'wss://ai-collab-pro.onrender.com/api/ws';
+        let ws = null;
+        let isAuthenticated = false;
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            if (type === 'error') entry.className += ' log-error';
+            if (type === 'warning') entry.className += ' log-warning';
+            if (type === 'success') entry.className += ' log-success';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        function connectDirectly() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected!', 'warning');
+                return;
+            }
+            
+            log(`Attempting direct connection to: ${BACKEND_WS_URL}`, 'info');
+            updateStatus('connectionStatus', 'WebSocket: Connecting...', 'warning');
+            
+            try {
+                ws = new WebSocket(BACKEND_WS_URL);
+                
+                ws.onopen = () => {
+                    log('✅ WebSocket connected successfully!', 'success');
+                    updateStatus('connectionStatus', 'WebSocket: Connected', 'success');
+                    log('Ready to authenticate. Click "Authenticate" button.', 'info');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received: ${JSON.stringify(data, null, 2)}`, 'info');
+                        
+                        if (data.type === 'authentication_success') {
+                            isAuthenticated = true;
+                            updateStatus('authStatus', 'Authentication: Success', 'success');
+                            log('✅ Authentication successful!', 'success');
+                            
+                            if (data.contextInfo && data.contextInfo.warning) {
+                                log(`⚠️ ${data.contextInfo.warning}`, 'warning');
+                            }
+                            
+                            if (data.apiKeys) {
+                                const available = Object.entries(data.apiKeys)
+                                    .filter(([_, v]) => v)
+                                    .map(([k, _]) => k);
+                                log(`Available API Keys: ${available.length > 0 ? available.join(', ') : 'None'}`, 
+                                    available.length > 0 ? 'success' : 'warning');
+                            }
+                        } else if (data.type === 'error') {
+                            log(`❌ Error: ${data.message}`, 'error');
+                        }
+                    } catch (e) {
+                        log(`Received unparseable message: ${event.data}`, 'warning');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    log('❌ WebSocket error occurred (check browser console)', 'error');
+                    updateStatus('connectionStatus', 'WebSocket: Error', 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = (event) => {
+                    log(`WebSocket closed - Code: ${event.code}, Reason: ${event.reason || 'Unknown'}`, 'error');
+                    updateStatus('connectionStatus', 'WebSocket: Disconnected', 'error');
+                    updateStatus('authStatus', 'Authentication: Not connected', 'info');
+                    isAuthenticated = false;
+                    ws = null;
+                };
+                
+            } catch (error) {
+                log(`Failed to create WebSocket: ${error.message}`, 'error');
+                updateStatus('connectionStatus', 'WebSocket: Failed', 'error');
+            }
+        }
+        
+        function authenticate() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected. Connect first!', 'error');
+                return;
+            }
+            
+            const userId = localStorage.getItem('userId') || `test-user-${Date.now()}`;
+            localStorage.setItem('userId', userId);
+            
+            const authMessage = {
+                type: 'authenticate',
+                userId: userId
+            };
+            
+            log(`Sending authentication with userId: ${userId}`, 'info');
+            ws.send(JSON.stringify(authMessage));
+        }
+        
+        function sendTestMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected!', 'error');
+                return;
+            }
+            
+            if (!isAuthenticated) {
+                log('Not authenticated. Authenticate first!', 'error');
+                return;
+            }
+            
+            const testMessage = {
+                type: 'chat',
+                message: 'Test message from websocket-backend-test.html',
+                target: 'collab',
+                models: {
+                    claude: true,
+                    gemini: true,
+                    chatgpt: true
+                },
+                userId: localStorage.getItem('userId')
+            };
+            
+            log('Sending test chat message...', 'info');
+            ws.send(JSON.stringify(testMessage));
+        }
+        
+        function disconnect() {
+            if (ws) {
+                log('Closing connection...', 'info');
+                ws.close();
+            } else {
+                log('Not connected', 'warning');
+            }
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+        
+        // Log initial info
+        window.onload = () => {
+            log('Page loaded successfully', 'success');
+            log(`Backend WebSocket URL: ${BACKEND_WS_URL}`, 'info');
+            log(`Current page: ${window.location.href}`, 'info');
+            log('Click "Connect to Backend" to start', 'info');
+        };
+    </script>
+</body>
+</html>
