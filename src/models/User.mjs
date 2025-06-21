@@ -217,19 +217,34 @@ UserSchema.methods.addApiKey = function(provider, apiKey) {
 UserSchema.methods.getApiKey = function(provider) {
   console.log(`🔑 User.getApiKey called for provider: ${provider}`);
   console.log(`🔑 User has ${this.apiKeys ? this.apiKeys.length : 0} API keys stored`);
+  console.log(`🔑 User email: ${this.email}`);
+  console.log(`🔑 User _id: ${this._id}`);
   
-  if (this.apiKeys) {
+  if (this.apiKeys && this.apiKeys.length > 0) {
     console.log(`🔑 Stored API key providers:`, this.apiKeys.map(k => k.provider));
+    console.log(`🔑 API key details:`, this.apiKeys.map(k => ({
+      provider: k.provider,
+      keyId: k.keyId,
+      isValid: k.isValid,
+      hasEncryptedKey: !!k.encryptedKey
+    })));
   }
   
   const apiKeyEntry = this.apiKeys.find(k => k.provider === provider);
   if (!apiKeyEntry) {
     console.log(`❌ No API key found for provider: ${provider}`);
+    // Also check for case sensitivity issues
+    const caseInsensitiveMatch = this.apiKeys.find(k => k.provider.toLowerCase() === provider.toLowerCase());
+    if (caseInsensitiveMatch) {
+      console.log(`⚠️ Found case-insensitive match: ${caseInsensitiveMatch.provider} vs ${provider}`);
+    }
     return null;
   }
   
   console.log(`✅ Found API key entry for ${provider}, decrypting...`);
-  return this.decryptApiKey(apiKeyEntry.encryptedKey);
+  const decryptedKey = this.decryptApiKey(apiKeyEntry.encryptedKey);
+  console.log(`🔑 Decryption result: ${decryptedKey ? 'Success' : 'Failed'}`);
+  return decryptedKey;
 };
 
 // Password hashing middleware

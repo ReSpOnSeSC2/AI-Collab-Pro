@@ -65,6 +65,7 @@
 ./public/css/api-keys.css
 ./public/css/metrics-dashboard.css
 ./public/debug.html
+./public/debug-api-keys.html - NEW: API Keys debugging tool
 ./public/hub.html
 ./public/index.html
 ./public/index.js
@@ -181,3 +182,4 @@
 ./validate-websocket-implementation.js
 ./validate-websocket-implementation.mjs
 ./websocket-heartbeat-test.html
+./test-api-keys.js - NEW: API key debugging test script

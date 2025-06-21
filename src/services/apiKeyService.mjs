@@ -31,21 +31,87 @@ class ApiKeyService {
           try {
             console.log(`🔍 Looking up user in database with ID: ${userId}`);
             console.log(`  - MongoDB ObjectId format: ${/^[0-9a-fA-F]{24}$/.test(userId)}`);
+            console.log(`  - Is valid ObjectId: ${userId && userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)}`);
             
-            const user = await User.findById(userId);
+            // Try different approaches to find the user
+            let user = null;
+            
+            // First, try direct findById
+            try {
+              console.log(`  - Attempting User.findById(${userId})`);
+              user = await User.findById(userId);
+              console.log(`  - findById result: ${user ? 'User found' : 'No user found'}`);
+            } catch (findByIdError) {
+              console.log(`  - findById error: ${findByIdError.message}`);
+              
+              // If findById fails, try with explicit ObjectId conversion
+              try {
+                const mongoose = await import('mongoose');
+                const ObjectId = mongoose.Types.ObjectId;
+                
+                if (ObjectId.isValid(userId)) {
+                  console.log(`  - Attempting User.findById with ObjectId conversion`);
+                  const objectId = new ObjectId(userId);
+                  user = await User.findById(objectId);
+                  console.log(`  - ObjectId query result: ${user ? 'User found' : 'No user found'}`);
+                } else {
+                  console.log(`  - Invalid ObjectId format: ${userId}`);
+                }
+              } catch (objectIdError) {
+                console.log(`  - ObjectId conversion error: ${objectIdError.message}`);
+              }
+            }
+            
+            // Additional debug: try finding by _id directly
+            if (!user) {
+              try {
+                console.log(`  - Attempting User.findOne({ _id: "${userId}" })`);
+                user = await User.findOne({ _id: userId });
+                console.log(`  - findOne result: ${user ? 'User found' : 'No user found'}`);
+              } catch (findOneError) {
+                console.log(`  - findOne error: ${findOneError.message}`);
+              }
+            }
+            
+            // Log database connection status
+            const mongoose = await import('mongoose');
+            console.log(`  - MongoDB connection state: ${mongoose.connection.readyState}`);
+            console.log(`  - MongoDB connected to: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
+            
+            // Additional debug: Check if we can query the database at all
+            if (!user) {
+              try {
+                const testUser = await User.findOne({});
+                if (testUser) {
+                  console.log(`  - Database accessible, found test user with ID: ${testUser._id}`);
+                  console.log(`  - Test user ID type: ${typeof testUser._id}`);
+                  console.log(`  - Comparing with requested ID: ${userId} === ${testUser._id.toString()}`)
+                } else {
+                  console.log(`  - Database accessible but no users found`);
+                }
+              } catch (testErr) {
+                console.log(`  - Database query test failed: ${testErr.message}`);
+              }
+            }
+            
             if (user) {
               console.log(`✅ User found in database:`);
+              console.log(`  - User._id: ${user._id}`);
+              console.log(`  - User._id type: ${typeof user._id}`);
               console.log(`  - Email: ${user.email || 'N/A'}`);
               console.log(`  - Name: ${user.name || 'N/A'}`);
               console.log(`  - API keys count: ${user.apiKeys ? user.apiKeys.length : 0}`);
               
               if (user.apiKeys && user.apiKeys.length > 0) {
                 console.log(`  - Stored providers: ${user.apiKeys.map(k => k.provider).join(', ')}`);
+                console.log(`  - Looking for provider: ${provider}`);
               }
               
               const userApiKey = user.getApiKey(provider);
               if (userApiKey) {
                 console.log(`✅ User API key found for provider: ${provider}`);
+                console.log(`  - Key exists: ${!!userApiKey}`);
+                console.log(`  - Key length: ${userApiKey ? userApiKey.length : 0}`);
                 return {
                   key: userApiKey,
                   source: 'user',
@@ -53,14 +119,30 @@ class ApiKeyService {
                 };
               } else {
                 console.log(`❌ No user API key for provider: ${provider}`);
+                console.log(`  - user.getApiKey returned: ${userApiKey}`);
               }
             } else {
               console.log(`❌ User not found in database with ID: ${userId}`);
+              
+              // Additional debug: List a few users to verify database access
+              try {
+                const userCount = await User.countDocuments();
+                console.log(`  - Total users in database: ${userCount}`);
+                
+                if (userCount > 0) {
+                  const sampleUser = await User.findOne({}, { _id: 1, email: 1 });
+                  console.log(`  - Sample user _id: ${sampleUser?._id}`);
+                  console.log(`  - Sample user _id type: ${typeof sampleUser?._id}`);
+                }
+              } catch (countError) {
+                console.log(`  - Error counting users: ${countError.message}`);
+              }
             }
           } catch (dbError) {
             console.log(`⚠️ Database error looking up user:`);
             console.log(`  - Error: ${dbError.message}`);
             console.log(`  - Error name: ${dbError.name}`);
+            console.log(`  - Error stack: ${dbError.stack}`);
           }
         }
       } else {

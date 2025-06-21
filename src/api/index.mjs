@@ -40,6 +40,176 @@ router.use('/feedback', feedbackRouter); // Handles /api/feedback/* - feedback r
 router.use('/metrics', metricsRouter); // Handles /api/metrics/* - metrics routes
 router.use('/api-keys', apiKeysRouter); // Handles /api/api-keys/* - API key management
 
+// Debug route for database connection test
+router.get('/debug/db-test', async (req, res) => {
+    try {
+        const mongoose = await import('mongoose');
+        const User = (await import('../models/User.mjs')).default;
+        
+        const dbInfo = {
+            connected: mongoose.connection.readyState === 1,
+            state: mongoose.connection.readyState,
+            stateDesc: ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'][mongoose.connection.readyState] || 'unknown',
+            host: mongoose.connection.host,
+            port: mongoose.connection.port,
+            db: mongoose.connection.name,
+            collections: []
+        };
+        
+        // Try to list collections
+        if (dbInfo.connected) {
+            try {
+                const collections = await mongoose.connection.db.listCollections().toArray();
+                dbInfo.collections = collections.map(c => c.name);
+            } catch (collErr) {
+                dbInfo.collectionsError = collErr.message;
+            }
+        }
+        
+        // Try to count users
+        let userStats = {};
+        try {
+            userStats.count = await User.countDocuments();
+            
+            // Get a sample user
+            if (userStats.count > 0) {
+                const sampleUser = await User.findOne({}, { _id: 1, email: 1, name: 1, apiKeys: 1 });
+                if (sampleUser) {
+                    userStats.sample = {
+                        _id: sampleUser._id.toString(),
+                        _idType: typeof sampleUser._id,
+                        email: sampleUser.email,
+                        name: sampleUser.name,
+                        apiKeysCount: sampleUser.apiKeys ? sampleUser.apiKeys.length : 0,
+                        apiKeyProviders: sampleUser.apiKeys ? sampleUser.apiKeys.map(k => k.provider) : []
+                    };
+                }
+            }
+        } catch (userErr) {
+            userStats.error = userErr.message;
+        }
+        
+        res.json({
+            dbInfo,
+            userStats,
+            mongooseVersion: mongoose.version,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('DB test error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Debug route for checking API key availability
+router.get('/debug/api-keys/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const apiKeyService = await import('../services/apiKeyService.mjs');
+        const User = (await import('../models/User.mjs')).default;
+        const mongoose = await import('mongoose');
+        
+        console.log(`🔍 Debug API keys endpoint called for userId: ${userId}`);
+        
+        // Check MongoDB connection
+        const mongoStatus = {
+            connected: mongoose.connection.readyState === 1,
+            state: mongoose.connection.readyState,
+            host: mongoose.connection.host,
+            port: mongoose.connection.port,
+            db: mongoose.connection.name
+        };
+        
+        // Try to find the user
+        let user = null;
+        let userLookupError = null;
+        try {
+            user = await User.findById(userId);
+            if (!user) {
+                // Try alternative lookups
+                console.log(`Direct findById failed, trying alternative lookups...`);
+                
+                // Try with ObjectId conversion
+                if (mongoose.Types.ObjectId.isValid(userId)) {
+                    const objectId = new mongoose.Types.ObjectId(userId);
+                    user = await User.findById(objectId);
+                }
+                
+                // Try findOne
+                if (!user) {
+                    user = await User.findOne({ _id: userId });
+                }
+            }
+        } catch (error) {
+            userLookupError = error.message;
+            console.error(`User lookup error: ${error.message}`);
+        }
+        
+        // Get user info if found
+        let userInfo = null;
+        if (user) {
+            userInfo = {
+                found: true,
+                _id: user._id.toString(),
+                email: user.email,
+                name: user.name,
+                apiKeysCount: user.apiKeys ? user.apiKeys.length : 0,
+                apiKeys: user.apiKeys ? user.apiKeys.map(k => ({
+                    provider: k.provider,
+                    keyId: k.keyId,
+                    isValid: k.isValid,
+                    hasEncryptedKey: !!k.encryptedKey
+                })) : []
+            };
+        } else {
+            userInfo = {
+                found: false,
+                error: userLookupError || 'User not found'
+            };
+        }
+        
+        // Check availability for all providers
+        const providers = ['anthropic', 'google', 'openai', 'grok', 'deepseek', 'llama'];
+        const availability = {};
+        
+        for (const provider of providers) {
+            try {
+                const keyInfo = await apiKeyService.default.getApiKey(userId, provider);
+                availability[provider] = {
+                    available: !!keyInfo,
+                    source: keyInfo?.source || 'none'
+                };
+            } catch (error) {
+                availability[provider] = {
+                    available: false,
+                    error: error.message
+                };
+            }
+        }
+        
+        // Also check variations
+        availability.claude = availability.anthropic;
+        availability.gemini = availability.google;
+        availability.chatgpt = availability.openai;
+        
+        res.json({
+            userId,
+            userIdFormat: {
+                isTemporary: userId.startsWith('user-') && userId.includes('-'),
+                isObjectId: /^[0-9a-fA-F]{24}$/.test(userId),
+                length: userId.length
+            },
+            mongoStatus,
+            userInfo,
+            availability,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Debug endpoint error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Optional: Add a root API route for discovery
 router.get('/', optionalAuth, (req, res) => {
     res.json({

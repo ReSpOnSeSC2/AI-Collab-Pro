@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Keys Debug Tool</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .success {
+            color: #00ff00;
+        }
+        .warning {
+            color: #ffff00;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+            border: 1px solid #333;
+            white-space: pre-wrap;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-green {
+            background: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+        .status-red {
+            background: #ff0000;
+            box-shadow: 0 0 5px #ff0000;
+        }
+        .status-yellow {
+            background: #ffff00;
+            box-shadow: 0 0 5px #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 API Keys Debug Tool</h1>
+        
+        <div class="section">
+            <h2>Authentication Status</h2>
+            <div id="authStatus">Loading...</div>
+            <button onclick="checkAuthStatus()">Check Auth Status</button>
+            <button onclick="window.location.href='/login.html'">Login</button>
+        </div>
+
+        <div class="section">
+            <h2>WebSocket Connection</h2>
+            <div id="wsStatus">Not connected</div>
+            <button onclick="connectWebSocket()">Connect WebSocket</button>
+            <button onclick="sendDebugUserInfo()">Debug User Info</button>
+        </div>
+
+        <div class="section">
+            <h2>API Key Status</h2>
+            <div id="apiKeyStatus">Click "Check API Keys" to test</div>
+            <button onclick="checkApiKeys()">Check API Keys</button>
+        </div>
+
+        <div class="section">
+            <h2>Test Collaboration</h2>
+            <button onclick="testCollaboration()">Test All Models</button>
+            <div id="collabResults"></div>
+        </div>
+
+        <div class="section">
+            <h2>Debug Output</h2>
+            <pre id="debugOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let userId = null;
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('debugOutput');
+            const timestamp = new Date().toISOString();
+            const color = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            output.innerHTML += `<span class="${color}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function checkAuthStatus() {
+            try {
+                log('Checking authentication status...');
+                const response = await fetch('/api/auth/session', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                const authDiv = document.getElementById('authStatus');
+                if (data.authenticated) {
+                    userId = data.userId;
+                    authDiv.innerHTML = `
+                        <span class="status-indicator status-green"></span>
+                        <span class="success">Authenticated</span><br>
+                        User ID: ${data.userId}<br>
+                        Name: ${data.name}<br>
+                        Email: ${data.email}<br>
+                        ID Format: ${data.userId.startsWith('user-') ? 'Temporary' : 'MongoDB ObjectId'}
+                    `;
+                    log(`Authenticated as ${data.name} (${data.userId})`, 'success');
+                    
+                    // Show API keys configured
+                    if (data.apiKeysConfigured) {
+                        authDiv.innerHTML += '<br>API Keys Configured:';
+                        for (const [provider, configured] of Object.entries(data.apiKeysConfigured)) {
+                            authDiv.innerHTML += `<br>- ${provider}: ${configured ? '✓' : '✗'}`;
+                        }
+                    }
+                } else {
+                    authDiv.innerHTML = `
+                        <span class="status-indicator status-red"></span>
+                        <span class="error">Not authenticated</span>
+                    `;
+                    log('Not authenticated', 'warning');
+                }
+            } catch (error) {
+                log(`Auth check error: ${error.message}`, 'error');
+            }
+        }
+
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('WebSocket already connected', 'warning');
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            log(`Connecting to WebSocket at ${wsUrl}...`);
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                log('WebSocket connected', 'success');
+                document.getElementById('wsStatus').innerHTML = '<span class="status-indicator status-green"></span>Connected';
+                
+                // Authenticate if we have a userId
+                if (userId) {
+                    log(`Authenticating WebSocket with userId: ${userId}`);
+                    ws.send(JSON.stringify({
+                        type: 'authenticate',
+                        userId: userId
+                    }));
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log(`WS Message: ${data.type}`);
+                
+                if (data.type === 'authentication_success') {
+                    log('WebSocket authenticated successfully', 'success');
+                } else if (data.type === 'debug_user_info') {
+                    displayDebugInfo(data);
+                } else if (data.type === 'error') {
+                    log(`WS Error: ${data.message}`, 'error');
+                }
+            };
+
+            ws.onerror = (error) => {
+                log(`WebSocket error: ${error}`, 'error');
+                document.getElementById('wsStatus').innerHTML = '<span class="status-indicator status-red"></span>Error';
+            };
+
+            ws.onclose = () => {
+                log('WebSocket disconnected', 'warning');
+                document.getElementById('wsStatus').innerHTML = '<span class="status-indicator status-red"></span>Disconnected';
+            };
+        }
+
+        function sendDebugUserInfo() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+
+            log('Sending debug_user_info request...');
+            ws.send(JSON.stringify({
+                type: 'debug_user_info',
+                userId: userId
+            }));
+        }
+
+        function displayDebugInfo(data) {
+            log('Received debug user info', 'success');
+            
+            const output = document.getElementById('debugOutput');
+            output.innerHTML += '\n=== DEBUG USER INFO ===\n';
+            output.innerHTML += JSON.stringify(data, null, 2) + '\n';
+            output.innerHTML += '======================\n\n';
+        }
+
+        async function checkApiKeys() {
+            if (!userId) {
+                log('Not authenticated, cannot check API keys', 'error');
+                return;
+            }
+
+            try {
+                log(`Checking API keys for userId: ${userId}...`);
+                const response = await fetch(`/api/debug/api-keys/${userId}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('apiKeyStatus');
+                statusDiv.innerHTML = '<h3>API Key Availability:</h3>';
+                
+                // Display MongoDB status
+                if (data.mongoStatus) {
+                    statusDiv.innerHTML += `<br>MongoDB: ${data.mongoStatus.connected ? '✓ Connected' : '✗ Disconnected'} (${data.mongoStatus.db})`;
+                }
+                
+                // Display user info
+                if (data.userInfo) {
+                    if (data.userInfo.found) {
+                        statusDiv.innerHTML += `<br><br>User Found: ✓`;
+                        statusDiv.innerHTML += `<br>API Keys Count: ${data.userInfo.apiKeysCount}`;
+                        if (data.userInfo.apiKeys) {
+                            statusDiv.innerHTML += '<br>Stored Keys:';
+                            data.userInfo.apiKeys.forEach(key => {
+                                statusDiv.innerHTML += `<br>- ${key.provider}: ${key.keyId} (${key.isValid ? 'Valid' : 'Invalid'})`;
+                            });
+                        }
+                    } else {
+                        statusDiv.innerHTML += `<br><br>User Found: ✗ (${data.userInfo.error})`;
+                    }
+                }
+                
+                // Display availability
+                statusDiv.innerHTML += '<br><br>Provider Availability:';
+                for (const [provider, info] of Object.entries(data.availability)) {
+                    const icon = info.available ? '✓' : '✗';
+                    const color = info.available ? 'success' : 'error';
+                    statusDiv.innerHTML += `<br><span class="${color}">- ${provider}: ${icon} (${info.source || info.error || 'none'})</span>`;
+                }
+                
+                log('API key check complete', 'success');
+                
+                // Also log the full response
+                log('Full response:\n' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log(`API key check error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCollaboration() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+
+            log('Testing collaboration with all models...');
+            
+            const resultsDiv = document.getElementById('collabResults');
+            resultsDiv.innerHTML = 'Testing...';
+            
+            ws.send(JSON.stringify({
+                type: 'chat',
+                message: 'Hello, this is a test message.',
+                target: 'collab',
+                models: {
+                    claude: { model: 'claude-3-5-sonnet-20241022' },
+                    gemini: { model: 'gemini-1.5-pro' },
+                    chatgpt: { model: 'gpt-4o' },
+                    grok: { model: 'grok-beta' },
+                    deepseek: { model: 'deepseek-chat' },
+                    llama: { model: 'llama-3.1-sonar-large-128k-online' }
+                },
+                userId: userId
+            }));
+            
+            // Listen for responses
+            const originalOnMessage = ws.onmessage;
+            let responses = {};
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'response' && data.target) {
+                    if (!responses[data.target]) {
+                        responses[data.target] = '';
+                    }
+                    if (data.content) {
+                        responses[data.target] += data.content;
+                    }
+                    if (data.end) {
+                        resultsDiv.innerHTML = '<h4>Responses:</h4>';
+                        for (const [model, response] of Object.entries(responses)) {
+                            resultsDiv.innerHTML += `<br><strong>${model}:</strong> ${response ? '✓ Received' : '✗ No response'}`;
+                        }
+                    }
+                } else if (data.type === 'error') {
+                    log(`Collaboration error: ${data.message}`, 'error');
+                    resultsDiv.innerHTML = `<span class="error">Error: ${data.message}</span>`;
+                }
+                
+                // Call original handler
+                if (originalOnMessage) {
+                    originalOnMessage.call(ws, event);
+                }
+            };
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            checkAuthStatus();
+        };
+    </script>
+</body>
+</html>

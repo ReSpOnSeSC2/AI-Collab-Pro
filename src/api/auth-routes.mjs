@@ -504,6 +504,7 @@ router.get('/session', optionalAuth, async (req, res) => {
     // User is authenticated
     res.json({
       authenticated: true,
+      userId: req.user.userId, // Add userId at root level for consistency
       user: {
         id: req.user.userId,
         _id: req.user.userId, // Include both formats
@@ -511,7 +512,11 @@ router.get('/session', optionalAuth, async (req, res) => {
         email: req.user.email,
         subscriptionTier: req.user.subscriptionTier,
         apiKeysConfigured: apiKeysConfigured
-      }
+      },
+      // Also include these at root level for backward compatibility
+      name: req.user.name,
+      email: req.user.email,
+      apiKeysConfigured: apiKeysConfigured
     });
   } catch (error) {
     console.error('Error in session endpoint:', error);

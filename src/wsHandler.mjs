@@ -108,6 +108,9 @@ export default function initializeWebSocketHandler(wss) {
                     case 'debug_ping':
                         sendWsMessage(ws, { type: 'debug_pong', timestamp: Date.now(), message: data.message || 'Pong!' });
                         break;
+                    case 'debug_user_info':
+                        await handleDebugUserInfo(ws, data);
+                        break;
                     case 'ping':
                         // Handle regular ping messages from the client
                         sendWsMessage(ws, { type: 'pong', timestamp: Date.now() });
@@ -335,6 +338,10 @@ async function handleChatMessage(ws, data) {
     
     console.log(`🔍 Checking models for userId: ${userId}, target: ${target}, models:`, Object.keys(models));
     
+    // Force clear the client cache to ensure fresh API key checks
+    clearUserClientCache(userId);
+    console.log(`🧹 Cleared client cache for userId: ${userId}`);
+    
     if (target === 'collab') {
         // Check which models the user has API keys for
         // The frontend sends provider names as keys (claude, gemini, chatgpt, etc.)
@@ -386,6 +393,17 @@ async function handleChatMessage(ws, data) {
         
         // For authenticated users, provide more specific guidance
         const requestedProviders = Array.from(providers || []).join(', ');
+        
+        // Check if this is likely a database connection issue
+        if (userId && /^[0-9a-fA-F]{24}$/.test(userId)) {
+            console.error(`❌ Valid MongoDB ObjectId but no API keys found. This may indicate:`);
+            console.error(`  - Database connection issues`);
+            console.error(`  - User document not found`);
+            console.error(`  - API keys not properly stored`);
+            
+            return sendWsError(ws, `Unable to retrieve API keys. This may be a database connection issue. Please try refreshing the page or contact support. Debug info: userId=${userId}, providers=${requestedProviders}`);
+        }
+        
         return sendWsError(ws, `No valid AI clients available for the requested models. Please check your API keys in Settings for: ${requestedProviders || 'the selected models'}.`);
     }
 
@@ -990,6 +1008,114 @@ async function handleTrimContext(ws, data) {
     } catch (error) {
         console.error('Error in handleTrimContext:', error);
         sendWsError(ws, 'Error trimming context: ' + error.message);
+    }
+}
+
+// --- Debug Handler ---
+
+/**
+ * Handles debug request for user info and API key status
+ */
+async function handleDebugUserInfo(ws, data) {
+    try {
+        const { User } = await import('./models/User.mjs');
+        const mongoose = await import('mongoose');
+        const apiKeyService = (await import('./services/apiKeyService.mjs')).default;
+        const clientFactory = (await import('./lib/ai/clientFactory.mjs')).default;
+        
+        const userId = ws.userId || data.userId;
+        
+        // MongoDB connection status
+        const mongoStatus = {
+            connected: mongoose.connection.readyState === 1,
+            state: mongoose.connection.readyState,
+            stateDesc: ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'][mongoose.connection.readyState] || 'unknown',
+            host: mongoose.connection.host,
+            port: mongoose.connection.port,
+            db: mongoose.connection.name
+        };
+        
+        // User lookup
+        let userInfo = null;
+        if (userId) {
+            try {
+                const user = await User.findById(userId);
+                if (user) {
+                    userInfo = {
+                        found: true,
+                        _id: user._id.toString(),
+                        email: user.email,
+                        name: user.name,
+                        apiKeysCount: user.apiKeys ? user.apiKeys.length : 0,
+                        apiKeys: user.apiKeys ? user.apiKeys.map(k => ({
+                            provider: k.provider,
+                            keyId: k.keyId,
+                            isValid: k.isValid
+                        })) : []
+                    };
+                } else {
+                    userInfo = { found: false, error: 'User not found in database' };
+                }
+            } catch (error) {
+                userInfo = { found: false, error: error.message };
+            }
+        }
+        
+        // Check API key availability
+        const providers = ['anthropic', 'google', 'openai', 'grok', 'deepseek', 'llama'];
+        const availability = {};
+        
+        for (const provider of providers) {
+            try {
+                const keyInfo = await apiKeyService.getApiKey(userId, provider);
+                availability[provider] = {
+                    available: !!keyInfo,
+                    source: keyInfo?.source || 'none'
+                };
+            } catch (error) {
+                availability[provider] = {
+                    available: false,
+                    error: error.message
+                };
+            }
+        }
+        
+        // Also check frontend names
+        availability.claude = availability.anthropic;
+        availability.gemini = availability.google;
+        availability.chatgpt = availability.openai;
+        
+        // Check client factory availability
+        let clientFactoryStatus = {};
+        try {
+            clientFactoryStatus = await clientFactory.getAvailability(userId);
+        } catch (error) {
+            clientFactoryStatus.error = error.message;
+        }
+        
+        sendWsMessage(ws, {
+            type: 'debug_user_info',
+            userId,
+            userIdFormat: {
+                isTemporary: userId && userId.startsWith('user-') && userId.includes('-'),
+                isObjectId: userId && /^[0-9a-fA-F]{24}$/.test(userId),
+                length: userId ? userId.length : 0
+            },
+            wsInfo: {
+                connectionId: ws.connectionId,
+                sessionId: ws.sessionId,
+                userId: ws.userId,
+                isAuthenticated: !!ws.userId
+            },
+            mongoStatus,
+            userInfo,
+            apiKeyAvailability: availability,
+            clientFactoryStatus,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error in handleDebugUserInfo:', error);
+        sendWsError(ws, 'Debug error: ' + error.message);
     }
 }
 
