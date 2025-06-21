@@ -195,11 +195,27 @@
 
     <script>
         let currentUser = null;
+        
+        // Determine backend URL based on environment
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const BACKEND_URL = isProduction ? 'https://ai-collab-pro.onrender.com' : '';
 
         async function checkAuth() {
             try {
-                const response = await fetch('/api/auth/session', {
-                    credentials: 'include'
+                // Get auth token from localStorage
+                const token = localStorage.getItem('ai_collab_token');
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(`${BACKEND_URL}/api/auth/session`, {
+                    credentials: 'include',
+                    headers: headers
                 });
                 const data = await response.json();
                 
@@ -236,8 +252,20 @@
             status.innerHTML = 'Testing...<div class="loading"></div>';
             
             try {
-                const response = await fetch(`/api/api-keys/test-complete/${provider}`, {
-                    credentials: 'include'
+                // Get auth token from localStorage if available
+                const token = localStorage.getItem('ai_collab_token');
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(`${BACKEND_URL}/api/api-keys/test-complete/${provider}`, {
+                    credentials: 'include',
+                    headers: headers
                 });
                 
                 const data = await response.json();
