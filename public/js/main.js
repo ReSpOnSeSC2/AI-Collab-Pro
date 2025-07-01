@@ -185,33 +185,17 @@ function handleAuthLogin(event) {
         console.log(`🔄 User ID changed from ${previousUserId || 'none'} to ${newUserId} while WebSocket is connected.`);
         console.log(`🔐 Sending WebSocket authentication with new userId: ${newUserId}`);
         const authMessage = { type: 'authenticate', userId: newUserId };
-        console.log(`🔐 Auth message being sent:`, authMessage);
+        console.log(`🔐 Auth message being sent (userId changed on active WS):`, authMessage);
         window.sendMessageToServer(authMessage);
-    } else if (newUserId && typeof window.checkConnectionStatus === 'function' && !window.checkConnectionStatus() && !newUserId.startsWith('user-')) {
-        // We have a real user ID, checkConnectionStatus is available, and indicates WebSocket is not connected.
-        // This is a scenario where handleAuthLogin might try to initiate connection if handleAuthChecked somehow doesn't.
-        console.log(`🔌 Real user ID (${newUserId}) received, WebSocket not connected. Attempting to connect via handleAuthLogin.`);
-        console.log(`  - window.connectWebSocket exists: ${!!window.connectWebSocket}`);
-        if (window.connectWebSocket) {
-            window.connectWebSocket(handleWebSocketMessage, handleWebSocketStateChange);
-            // Retry authentication after a short delay to ensure WebSocket is ready.
-            // This is a fallback; handleWebSocketConnected should be the primary auth point.
-            setTimeout(() => {
-                if (window.sendMessageToServer && newUserId && window.checkConnectionStatus && window.checkConnectionStatus()) {
-                    console.log(`🔐 Retrying WebSocket authentication via handleAuthLogin timeout...`);
-                    window.sendMessageToServer({ type: 'authenticate', userId: newUserId });
-                } else {
-                    console.log(`ℹ️ WebSocket auth retry via handleAuthLogin timeout skipped (WS not ready or no user).`);
-                }
-            }, 750); // Slightly increased delay
-        }
-    } else if (newUserId && typeof window.checkConnectionStatus !== 'function' && !newUserId.startsWith('user-')) {
-        // We have a real user ID, but checkConnectionStatus is not yet available.
-        // Defer connection initiation to handleAuthChecked.
-        console.log(`🔌 Real user ID (${newUserId}) received. checkConnectionStatus not yet available. Deferring to handleAuthChecked.`);
-    }
-    else {
-        console.warn(`⚠️ Cannot authenticate WebSocket (or already handled): sendMessageToServer=${!!window.sendMessageToServer}, userId=${newUserId}, connectionStatus=${typeof window.checkConnectionStatus === 'function' ? window.checkConnectionStatus() : 'unavailable'}`);
+    } else if (newUserId && (!previousUserId || previousUserId !== newUserId)) {
+        // New user ID is set (or changed), but WebSocket is not currently connected and open.
+        // Log this situation. WebSocket connection and subsequent authentication
+        // will be handled by handleAuthChecked -> connectWebSocket -> handleWebSocketConnected.
+        console.log(`🔌 User ID set to ${newUserId}. WebSocket connection and authentication will proceed via standard flow.`);
+    } else {
+        // This case should ideally not be hit if logic is sound,
+        // but serves as a catch-all for logging unhandled scenarios in handleAuthLogin.
+        console.warn(`⚠️ Unhandled condition in handleAuthLogin: userId=${newUserId}, previousUserId=${previousUserId}, connectionStatus=${typeof window.checkConnectionStatus === 'function' ? window.checkConnectionStatus() : 'unavailable'}`);
     }
     
     // Check if user has API keys configured
