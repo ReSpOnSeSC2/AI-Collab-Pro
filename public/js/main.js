@@ -143,6 +143,8 @@ function handleAuthLogin(event) {
     const isUpgrade = wasTemporary && isRealUser;
     
     state.userId = newUserId;
+    // Store the full event detail for later use if WebSocket auth response lacks user details
+    window._appState.lastAuthLoginEventDetail = event.detail; 
     console.log(`🎯 AUTH:LOGIN Event Received!`);
     console.log(`  - User ID: ${state.userId}`);
     console.log(`  - Is temporary format: ${newUserId?.startsWith('user-') && newUserId?.includes('-')}`);
@@ -392,8 +394,25 @@ function handleWebSocketMessage(data) {
         case 'authentication_success':
             console.log("Server confirmed authentication for:", data.userId);
             console.log("Full authentication response:", data);
+            
             // Process context information if available
             ContextManager.processAuthResponse(data);
+
+            // Dispatch a new event to signal that WebSocket authentication is complete
+            // and user details are confirmed.
+            // Pass relevant user details from the auth response if available,
+            // or fall back to the user details from the initial auth:login event.
+            const userDetailsForEvent = data.user || window._appState?.lastAuthLoginEventDetail || { id: data.userId };
+            
+            document.dispatchEvent(new CustomEvent('app:authenticated', {
+                detail: {
+                    userId: data.userId,
+                    user: userDetailsForEvent, // Include more comprehensive user object
+                    // Add any other relevant details from 'data' that UI might need
+                    sessionId: data.sessionId 
+                }
+            }));
+            console.log("🚀 Dispatched app:authenticated event for user:", data.userId);
             break;
         // Context management message handlers
         case 'context_status':

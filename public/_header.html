@@ -41,17 +41,67 @@
 <script>
 // Initialize header functionality
 (function() {
-    // Handle auth:login event to update user info
-    document.addEventListener('auth:login', (event) => {
-        const user = event.detail;
-        if (user && user.name) {
-            const headerUserInfo = document.getElementById('header-user-info');
+    const updateHeaderUserInfo = (userData) => {
+        const headerUserInfo = document.getElementById('header-user-info');
+        const logoutButton = document.getElementById('global-logout-button');
+        // Add selectors for login/signup buttons if they exist, e.g.:
+        // const loginButton = document.getElementById('global-login-button'); 
+        // const signupButton = document.getElementById('global-signup-button');
+
+        if (userData && (userData.name || userData.email)) {
             if (headerUserInfo) {
-                headerUserInfo.textContent = `Hello, ${user.name}`;
+                headerUserInfo.textContent = `Hello, ${userData.name || userData.email}`;
             }
+            if (logoutButton) logoutButton.style.display = 'inline-block';
+            // if (loginButton) loginButton.style.display = 'none';
+            // if (signupButton) signupButton.style.display = 'none';
+            console.log('Header UI updated for logged-in user:', userData.name || userData.email);
+        } else {
+            if (headerUserInfo) {
+                headerUserInfo.textContent = 'Not logged in'; // Or empty
+            }
+            if (logoutButton) logoutButton.style.display = 'none';
+            // if (loginButton) loginButton.style.display = 'inline-block';
+            // if (signupButton) signupButton.style.display = 'inline-block';
+            console.log('Header UI updated for logged-out state.');
+        }
+    };
+
+    // Listen for the app:authenticated event (fired after WebSocket auth)
+    document.addEventListener('app:authenticated', (event) => {
+        console.log('Header received app:authenticated event:', event.detail);
+        const user = event.detail.user; // User object from main.js
+        updateHeaderUserInfo(user);
+    });
+
+    // Fallback: Listen for auth:login from earlier auth stages
+    // This might provide an initial name display sooner.
+    document.addEventListener('auth:login', (event) => {
+        console.log('Header received auth:login event:', event.detail);
+        // Only update if app:authenticated hasn't potentially already provided more complete info
+        // or if this is the first signal.
+        const headerUserInfo = document.getElementById('header-user-info');
+        if (headerUserInfo && (headerUserInfo.textContent === '' || headerUserInfo.textContent === 'Not logged in')) {
+            const user = event.detail; // User object from auth.js/authHandler.js
+            updateHeaderUserInfo(user);
         }
     });
     
-    console.log('Header initialized - handleLogout function is available from layoutManager.js');
+    // Initial check in case events were missed or page reloaded with stored auth
+    // Check if AICollabAuth is available and provides user info
+    if (window.AICollabAuth && typeof window.AICollabAuth.isAuthenticated === 'function' && window.AICollabAuth.isAuthenticated()) {
+        const user = window.AICollabAuth.getCurrentUser();
+        if (user) {
+            console.log('Header: Initial auth check found user via AICollabAuth:', user);
+            updateHeaderUserInfo(user);
+        } else {
+            updateHeaderUserInfo(null); // Ensure logged-out state if no user
+        }
+    } else {
+        // Default to logged-out state if no immediate auth info
+        updateHeaderUserInfo(null);
+    }
+
+    console.log('Header script initialized - handleLogout function is available from layoutManager.js');
 })();
 </script>
