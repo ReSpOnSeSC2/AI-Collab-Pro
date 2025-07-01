@@ -176,17 +176,21 @@ function handleAuthLogin(event) {
         }, 2000);
     }
     // Normal authentication flow for non-upgrade scenarios
-    else if (window.sendMessageToServer && newUserId) {
-        if (previousUserId !== newUserId) {
-            console.log(`🔄 User ID changed from ${previousUserId || 'none'} to ${newUserId}`);
-        }
-        console.log(`🔐 Sending WebSocket authentication with userId: ${newUserId}`);
+    // Removed the immediate websocket auth message send from here.
+    // Authentication will be handled by the 'websocket-connected' event handler (handleWebSocketConnected)
+    // or if the websocket is already connected and user ID changes.
+    else if (newUserId && previousUserId !== newUserId && window.checkConnectionStatus && window.checkConnectionStatus()) {
+        // If the WebSocket is already connected and the user ID changes (e.g., login after being temp user)
+        // send an auth message immediately.
+        console.log(`🔄 User ID changed from ${previousUserId || 'none'} to ${newUserId} while WebSocket is connected.`);
+        console.log(`🔐 Sending WebSocket authentication with new userId: ${newUserId}`);
         const authMessage = { type: 'authenticate', userId: newUserId };
         console.log(`🔐 Auth message being sent:`, authMessage);
         window.sendMessageToServer(authMessage);
-    } else if (!window.sendMessageToServer && newUserId && !newUserId.startsWith('user-')) {
-        // We have a real user ID but no WebSocket connection yet
-        console.log(`🔌 Real user ID received but no WebSocket connection. Connecting now...`);
+    } else if (newUserId && (!window.checkConnectionStatus || !window.checkConnectionStatus()) && !newUserId.startsWith('user-')) {
+        // We have a real user ID but no WebSocket connection yet (or connection is down).
+        // The 'auth:checked' event will typically handle initiating the connection.
+        console.log(`🔌 Real user ID received (${newUserId}). WebSocket connection will be established if not already.`);
         console.log(`  - window.connectWebSocket exists: ${!!window.connectWebSocket}`);
         console.log(`  - window.checkConnectionStatus: ${window.checkConnectionStatus ? window.checkConnectionStatus() : 'function not found'}`);
         if (window.connectWebSocket) {
