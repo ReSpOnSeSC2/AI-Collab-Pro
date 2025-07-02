@@ -87,20 +87,45 @@
         }
     });
     
-    // Initial check in case events were missed or page reloaded with stored auth
-    // Check if AICollabAuth is available and provides user info
-    if (window.AICollabAuth && typeof window.AICollabAuth.isAuthenticated === 'function' && window.AICollabAuth.isAuthenticated()) {
-        const user = window.AICollabAuth.getCurrentUser();
-        if (user) {
-            console.log('Header: Initial auth check found user via AICollabAuth:', user);
-            updateHeaderUserInfo(user);
-        } else {
-            updateHeaderUserInfo(null); // Ensure logged-out state if no user
-        }
-    } else {
-        // Default to logged-out state if no immediate auth info
-        updateHeaderUserInfo(null);
+    // Initial state: Display "Loading user..." or keep it empty until auth events.
+    const initialHeaderUserInfo = document.getElementById('header-user-info');
+    if (initialHeaderUserInfo) {
+        initialHeaderUserInfo.textContent = 'Loading user...'; // Or simply leave it empty by default
     }
+
+    // Listen for logout event to explicitly set to logged-out state
+    document.addEventListener('auth:logout', () => {
+        console.log('Header received auth:logout event.');
+        updateHeaderUserInfo(null);
+    });
+
+    // Attempt to get user info once AICollabAuth is available,
+    // but don't default to "Not logged in" if it's not immediately ready.
+    // The event listeners for 'auth:login' and 'app:authenticated' are the primary mechanism.
+    const checkInitialAuth = () => {
+        if (window.AICollabAuth && typeof window.AICollabAuth.isAuthenticated === 'function') {
+            if (window.AICollabAuth.isAuthenticated()) {
+                const user = window.AICollabAuth.getCurrentUser();
+                if (user) {
+                    console.log('Header: Initial auth check found user via AICollabAuth:', user);
+                    updateHeaderUserInfo(user);
+                }
+                // If user is null here, it means auth.js confirmed authenticated but user object isn't ready.
+                // The events will handle updating the UI.
+            } else {
+                // If AICollabAuth says not authenticated, then reflect logged-out state.
+                // This would typically be after a logout or if no session/token was found by auth.js
+                updateHeaderUserInfo(null);
+            }
+        } else {
+            // AICollabAuth not ready yet, retry shortly.
+            // Avoids setting "Not logged in" if auth.js is still loading.
+            setTimeout(checkInitialAuth, 200);
+        }
+    };
+
+    // Start initial check slightly delayed to give auth.js more time.
+    setTimeout(checkInitialAuth, 100);
 
     console.log('Header script initialized - handleLogout function is available from layoutManager.js');
 })();
