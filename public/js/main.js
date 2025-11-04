@@ -715,9 +715,28 @@ function handleFileUpload(files) {
         });
 }
 
-function handleRemoveFile(fileIndex) {
+async function handleRemoveFile(fileIndex) {
     if (fileIndex >= 0 && fileIndex < state.uploadedFiles.length) {
-        // TODO: Optionally, send request to server to delete uploaded file if needed
+        const file = state.uploadedFiles[fileIndex];
+
+        // If the file has been uploaded to the server, send a delete request
+        if (file.filename) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/upload/${file.filename}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    console.warn(`Failed to delete file ${file.filename} from server:`, response.statusText);
+                    // Continue with removing from UI even if server delete fails
+                }
+            } catch (error) {
+                console.error(`Error deleting file ${file.filename} from server:`, error);
+                // Continue with removing from UI even if server delete fails
+            }
+        }
+
         state.uploadedFiles.splice(fileIndex, 1);
         UIManager.updateFileListUI(state.uploadedFiles, handleRemoveFile);
     }

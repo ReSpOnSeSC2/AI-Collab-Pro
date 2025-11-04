@@ -100,6 +100,37 @@ router.post('/upload', upload.array('files', 10), (req, res) => { // Allow up to
     }
 });
 
+// DELETE /api/upload/:filename
+router.delete('/upload/:filename', async (req, res) => {
+    if (!UPLOAD_DIR) {
+        return res.status(500).json({ success: false, error: 'Server configuration error: Upload directory not available.' });
+    }
+
+    try {
+        const filename = req.params.filename;
+        // Sanitize filename to prevent path traversal attacks
+        const safeName = path.basename(filename);
+        const filePath = path.join(UPLOAD_DIR, safeName);
+
+        // Check if file exists
+        await fs.access(filePath);
+
+        // Delete the file
+        await fs.unlink(filePath);
+
+        console.log(`File deleted successfully: ${safeName}`);
+        res.json({ success: true, message: 'File deleted successfully' });
+
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            console.warn(`File not found for deletion: ${req.params.filename}`);
+            return res.status(404).json({ success: false, error: 'File not found' });
+        }
+        console.error('Error deleting file:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete file' });
+    }
+});
+
 // --- Multer Error Handling Middleware ---
 // This needs to be added *after* the upload route in the main server file (server.mjs)
 // or used specifically with the upload route like: router.post('/upload', (req, res, next) => { upload.array(...)(req, res, err => { /* handle multer err */ next(err); }) });
