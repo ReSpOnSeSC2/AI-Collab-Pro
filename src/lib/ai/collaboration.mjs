@@ -3901,8 +3901,7 @@ export async function handleCollaborativeDiscussion(options) {
   }
 }
 
-// Import the enhanced collaboration integration module
-import { patchCollaborationModule } from './enhanced-collab-integration.mjs';
+// NOTE: enhanced-collab-integration module removed - using direct export instead
 
 // Create a wrapper runCollab that correctly passes the clients object
 async function wrappedRunCollab(options) {
@@ -3937,14 +3936,8 @@ async function wrappedRunCollab(options) {
   return await originalRunCollab(enhancedOptions);
 }
 
-// Create a local module object with the wrapped runCollab function
-const collaborationModule = { runCollab: wrappedRunCollab };
-
-// Apply the enhancements to create an enhanced runCollab function
-const enhancedModule = patchCollaborationModule(collaborationModule);
-
-// Export the enhanced version of runCollab
-export const runCollab = enhancedModule.runCollab;
+// Export the wrapped version of runCollab directly
+export const runCollab = wrappedRunCollab;
 
 // Export individual collaboration functions for enhanced integration
 export { 

@@ -321,13 +321,26 @@ app.options('/api/*', (req, res) => {
 
 // Simple health check endpoint for testing
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     cors: {
       origin: req.headers.origin,
       allowed: allowedOrigins
     }
+  });
+});
+
+// Health check endpoint for Render
+app.get('/api/status', (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.json({
+    status: 'ok',
+    service: 'ai-collab-backend',
+    version: '8.0.1',
+    timestamp: new Date().toISOString(),
+    database: dbStatus,
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
