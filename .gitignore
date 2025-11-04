@@ -1,2 +1,36 @@
 node_modules/
 .env
+
+# Windows metadata files
+*:Zone.Identifier
+
+# Log files
+*.log
+logs/
+server.log
+
+# Backup files
+*.bkp
+*.backup
+*.old
+*.fixed
+*.original
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files (if temporary)
+test-*.js
+test-*.mjs
+
+# Generated files
+directory.txt

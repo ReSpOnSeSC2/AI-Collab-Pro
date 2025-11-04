@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 const DEFAULT_CONTEXT_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_PERMISSIONS = ['read', 'write', 'delete', 'create_directory'];
 const MAX_PREVIEW_LENGTH = 250; // Max characters for content preview
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB max file size for reading
 
 // --- In-Memory Storage ---
 /**
@@ -263,7 +264,13 @@ export async function readFile(token, userId, filePath) {
     if (!await isValidFile(absoluteFilePath)) {
         throw new Error(`Path is not a valid file: ${absoluteFilePath}`);
     }
-    // TODO: Add check for max file size to prevent reading huge files?
+
+    // Check file size to prevent reading huge files
+    const stats = await fs.stat(absoluteFilePath);
+    if (stats.size > MAX_FILE_SIZE) {
+        throw new Error(`File size (${Math.round(stats.size / 1024 / 1024)} MB) exceeds maximum allowed size (${MAX_FILE_SIZE / 1024 / 1024} MB)`);
+    }
+
     return fs.readFile(absoluteFilePath, 'utf8');
 }
 
